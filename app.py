@@ -18,6 +18,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA busy_timeout=30000')
+    conn.execute('PRAGMA foreign_keys=ON')
     return conn
 
 def _safe_int(value, default):
@@ -25,6 +26,16 @@ def _safe_int(value, default):
         return int(value)
     except (ValueError, TypeError):
         return default
+
+def get_price_for_customer(product, customer_type, is_loyal):
+    normal_price = product['price_base'] if product.get('price_base', 0) > 0 else product.get('price', 0)
+    if customer_type == 'ecole':
+        return round(normal_price * 0.80, 2)
+    if is_loyal:
+        return round(normal_price * 0.85, 2)
+    if customer_type == 'etudiant':
+        return round(normal_price * 0.85, 2)
+    return round(normal_price, 2)
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -83,36 +94,128 @@ def init_db():
     
     try:
         c.execute('ALTER TABLE products ADD COLUMN price_base REAL DEFAULT 0')
-    except:
+    except Exception:
         pass
     try:
         c.execute('ALTER TABLE products ADD COLUMN price_loyal REAL DEFAULT 0')
-    except:
+    except Exception:
         pass
     try:
         c.execute('ALTER TABLE products ADD COLUMN price_school REAL DEFAULT 0')
-    except:
+    except Exception:
         pass
     try:
         c.execute('ALTER TABLE products ADD COLUMN price_student REAL DEFAULT 0')
-    except:
+    except Exception:
         pass
     try:
         c.execute("ALTER TABLE products ADD COLUMN tax_category TEXT DEFAULT '20'")
-    except:
+    except Exception:
         pass
     try:
         c.execute('ALTER TABLE products ADD COLUMN is_deleted INTEGER DEFAULT 0')
-    except:
+    except Exception:
         pass
     try:
         c.execute('ALTER TABLE products ADD COLUMN deleted_at TIMESTAMP')
-    except:
+    except Exception:
         pass
     try:
         c.execute('ALTER TABLE products ADD COLUMN is_liquidation INTEGER DEFAULT 0')
-    except:
+    except Exception:
         pass
+    try:
+        c.execute('ALTER TABLE products ADD COLUMN purchase_price_avg REAL DEFAULT 0')
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE products ADD COLUMN discount_category TEXT DEFAULT 'aucun'")
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE products ADD COLUMN margin_percent REAL DEFAULT 15.0')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE purchase_orders ADD COLUMN paid_at TIMESTAMP')
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE invoices ADD COLUMN supplier_id INTEGER")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE invoices ADD COLUMN type TEXT DEFAULT 'facture'")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE invoices ADD COLUMN payment_method TEXT DEFAULT 'cash'")
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN tendered_amount REAL DEFAULT 0')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN change_given REAL DEFAULT 0')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE warehouses ADD COLUMN ice TEXT')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE warehouses ADD COLUMN patente TEXT')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE warehouses ADD COLUMN rc TEXT')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE warehouses ADD COLUMN taxe_number TEXT')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE warehouses ADD COLUMN phone TEXT')
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE pos_transactions ADD COLUMN discount_total REAL DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE pos_transactions ADD COLUMN change_given REAL DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE pos_transactions ADD COLUMN transaction_number TEXT")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE customers ADD COLUMN is_active INTEGER DEFAULT 1")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE customers ADD COLUMN ice TEXT")
+    except Exception:
+        pass
+    
+    # Fix negative stock: set to 0 and enforce non-negative going forward
+    c.execute('UPDATE products SET quantity = 0 WHERE quantity < 0')
+    c.execute('UPDATE stock SET quantity = 0 WHERE quantity < 0')
+    c.execute('''CREATE TRIGGER IF NOT EXISTS products_quantity_nonnegative
+        BEFORE UPDATE OF quantity ON products
+        WHEN NEW.quantity < 0
+        BEGIN
+            SELECT RAISE(ABORT, 'La quantité ne peut pas être négative');
+        END''')
+    c.execute('''CREATE TRIGGER IF NOT EXISTS stock_quantity_nonnegative
+        BEFORE UPDATE OF quantity ON stock
+        WHEN NEW.quantity < 0
+        BEGIN
+            SELECT RAISE(ABORT, 'La quantité ne peut pas être négative');
+        END''')
     
     c.execute('''
         CREATE TABLE IF NOT EXISTS stock (
@@ -457,7 +560,12 @@ def stock_movement(product_id):
                            (product_id, location_id, quantity))
                 
     elif movement_type == 'out':
-        conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=?', (quantity, product_id))
+        cursor = conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (quantity, product_id, quantity))
+        if cursor.rowcount == 0:
+            current = conn.execute('SELECT quantity FROM products WHERE id=?', (product_id,)).fetchone()
+            stock_qty = current['quantity'] if current else 0
+            conn.close()
+            return jsonify({'error': f'Stock insuffisant. Disponible: {stock_qty}, demandé: {quantity}'}), 400
         
         if location_id:
             existing = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?', 
@@ -491,7 +599,7 @@ def stock_transfer():
         if not from_stock or from_stock['quantity'] < quantity:
             conn.close()
             return jsonify({'error': 'Stock insuffisant à la source'}), 400
-        conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=?', (quantity, from_stock['id']))
+        conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (quantity, from_stock['id'], quantity))
     
     if to_location_id:
         to_stock = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?', 
@@ -539,7 +647,7 @@ def inter_warehouse_transfer():
         if not from_stock or from_stock['quantity'] < quantity:
             conn.close()
             return jsonify({'error': 'Stock insuffisant dans l\'entrepôt source'}), 400
-        conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=?', (quantity, from_stock['id']))
+        conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (quantity, from_stock['id'], quantity))
     
     to_stock = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?', 
                             (product_id, to_loc['id'])).fetchone()
@@ -604,32 +712,21 @@ def get_reports():
     conn = get_db()
     report_type = request.args.get('type', 'overview')
     warehouse_id = request.args.get('warehouse_id')
-    params = []
     
     if report_type == 'overview':
-        where = 'WHERE warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''
         if warehouse_id and warehouse_id.isdigit():
-            params.append(int(warehouse_id))
-            
-        total_products = conn.execute(f'SELECT COUNT(*) FROM products {where}', params).fetchone()[0]
-        total_value = conn.execute(f'SELECT COALESCE(SUM(quantity * price), 0) FROM products {where}', params).fetchone()[0]
-        
-        params_low = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-        low_stock = conn.execute(
-            f'SELECT COUNT(*) FROM products WHERE quantity <= min_quantity {"AND warehouse_id = ?" if warehouse_id and warehouse_id.isdigit() else ""}',
-            params_low
-        ).fetchone()[0]
-        
-        out_of_stock = conn.execute(
-            f'SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) {"AND warehouse_id = ?" if warehouse_id and warehouse_id.isdigit() else ""}',
-            params_low
-        ).fetchone()[0]
-        
-        expiring_soon_params = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-        expiring_soon = conn.execute(f'''
-            SELECT COUNT(*) FROM products
-            WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', '+30 days') {"AND warehouse_id = ?" if warehouse_id and warehouse_id.isdigit() else ""}
-        ''', expiring_soon_params).fetchone()[0]
+            wid = int(warehouse_id)
+            total_products = conn.execute('SELECT COUNT(*) FROM products WHERE warehouse_id=?', (wid,)).fetchone()[0]
+            total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products WHERE warehouse_id=?', (wid,)).fetchone()[0]
+            low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND warehouse_id=?', (wid,)).fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) AND warehouse_id=?', (wid,)).fetchone()[0]
+            expiring_soon = conn.execute('SELECT COUNT(*) FROM products WHERE expiry_date IS NOT NULL AND expiry_date <= date(\'now\', \'+30 days\') AND warehouse_id=?', (wid,)).fetchone()[0]
+        else:
+            total_products = conn.execute('SELECT COUNT(*) FROM products').fetchone()[0]
+            total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products').fetchone()[0]
+            low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity').fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL)').fetchone()[0]
+            expiring_soon = conn.execute('SELECT COUNT(*) FROM products WHERE expiry_date IS NOT NULL AND expiry_date <= date(\'now\', \'+30 days\')').fetchone()[0]
         conn.close()
         return jsonify({
             'total_products': total_products,
@@ -640,53 +737,38 @@ def get_reports():
         })
 
     elif report_type == 'rotation':
-        where = 'WHERE p.warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''
-        params_rot = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-        products = conn.execute(f'''
-            SELECT p.name, p.quantity, p.min_quantity,
-                   (SELECT COUNT(*) FROM stock_movements WHERE product_id = p.id) as movements
-            FROM products p
-            {where}
-            ORDER BY movements DESC
-            LIMIT 20
-        ''', params_rot).fetchall()
+        if warehouse_id and warehouse_id.isdigit():
+            wid = int(warehouse_id)
+            products = conn.execute('SELECT p.name, p.quantity, p.min_quantity, (SELECT COUNT(*) FROM stock_movements WHERE product_id = p.id) as movements FROM products p WHERE p.warehouse_id=? ORDER BY movements DESC LIMIT 20', (wid,)).fetchall()
+        else:
+            products = conn.execute('SELECT p.name, p.quantity, p.min_quantity, (SELECT COUNT(*) FROM stock_movements WHERE product_id = p.id) as movements FROM products p ORDER BY movements DESC LIMIT 20').fetchall()
         conn.close()
         return jsonify([dict(p) for p in products])
 
     elif report_type == 'expiry':
-        where = 'WHERE warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''
-        params_exp = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-        products = conn.execute(f'''
-            SELECT name, lot_number, expiry_date, quantity
-            FROM products
-            WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', '+90 days')
-            {'AND warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''}
-            ORDER BY expiry_date
-        ''', params_exp).fetchall()
+        if warehouse_id and warehouse_id.isdigit():
+            wid = int(warehouse_id)
+            products = conn.execute('SELECT name, lot_number, expiry_date, quantity FROM products WHERE expiry_date IS NOT NULL AND expiry_date <= date(\'now\', \'+90 days\') AND warehouse_id=? ORDER BY expiry_date', (wid,)).fetchall()
+        else:
+            products = conn.execute('SELECT name, lot_number, expiry_date, quantity FROM products WHERE expiry_date IS NOT NULL AND expiry_date <= date(\'now\', \'+90 days\') ORDER BY expiry_date').fetchall()
         conn.close()
         return jsonify([dict(p) for p in products])
 
     elif report_type == 'categories':
-        where = 'WHERE warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''
-        params_cat = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-        data = conn.execute(f'''
-            SELECT category, COUNT(*) as count, SUM(quantity) as total_qty, SUM(quantity * price) as value
-            FROM products
-            {where}
-            GROUP BY category
-        ''', params_cat).fetchall()
+        if warehouse_id and warehouse_id.isdigit():
+            wid = int(warehouse_id)
+            data = conn.execute('SELECT category, COUNT(*) as count, SUM(quantity) as total_qty, SUM(quantity * price) as value FROM products WHERE warehouse_id=? GROUP BY category', (wid,)).fetchall()
+        else:
+            data = conn.execute('SELECT category, COUNT(*) as count, SUM(quantity) as total_qty, SUM(quantity * price) as value FROM products GROUP BY category').fetchall()
         conn.close()
         return jsonify([dict(d) for d in data])
 
     elif report_type == 'low_stock':
-        where = 'WHERE warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''
-        params_low = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-        products = conn.execute(f'''
-            SELECT name, quantity, min_quantity, max_quantity, price, (min_quantity - quantity) as needed
-            FROM products
-            WHERE quantity <= min_quantity {'AND warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''}
-            ORDER BY needed DESC
-        ''', params_low).fetchall()
+        if warehouse_id and warehouse_id.isdigit():
+            wid = int(warehouse_id)
+            products = conn.execute('SELECT name, quantity, min_quantity, max_quantity, price, (min_quantity - quantity) as needed FROM products WHERE quantity <= min_quantity AND warehouse_id=? ORDER BY needed DESC', (wid,)).fetchall()
+        else:
+            products = conn.execute('SELECT name, quantity, min_quantity, max_quantity, price, (min_quantity - quantity) as needed FROM products WHERE quantity <= min_quantity ORDER BY needed DESC').fetchall()
         conn.close()
         return jsonify([dict(p) for p in products])
 
@@ -713,9 +795,10 @@ def export_report():
     conn = get_db()
 
     if report_type == 'products':
-        where = 'WHERE warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''
-        params = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-        products = conn.execute(f'SELECT * FROM products {where} ORDER BY name', params).fetchall()
+        if warehouse_id and warehouse_id.isdigit():
+            products = conn.execute('SELECT * FROM products WHERE warehouse_id = ? ORDER BY name', (int(warehouse_id),)).fetchall()
+        else:
+            products = conn.execute('SELECT * FROM products ORDER BY name').fetchall()
         headers = ['ID', 'Nom', 'Description', 'SKU', 'Code-barres', 'Quantité', 'Seuil Min', 'Max', 'Prix', 'Catégorie', 'Lot', 'N° Série', 'DLC', 'Fournisseur', 'Entrepôt']
         data = [[p['id'], p['name'], p['description'], p['sku'], p['barcode'], p['quantity'],
                 p['min_quantity'], p['max_quantity'], p['price'], p['category'], p['lot_number'],
@@ -746,10 +829,11 @@ def export_report():
     cw.writerows(data)
     output = si.getvalue()
 
+    safe_type = report_type.replace('/', '_').replace('\\', '_').replace('..', '_') if report_type else 'report'
     return Response(
         output,
         mimetype="text/csv",
-        headers={"Content-Disposition": f"attachment;filename=rapport_{report_type}_{datetime.now().strftime('%Y%m%d')}.csv"}
+        headers={"Content-Disposition": f"attachment;filename=rapport_{safe_type}_{datetime.now().strftime('%Y%m%d')}.csv"}
     )
 
 @app.route('/api/suppliers', methods=['GET'])
@@ -948,8 +1032,8 @@ def update_order(order_id):
                 
                 for item in items:
                     # Subtract from products
-                    conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=?',
-                               (item['quantity'], item['product_id']))
+                    conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?',
+                               (item['quantity'], item['product_id'], item['quantity']))
                     
                     # Get default location
                     default_location = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', 
@@ -962,8 +1046,8 @@ def update_order(order_id):
                         if stock_entry:
                             new_qty = stock_entry['quantity'] - item['quantity']
                             if new_qty > 0:
-                                conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=?',
-                                           (item['quantity'], stock_entry['id']))
+                                conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=? AND quantity >= ?',
+                                           (item['quantity'], stock_entry['id'], item['quantity']))
                             else:
                                 conn.execute('DELETE FROM stock WHERE id=?', (stock_entry['id'],))
                         
@@ -1195,27 +1279,29 @@ def get_top_products():
     limit = _safe_int(request.args.get('limit', 10), 10)
     conn = get_db()
     
+    pd = str(-period) + ' days'
     if warehouse_id and warehouse_id.isdigit():
-        products = conn.execute(f'''
+        wid = int(warehouse_id)
+        products = conn.execute('''
             SELECT p.id, p.name, p.sku, p.quantity, p.price,
-                   (SELECT COUNT(*) FROM stock_movements m WHERE m.product_id = p.id AND m.created_at >= date('now', '-{period} days')) as movement_count,
-                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'in' AND m.created_at >= date('now', '-{period} days')) as total_in,
-                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'out' AND m.created_at >= date('now', '-{period} days')) as total_out
+                   (SELECT COUNT(*) FROM stock_movements m WHERE m.product_id = p.id AND m.created_at >= date('now', ?)) as movement_count,
+                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'in' AND m.created_at >= date('now', ?)) as total_in,
+                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'out' AND m.created_at >= date('now', ?)) as total_out
             FROM products p
             WHERE p.warehouse_id = ?
             ORDER BY movement_count DESC
             LIMIT ?
-        ''', (int(warehouse_id), limit)).fetchall()
+        ''', (pd, pd, pd, wid, limit)).fetchall()
     else:
-        products = conn.execute(f'''
+        products = conn.execute('''
             SELECT p.id, p.name, p.sku, p.quantity, p.price,
-                   (SELECT COUNT(*) FROM stock_movements m WHERE m.product_id = p.id AND m.created_at >= date('now', '-{period} days')) as movement_count,
-                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'in' AND m.created_at >= date('now', '-{period} days')) as total_in,
-                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'out' AND m.created_at >= date('now', '-{period} days')) as total_out
+                   (SELECT COUNT(*) FROM stock_movements m WHERE m.product_id = p.id AND m.created_at >= date('now', ?)) as movement_count,
+                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'in' AND m.created_at >= date('now', ?)) as total_in,
+                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'out' AND m.created_at >= date('now', ?)) as total_out
             FROM products p
             ORDER BY movement_count DESC
             LIMIT ?
-        ''', (limit,)).fetchall()
+        ''', (pd, pd, pd, limit)).fetchall()
     
     conn.close()
     return jsonify([dict(p) for p in products])
@@ -1599,7 +1685,7 @@ def create_invoice():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (invoice_id, item['product_id'], product['name'], product['sku'], qty, unit_price, discount_percent, tax_rate, line_total))
             
-            conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=?', (qty, item['product_id']))
+            conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (qty, item['product_id'], qty))
             conn.execute('''
                 INSERT INTO stock_movements (product_id, type, quantity, note)
                 VALUES (?, 'out', ?, ?)
@@ -1715,7 +1801,7 @@ def add_invoice_item(invoice_id):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (invoice_id, product['id'], product['name'], product['sku'], qty, unit_price, discount_percent, tax_rate, line_total))
         
-        conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=?', (qty, product['id']))
+        conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (qty, product['id'], qty))
         conn.execute('''
             INSERT INTO stock_movements (product_id, type, quantity, note)
             VALUES (?, 'out', ?, ?)
@@ -1798,20 +1884,28 @@ def generate_invoice_pdf(invoice_id):
     
     def _esc(d):
         for k, v in d.items():
-            if isinstance(v, str):
+            if v is None:
+                d[k] = ''
+            elif isinstance(v, str):
                 d[k] = html.escape(v)
+    def _n(val, default='-'):
+        return val if val else default
     _esc(invoice_data)
     for item in items_data:
         _esc(item)
     
+    # Customer info
+    customer_name = _n(invoice_data.get('customer_name'), 'Client Comptoir')
+    customer_ice = _n(invoice_data.get('customer_ice'), '-')
+    
     # Build party HTML based on invoice type
-    if invoice_data.get('type', 'facture') == 'fournisseur':
+    if _n(invoice_data.get('type'), 'facture') == 'fournisseur':
         party_html = f"""
         <div class="party-box">
             <div class="party-title">Fournisseur</div>
-            <div class="party-name">{invoice_data.get('supplier_name', 'Fournisseur')}</div>
-            <div class="party-detail">{invoice_data.get('supplier_address', '')}</div>
-            <div class="party-detail">Tel: {invoice_data.get('supplier_phone', '-')}</div>
+            <div class="party-name">{_n(invoice_data.get('supplier_name'), 'Fournisseur')}</div>
+            <div class="party-detail">{_n(invoice_data.get('supplier_address'), '')}</div>
+            <div class="party-detail">Tel: {_n(invoice_data.get('supplier_phone'), '-')}</div>
         </div>
         """
     else:
@@ -1819,32 +1913,28 @@ def generate_invoice_pdf(invoice_id):
         <div class="party-box">
             <div class="party-title">Client</div>
             <div class="party-name">{customer_name}</div>
-            <div class="party-detail">Code: <strong>{invoice_data.get('client_code', '-')}</strong></div>
+            <div class="party-detail">Code: <strong>{_n(invoice_data.get('client_code'), '-')}</strong></div>
             <div class="party-detail">ICE: <strong>{customer_ice}</strong></div>
-            <div class="party-detail">{invoice_data.get('customer_address', '')}</div>
-            <div class="party-detail">Tel: {invoice_data.get('customer_phone', '-')}</div>
+            <div class="party-detail">{_n(invoice_data.get('customer_address'), '')}</div>
+            <div class="party-detail">Tel: {_n(invoice_data.get('customer_phone'), '-')}</div>
         </div>
         """
     
     # Company info
     company_name = 'Bibliotheque Badr'
-    company_address = invoice_data.get('warehouse_address', 'Rue Mohammed V, Gueliz, Marrakech')
-    company_ice = invoice_data.get('warehouse_ice', '001234567000089')
-    company_patente = invoice_data.get('warehouse_patente', '12345678')
-    company_rc = invoice_data.get('warehouse_rc', '12345')
-    company_tax = invoice_data.get('warehouse_tax_number', '3456789012')
-    company_phone = invoice_data.get('warehouse_phone', '0524441234')
-    
-    # Customer info
-    customer_name = invoice_data.get('customer_name', 'Client Comptoir')
-    customer_ice = invoice_data.get('customer_ice', '-')
+    company_address = _n(invoice_data.get('warehouse_address'), 'Rue Mohammed V, Gueliz, Marrakech')
+    company_ice = _n(invoice_data.get('warehouse_ice'), '001234567000089')
+    company_patente = _n(invoice_data.get('warehouse_patente'), '12345678')
+    company_rc = _n(invoice_data.get('warehouse_rc'), '12345')
+    company_tax = _n(invoice_data.get('warehouse_tax_number'), '3456789012')
+    company_phone = _n(invoice_data.get('warehouse_phone'), '0524441234')
     
     # Colors from app
     primary_color = '#2563eb'
     primary_dark = '#1d4ed8'
     
     # Build HTML with modern design
-    html = f"""<!DOCTYPE html>
+    pdf_html = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -1895,11 +1985,11 @@ def generate_invoice_pdf(invoice_id):
                 <div class="company-address">{company_address}<br>Tel: {company_phone}</div>
             </div>
             <div class="invoice-info">
-                <div class="invoice-title">{invoice_data.get('type', 'facture') == 'fournisseur' and "FACTURE D'ACHAT" or "FACTURE"}</div>
+                <div class="invoice-title">{_n(invoice_data.get('type'), 'facture') == 'fournisseur' and "FACTURE D'ACHAT" or "FACTURE"}</div>
                 <div class="invoice-number">{invoice_data['invoice_number']}</div>
                 <div class="meta-info">
                     <div>Date: {invoice_data.get('created_at', '')[:10] if invoice_data.get('created_at') else '-'}</div>
-                    <div>Echeance: {invoice_data.get('due_date', '-')}</div>
+                    <div>Echeance: {_n(invoice_data.get('due_date'), '-')}</div>
                 </div>
             </div>
         </div>
@@ -1910,8 +2000,8 @@ def generate_invoice_pdf(invoice_id):
             </div>
 <div class="party-box" style="border-left-color: #10b981;">
                     <div class="party-title" style="color: #10b981;">Informations</div>
-                    <div class="party-detail"><strong>Statut:</strong> {status_labels.get(invoice_data.get('status', 'payee'), 'Payee').upper()}</div>
-                    <div class="party-detail"><strong>Paiement:</strong> {invoice_data.get('payment_method', 'cash').title()}</div>
+                    <div class="party-detail"><strong>Statut:</strong> {status_labels.get(_n(invoice_data.get('status'), 'payee'), 'Payee').upper()}</div>
+                    <div class="party-detail"><strong>Paiement:</strong> {_n(invoice_data.get('payment_method'), 'cash').title()}</div>
                     <div class="party-detail"><strong>Date:</strong> {invoice_data.get('created_at', '')[:10] if invoice_data.get('created_at') else '-'}</div>
                 </div>
             </div>
@@ -1931,27 +2021,27 @@ def generate_invoice_pdf(invoice_id):
                     <tbody>"""
     
     for item in items_data:
-        html += f"""
+        pdf_html += f"""
                         <tr>
-                            <td>{item.get('product_name', 'Article')}</td>
-                            <td>{item.get('product_sku', '-')}</td>
+                            <td>{_n(item.get('product_name'), 'Article')}</td>
+                            <td>{_n(item.get('product_sku'), '-')}</td>
                             <td style="text-align:center">{item['quantity']}</td>
                             <td style="text-align:right">{item['unit_price']:.2f}</td>
-                            <td style="text-align:right">{item.get('discount_percent', 0)}%</td>
+                            <td style="text-align:right">{_n(item.get('discount_percent'), 0)}%</td>
                             <td style="text-align:right">{item['line_total']:.2f}</td>
                         </tr>"""
     
-    html += f"""
+    pdf_html += f"""
                     </tbody>
                 </table>
             </div>
             
             <div class="totals-section">
                 <div class="totals-box">
-                    <div class="totals-row"><span>Sous-total HT:</span><span>{invoice_data.get('subtotal', 0):.2f} DH</span></div>
-                    <div class="totals-row"><span>Remises:</span><span style="color: #dc2626;">-{invoice_data.get('discount_total', 0):.2f} DH</span></div>
-                    <div class="totals-row"><span>TVA (20%):</span><span>{invoice_data.get('tax_amount', 0):.2f} DH</span></div>
-                    <div class="totals-row grand"><span>TOTAL TTC:</span><span>{invoice_data.get('total', 0):.2f} DH</span></div>
+                    <div class="totals-row"><span>Sous-total HT:</span><span>{_n(invoice_data.get('subtotal'), 0):.2f} DH</span></div>
+                    <div class="totals-row"><span>Remises:</span><span style="color: #dc2626;">-{_n(invoice_data.get('discount_total'), 0):.2f} DH</span></div>
+                    <div class="totals-row"><span>TVA (20%):</span><span>{_n(invoice_data.get('tax_amount'), 0):.2f} DH</span></div>
+                    <div class="totals-row grand"><span>TOTAL TTC:</span><span>{_n(invoice_data.get('total'), 0):.2f} DH</span></div>
                 </div>
             </div>
         </div>
@@ -1977,7 +2067,7 @@ def generate_invoice_pdf(invoice_id):
 </html>"""
     
     conn.close()
-    return Response(html, mimetype='text/html')
+    return Response(pdf_html, mimetype='text/html')
 
 @app.route('/api/invoice-stats', methods=['GET'])
 def get_invoice_stats():
@@ -2026,7 +2116,7 @@ def get_kpis_sales():
         date_params = [date_end]
     else:
         date_filter = "AND created_at >= date('now', ?)"
-        date_params = [f'-{period} days']
+        date_params = ['-' + str(period) + ' days']
     
     query = "SELECT COALESCE(SUM(total), 0) as total FROM pos_transactions WHERE status = 'completed' " + date_filter
     ca_periode = conn.execute(query, tuple(date_params)).fetchone()[0]
@@ -2293,17 +2383,17 @@ def get_kpis_top_selling():
             date_filter = "AND t.created_at >= date('now', '-' || ? || ' days')"
         date_params = (str(period),)
     
-    products = conn.execute(f"""
+    products = conn.execute("""
         SELECT p.id, p.name, p.sku, p.category,
                COALESCE(SUM(pti.quantity), 0) as qty_vendue,
                COALESCE(SUM(pti.line_total), 0) as ca
         FROM products p
         LEFT JOIN pos_transaction_items pti ON p.id = pti.product_id
-        LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed' {date_filter}
+        LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed' """ + date_filter + """
         GROUP BY p.id
         ORDER BY qty_vendue DESC
-        LIMIT {limit}
-    """, date_params).fetchall()
+        LIMIT ?
+    """, date_params + (limit,)).fetchall()
     
     result = [dict(p) for p in products]
     conn.close()
@@ -2617,8 +2707,8 @@ def create_pos_transaction():
               qty, unit_price, discount_pct, 20, line_total))
         
         conn.execute('''
-            UPDATE products SET quantity = quantity - ? WHERE id = ?
-        ''', (qty, product_id))
+            UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?
+        ''', (qty, product_id, qty))
         
         conn.execute('''
             INSERT INTO stock_movements (product_id, type, quantity, note)
@@ -2954,8 +3044,12 @@ def generate_pos_ticket_pdf(ticket_number):
     
     def _esc(d):
         for k, v in d.items():
-            if isinstance(v, str):
+            if v is None:
+                d[k] = ''
+            elif isinstance(v, str):
                 d[k] = html.escape(v)
+    def _n(val, default='-'):
+        return val if val else default
     _esc(transaction)
     for item in items:
         _esc(item)
@@ -2963,7 +3057,7 @@ def generate_pos_ticket_pdf(ticket_number):
     conn.close()
     
     # Generate ticket HTML (receipt style, not invoice)
-    html = f"""<!DOCTYPE html>
+    ticket_html = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -3020,31 +3114,31 @@ def generate_pos_ticket_pdf(ticket_number):
         <tbody>"""
     
     for item in items:
-        html += f"""
+        ticket_html += f"""
             <tr>
-                <td class="item-name">{item.get('product_name', 'Article')}</td>
+                <td class="item-name">{_n(item.get('product_name'), 'Article')}</td>
                 <td class="qty">{item['quantity']}</td>
                 <td class="price">{item['unit_price']:.2f}</td>
                 <td class="total">{item['line_total']:.2f}</td>
             </tr>"""
     
-    html += f"""        </tbody>
+    ticket_html += f"""        </tbody>
     </table>
     
     <div class="divider"></div>
     
     <div class="totals">
-        <div class="totals-row"><span>Sous-total:</span><span>{transaction.get('subtotal', 0):.2f} DH</span></div>
-        <div class="totals-row"><span>Remise:</span><span>-{transaction.get('discount_total', 0):.2f} DH</span></div>
-        <div class="totals-row"><span>TVA (20%):</span><span>{transaction.get('tax_amount', 0):.2f} DH</span></div>
-        <div class="totals-row grand-total"><span>TOTAL:</span><span>{transaction.get('total', 0):.2f} DH</span></div>
+        <div class="totals-row"><span>Sous-total:</span><span>{_n(transaction.get('subtotal'), 0):.2f} DH</span></div>
+        <div class="totals-row"><span>Remise:</span><span>-{_n(transaction.get('discount_total'), 0):.2f} DH</span></div>
+        <div class="totals-row"><span>TVA (20%):</span><span>{_n(transaction.get('tax_amount'), 0):.2f} DH</span></div>
+        <div class="totals-row grand-total"><span>TOTAL:</span><span>{_n(transaction.get('total'), 0):.2f} DH</span></div>
     </div>
     
     <div class="payment">
         <div class="divider"></div>
-        <div class="totals-row"><span>Paiement:</span><span>{transaction.get('payment_method', 'cash').title()}</span></div>
-        <div class="totals-row"><span>Recu:</span><span>{transaction.get('tendered_amount', 0):.2f} DH</span></div>
-        <div class="totals-row"><span>Monnaie:</span><span>{transaction.get('change_given', 0):.2f} DH</span></div>
+        <div class="totals-row"><span>Paiement:</span><span>{_n(transaction.get('payment_method'), 'cash').title()}</span></div>
+        <div class="totals-row"><span>Recu:</span><span>{_n(transaction.get('tendered_amount'), 0):.2f} DH</span></div>
+        <div class="totals-row"><span>Monnaie:</span><span>{_n(transaction.get('change_given'), 0):.2f} DH</span></div>
     </div>
     
     <div class="footer">
@@ -3059,7 +3153,7 @@ def generate_pos_ticket_pdf(ticket_number):
 </body>
 </html>"""
     
-    return Response(html, mimetype='text/html')
+    return Response(ticket_html, mimetype='text/html')
 
 @app.route('/api/pos/transaction-by-invoice/<invoice_number>', methods=['GET'])
 def get_pos_transaction_by_invoice(invoice_number):
