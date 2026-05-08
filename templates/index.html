@@ -4501,7 +4501,7 @@ function editSupplier(id) {
                     
                     return '<div class="pos-transaction-item">' +
                         '<div class="pos-transaction-info">' +
-                        '<span class="pos-transaction-number"><i class="fas fa-receipt"></i> ' + t.transaction_number + '</span>' +
+                        '<span class="pos-transaction-number"><i class="fas fa-receipt"></i> ' + (t.ticket_number || t.transaction_number || '-') + '</span>' +
                         '<span class="pos-transaction-time"><i class="fas fa-clock"></i> ' + dateStr + ' ' + timeStr + ' | ' + customer + ' | ' + methodIcon + ' ' + methodText + '</span></div>' +
                         '<span class="pos-transaction-total">' + t.total.toFixed(2) + ' DH</span></div>';
                 }).join('');
@@ -5326,7 +5326,7 @@ var data = await res.json();
                     detailsHtml += '<table class="report-table"><thead><tr><th>N</th><th>Total</th><th>Mode</th><th>Date</th></tr></thead><tbody>';
                     for (var i = 0; i < data.transactions.length; i++) {
                         var t = data.transactions[i];
-                        detailsHtml += '<tr><td>' + t.transaction_number + '</td><td>' + t.total + ' DH</td><td>' + t.payment_method + '</td><td>' + t.created_at + '</td></tr>';
+                        detailsHtml += '<tr><td>' + (t.ticket_number || t.transaction_number || '-') + '</td><td>' + t.total + ' DH</td><td>' + t.payment_method + '</td><td>' + t.created_at + '</td></tr>';
                     }
                     detailsHtml += '</tbody></table>';
                 }

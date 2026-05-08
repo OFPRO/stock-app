@@ -1608,13 +1608,13 @@ def get_invoices():
     
     # Also get POS tickets (client comptoir transactions)
     tickets_query = '''
-        SELECT t.id, t.transaction_number as invoice_number, NULL as customer_id, 
+        SELECT t.id, t.ticket_number as invoice_number, NULL as customer_id, 
                'Client Comptoir' as customer_name, NULL as client_code,
                t.total, t.status, t.created_at, t.payment_method,
                t.subtotal as subtotal, t.discount_total, t.tax_amount,
                t.tendered_amount, t.change_given
         FROM pos_transactions t
-        WHERE t.transaction_number LIKE 'Ticket-%'
+        WHERE t.ticket_number LIKE 'Ticket-%'
     '''
     if status != 'all':
         tickets_query += ' AND t.status = ?'
@@ -2637,8 +2637,8 @@ def create_pos_transaction():
     if is_client_comptoir:
         # CLIENT COMPTOIR - Generate TICKET only
         last_ticket = conn.execute('''
-            SELECT transaction_number FROM pos_transactions 
-            WHERE transaction_number LIKE ? 
+            SELECT ticket_number FROM pos_transactions 
+            WHERE ticket_number LIKE ? 
             ORDER BY id DESC LIMIT 1
         ''', (f'Ticket-{today}-%',)).fetchone()
         
@@ -3028,7 +3028,7 @@ def generate_pos_ticket_pdf(ticket_number):
         SELECT t.*, s.session_number, s.opened_at
         FROM pos_transactions t
         LEFT JOIN pos_sessions s ON t.session_id = s.id
-        WHERE t.transaction_number = ?
+        WHERE t.ticket_number = ?
     ''', (ticket_number,)).fetchone()
     
     if not transaction:
@@ -3164,7 +3164,7 @@ def get_pos_transaction_by_invoice(invoice_number):
         SELECT t.*, s.session_number
         FROM pos_transactions t
         LEFT JOIN pos_sessions s ON t.session_id = s.id
-        WHERE t.transaction_number = ? OR t.invoice_id IN (
+        WHERE t.ticket_number = ? OR t.invoice_id IN (
             SELECT id FROM invoices WHERE invoice_number = ?
         )
     ''', (invoice_number, invoice_number)).fetchone()
