@@ -2681,7 +2681,7 @@ def create_pos_transaction():
     # Insert transaction
     conn.execute('''
         INSERT INTO pos_transactions (
-            transaction_number, session_id, customer_id, payment_method,
+            ticket_number, session_id, customer_id, payment_method,
             subtotal, discount_total, tax_amount, total,
             tendered_amount, change_given, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
