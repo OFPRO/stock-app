@@ -7,8 +7,10 @@ DB_NAME = 'stock.db'
 
 @contextmanager
 def get_db():
-    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+    conn = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA busy_timeout=30000')
     try:
         yield conn
     finally:
@@ -59,7 +61,8 @@ def get_products():
 def get_product(product_id):
     with get_db() as conn:
         product = conn.execute('''
-            SELECT p.*, s.name as supplier_name, w.name as warehouse_name, l.name as location_name
+            SELECT p.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone,
+                   w.name as warehouse_name, l.name as location_name
             FROM products p
             LEFT JOIN suppliers s ON p.supplier_id = s.id
             LEFT JOIN warehouses w ON p.warehouse_id = w.id
@@ -67,9 +70,54 @@ def get_product(product_id):
             WHERE p.id = ?
         ''', (product_id,)).fetchone()
         
-        if product:
-            return jsonify({'product': dict(product)})
-        return jsonify({'error': 'Produit non trouvé'}), 404
+        if not product:
+            return jsonify({'error': 'Produit non trouvé'}), 404
+        
+        product = dict(product)
+        
+        purchase_stats = conn.execute('''
+            SELECT COALESCE(SUM(poi.quantity), 0) as total_qty,
+                   COALESCE(SUM(poi.quantity * poi.unit_price), 0) as total_purchases
+            FROM purchase_order_items poi
+            JOIN purchase_orders po ON poi.order_id = po.id
+            WHERE poi.product_id = ? AND po.status = 'received'
+        ''', (product_id,)).fetchone()
+        
+        sales_stats = conn.execute('''
+            SELECT COALESCE(SUM(ii.quantity), 0) as total_qty,
+                   COALESCE(SUM(ii.line_total), 0) as total_sales
+            FROM invoice_items ii
+            JOIN invoices i ON ii.invoice_id = i.id
+            WHERE ii.product_id = ? AND i.status != 'annulee'
+        ''', (product_id,)).fetchone()
+        
+        stock_locations = conn.execute('''
+            SELECT l.name as location_name, p.quantity
+            FROM products p
+            LEFT JOIN locations l ON p.location_id = l.id
+            WHERE p.id = ?
+        ''', (product_id,)).fetchall()
+        
+        movements = conn.execute('''
+            SELECT 'purchase' as source, 'in' as type, poi.quantity, po.created_at, 'Reception' as note
+            FROM purchase_order_items poi
+            JOIN purchase_orders po ON poi.order_id = po.id
+            WHERE poi.product_id = ? AND po.status = 'received'
+            UNION ALL
+            SELECT 'invoice' as source, 'out' as type, -ii.quantity, i.created_at, 'Facture: ' || i.invoice_number
+            FROM invoice_items ii
+            JOIN invoices i ON ii.invoice_id = i.id
+            WHERE ii.product_id = ? AND i.status != 'annulee'
+            ORDER BY created_at DESC LIMIT 20
+        ''', (product_id, product_id)).fetchall()
+        
+        return jsonify({
+            'product': product,
+            'purchase_stats': dict(purchase_stats) if purchase_stats else {'total_qty': 0, 'total_purchases': 0},
+            'sales_stats': dict(sales_stats) if sales_stats else {'total_qty': 0, 'total_sales': 0},
+            'stock_locations': [dict(loc) for loc in stock_locations] if stock_locations else [],
+            'movements': [dict(m) for m in movements] if movements else []
+        })
 
 @products_bp.route('/api/products', methods=['POST'])
 def add_product():
@@ -96,6 +144,10 @@ def add_product():
 def update_product(product_id):
     data = request.json
     with get_db() as conn:
+        row = conn.execute('SELECT COALESCE(purchase_price_avg, price, 0) FROM products WHERE id=?', (product_id,)).fetchone()
+        base_for_calc = row[0] if row else 0
+        price_base = base_for_calc * 1.40 if base_for_calc > 0 else 0
+        
         conn.execute('''
             UPDATE products SET name=?, description=?, sku=?, barcode=?, quantity=?, min_quantity=?, max_quantity=?, price=?,
             price_base=?, price_loyal=?, price_school=?, price_student=?, tax_category=?,
@@ -104,7 +156,7 @@ def update_product(product_id):
         ''', (
             data.get('name', ''), data.get('description', ''), data.get('sku', ''), data.get('barcode', ''),
             data.get('quantity', 0), data.get('min_quantity', 5), data.get('max_quantity', 100), data.get('price', 0),
-            data.get('price_base', 0), data.get('price_loyal', 0), data.get('price_school', 0), data.get('price_student', 0),
+            price_base, data.get('price_loyal', 0), data.get('price_school', 0), data.get('price_student', 0),
             data.get('tax_category', '20'), data.get('lot_number', ''), data.get('serial_number', ''),
             data.get('expiry_date', ''), data.get('supplier_id'), data.get('category', 'Général'),
             data.get('warehouse_id', 1), data.get('location_id'), product_id
@@ -122,9 +174,48 @@ def delete_product(product_id):
             return jsonify({'error': 'Produit non trouvé'}), 404
         
         if soft_delete_only:
-            conn.execute('''
-                UPDATE products SET is_deleted=1, deleted_at=CURRENT_TIMESTAMP WHERE id=?
-            ''', (product_id,))
+            invoices = conn.execute('''
+                SELECT id, status FROM invoices 
+                WHERE id IN (SELECT invoice_id FROM invoice_items WHERE product_id=?)
+            ''', (product_id,)).fetchall()
+            
+            has_unpaid_invoices = False
+            for inv in invoices:
+                if inv['status'] not in ['payee', 'envoyee']:
+                    has_unpaid_invoices = True
+                    break
+            
+            if has_unpaid_invoices:
+                conn.execute('''
+                    UPDATE invoices SET status='annule' 
+                    WHERE id IN (SELECT invoice_id FROM invoice_items WHERE product_id=?)
+                    AND status NOT IN ('payee')
+                ''', (product_id,))
+                conn.commit()
+            
+            orders = conn.execute('''
+                SELECT id, status FROM purchase_orders 
+                WHERE id IN (SELECT order_id FROM purchase_order_items WHERE product_id=?)
+            ''', (product_id,)).fetchall()
+            
+            for order in orders:
+                if order['status'] == 'brouillon':
+                    conn.execute('DELETE FROM purchase_order_items WHERE order_id=? AND product_id=?', 
+                              (order['id'], product_id))
+                    conn.execute('DELETE FROM purchase_orders WHERE id=? AND status=?', 
+                              (order['id'], 'brouillon'))
+            
+            conn.execute('DELETE FROM notifications WHERE product_id=?', (product_id,))
+            
+            if product['quantity'] and product['quantity'] > 0:
+                conn.execute('UPDATE products SET is_liquidation=1 WHERE id=?', (product_id,))
+            else:
+                conn.execute('UPDATE products SET is_deleted=1, deleted_at=CURRENT_TIMESTAMP WHERE id=?', (product_id,))
+                conn.execute('''
+                    INSERT INTO stock_movements (product_id, type, quantity, note)
+                    VALUES (?, 'other', 0, 'Produit supprimé (archivé)')
+                ''', (product_id,))
+            
             conn.commit()
             return jsonify({'success': True, 'message': 'Produit archivé'})
         else:
@@ -159,15 +250,14 @@ def get_products_for_sale():
             customer = conn.execute('SELECT * FROM customers WHERE id=?', (customer_id,)).fetchone()
         
         def get_price_for_customer(product, customer_type, is_loyal):
-            if is_loyal and product.get('price_loyal', 0) > 0:
-                return product['price_loyal']
-            if customer_type == 'ecole' and product.get('price_school', 0) > 0:
-                return product['price_school']
-            if customer_type == 'etudiant' and product.get('price_student', 0) > 0:
-                return product['price_student']
-            if product.get('price_base', 0) > 0:
-                return product['price_base']
-            return product.get('price', 0)
+            normal_price = product['price_base'] if product['price_base'] > 0 else product['price']
+            if customer_type == 'ecole':
+                return round(normal_price * 0.80, 2)
+            if is_loyal:
+                return round(normal_price * 0.85, 2)
+            if customer_type == 'etudiant':
+                return round(normal_price * 0.85, 2)
+            return round(normal_price, 2)
         
         result = []
         for p in products:

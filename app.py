@@ -1,11 +1,16 @@
 import sqlite3
 import csv
 import random
+import html
 from io import StringIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, Response, send_from_directory
+from routes.products import products_bp
+from routes.kpis import kpis_bp
 
 app = Flask(__name__)
+app.register_blueprint(products_bp)
+app.register_blueprint(kpis_bp)
 DB_NAME = 'stock.db'
 
 def get_db():
@@ -14,6 +19,12 @@ def get_db():
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA busy_timeout=30000')
     return conn
+
+def _safe_int(value, default):
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -390,36 +401,7 @@ def product_detail_page(product_id):
 def index():
     return render_template('index.html')
 
-@app.route('/api/products', methods=['GET'])
-def get_products():
-    warehouse_id = request.args.get('warehouse_id')
-    include_archived = request.args.get('include_archived', 'false').lower() == 'true'
-    conn = get_db()
-    
-    params = []
-    where_parts = []
-    if warehouse_id:
-        if warehouse_id.isdigit():
-            where_parts.append('p.warehouse_id = ?')
-            params.append(int(warehouse_id))
-    if not include_archived:
-        where_parts.append('p.is_deleted = 0')
-    
-    where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
-    
-    query = '''
-        SELECT p.*, s.name as supplier_name, w.name as warehouse_name, l.name as location_name
-        FROM products p
-        LEFT JOIN suppliers s ON p.supplier_id = s.id
-        LEFT JOIN warehouses w ON p.warehouse_id = w.id
-        LEFT JOIN locations l ON p.location_id = l.id
-        WHERE ''' + where_clause + '''
-        ORDER BY p.name
-    '''
-    
-    products = conn.execute(query, params).fetchall()
-    conn.close()
-    return jsonify([dict(p) for p in products])
+
 
 @app.route('/api/warehouses', methods=['GET'])
 def get_warehouses():
@@ -444,173 +426,11 @@ def add_warehouse():
         conn.close()
         return jsonify({'error': str(e)}), 400
 
-@app.route('/api/products/<int:product_id>', methods=['GET'])
-def get_product(product_id):
-    conn = get_db()
-    product = conn.execute('''
-        SELECT p.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone,
-               w.name as warehouse_name, l.name as location_name
-        FROM products p
-        LEFT JOIN suppliers s ON p.supplier_id = s.id
-        LEFT JOIN warehouses w ON p.warehouse_id = w.id
-        LEFT JOIN locations l ON p.location_id = l.id
-        WHERE p.id = ?
-    ''', (product_id,)).fetchone()
-    
-    if not product:
-        conn.close()
-        return jsonify({'error': 'Produit non trouvé'}), 404
-    
-    product = dict(product)
-    
-    # Purchase stats from purchase_order_items (receptions)
-    purchase_stats = conn.execute('''
-        SELECT COALESCE(SUM(poi.quantity), 0) as total_qty,
-               COALESCE(SUM(poi.quantity * poi.unit_price), 0) as total_purchases
-        FROM purchase_order_items poi
-        JOIN purchase_orders po ON poi.order_id = po.id
-        WHERE poi.product_id = ? AND po.status = 'received'
-    ''', (product_id,)).fetchone()
-    
-    # Sales stats from invoice_items
-    sales_stats = conn.execute('''
-        SELECT COALESCE(SUM(ii.quantity), 0) as total_qty,
-               COALESCE(SUM(ii.line_total), 0) as total_sales
-        FROM invoice_items ii
-        JOIN invoices i ON ii.invoice_id = i.id
-        WHERE ii.product_id = ? AND i.status != 'annulee'
-    ''', (product_id,)).fetchone()
-    
-    # Stock by location
-    stock_locations = conn.execute('''
-        SELECT l.name as location_name, p.quantity
-        FROM products p
-        LEFT JOIN locations l ON p.location_id = l.id
-        WHERE p.id = ?
-    ''', (product_id,)).fetchall()
-    
-    # Recent movements
-    movements = conn.execute('''
-        SELECT 'purchase' as source, 'in' as type, poi.quantity, po.created_at, 'Reception' as note
-        FROM purchase_order_items poi
-        JOIN purchase_orders po ON poi.order_id = po.id
-        WHERE poi.product_id = ? AND po.status = 'received'
-        UNION ALL
-        SELECT 'invoice' as source, 'out' as type, -ii.quantity, i.created_at, 'Facture: ' || i.invoice_number
-        FROM invoice_items ii
-        JOIN invoices i ON ii.invoice_id = i.id
-        WHERE ii.product_id = ? AND i.status != 'annulee'
-        ORDER BY created_at DESC LIMIT 20
-    ''', (product_id, product_id)).fetchall()
-    
-    conn.close()
-    
-    result = {
-        'product': product,
-        'purchase_stats': dict(purchase_stats) if purchase_stats else {'total_qty': 0, 'total_purchases': 0},
-        'sales_stats': dict(sales_stats) if sales_stats else {'total_qty': 0, 'total_sales': 0},
-        'stock_locations': [dict(loc) for loc in stock_locations] if stock_locations else [],
-        'movements': [dict(m) for m in movements] if movements else []
-    }
-    
-    return jsonify(result)
 
-@app.route('/api/products/<int:product_id>', methods=['PUT'])
-def update_product(product_id):
-    data = request.json
-    conn = get_db()
-    
-    # Calculate price_base = (purchase_price_avg or price) * 1.40
-    row = conn.execute('SELECT COALESCE(purchase_price_avg, price, 0) FROM products WHERE id=?', (product_id,)).fetchone()
-    base_for_calc = row[0]
-    if base_for_calc > 0:
-        price_base = base_for_calc * 1.40
-    else:
-        price_base = 0
-    
-    conn.execute('''
-        UPDATE products SET name=?, description=?, sku=?, barcode=?, quantity=?, min_quantity=?, max_quantity=?, price=?,
-        price_base=?, price_loyal=?, price_school=?, price_student=?, tax_category=?,
-        lot_number=?, serial_number=?, expiry_date=?, supplier_id=?, category=?, warehouse_id=?, location_id=?
-        WHERE id=?
-    ''', (data['name'], data.get('description', ''), data.get('sku', ''), data.get('barcode', ''),
-           data.get('quantity'), data.get('min_quantity', 5), data.get('max_quantity', 100), data.get('price', 0),
-           price_base, data.get('price_loyal', 0), data.get('price_school', 0), data.get('price_student', 0),
-           data.get('tax_category', '20'), data.get('lot_number', ''), data.get('serial_number', ''),
-           data.get('expiry_date', ''), data.get('supplier_id'), data.get('category', 'Général'),
-           data.get('warehouse_id', 1), data.get('location_id'), product_id))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
 
-@app.route('/api/products/<int:product_id>', methods=['DELETE'])
-def delete_product(product_id):
-    soft_delete_only = request.args.get('soft', 'true').lower() == 'true'
-    conn = get_db()
-    
-    product = conn.execute('SELECT * FROM products WHERE id=?', (product_id,)).fetchone()
-    if not product:
-        conn.close()
-        return jsonify({'error': 'Produit non trouvé'}), 404
-    
-    if soft_delete_only:
-        invoices = conn.execute('''
-            SELECT id, status FROM invoices 
-            WHERE id IN (SELECT invoice_id FROM invoice_items WHERE product_id=?)
-        ''', (product_id,)).fetchall()
-        
-        has_unpaid_invoices = False
-        for inv in invoices:
-            if inv['status'] not in ['payee', 'envoyee']:
-                has_unpaid_invoices = True
-                break
-        
-        if has_unpaid_invoices:
-            conn.execute('''
-                UPDATE invoices SET status='annule' 
-                WHERE id IN (SELECT invoice_id FROM invoice_items WHERE product_id=?)
-                AND status NOT IN ('payee')
-            ''', (product_id,))
-            conn.commit()
-        
-        orders = conn.execute('''
-            SELECT id, status FROM purchase_orders 
-            WHERE id IN (SELECT order_id FROM purchase_order_items WHERE product_id=?)
-        ''', (product_id,)).fetchall()
-        
-        for order in orders:
-            if order['status'] == 'brouillon':
-                conn.execute('DELETE FROM purchase_order_items WHERE order_id=? AND product_id=?', 
-                          (order['id'], product_id))
-                conn.execute('DELETE FROM purchase_orders WHERE id=? AND status=?', 
-                          (order['id'], 'brouillon'))
-        
-        conn.execute('''
-            DELETE FROM notifications WHERE product_id=?
-        ''', (product_id,))
-        
-        if product['quantity'] and product['quantity'] > 0:
-            conn.execute('UPDATE products SET is_liquidation=1 WHERE id=?', (product_id,))
-        else:
-            conn.execute('''
-                UPDATE products SET is_deleted=1, deleted_at=CURRENT_TIMESTAMP 
-                WHERE id=?
-            ''', (product_id,))
-            conn.execute('''
-                INSERT INTO stock_movements (product_id, type, quantity, note)
-                VALUES (?, 'other', 0, 'Produit supprimé (archivé)')
-            ''', (product_id,))
-        
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True, 'message': 'Produit archivé'})
-    
-    else:
-        conn.execute('DELETE FROM stock WHERE product_id=?', (product_id,))
-        conn.execute('DELETE FROM products WHERE id=?', (product_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True, 'message': 'Produit supprimé définitivement'})
+
+
+
 
 @app.route('/api/stock/<int:product_id>', methods=['POST'])
 def stock_movement(product_id):
@@ -777,44 +597,7 @@ def get_movements(product_id):
     conn.close()
     return jsonify([dict(m) for m in movements])
 
-@app.route('/api/stats', methods=['GET'])
-def get_stats():
-    warehouse_id = request.args.get('warehouse_id')
-    conn = get_db()
-    
-    params = []
-    where_clause = 'WHERE warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''
-    if warehouse_id and warehouse_id.isdigit():
-        params.append(int(warehouse_id))
-    
-    total = conn.execute(f'SELECT COUNT(*) as count FROM products {where_clause}', params).fetchone()[0]
-    
-    params_low = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-    low_stock = conn.execute(
-        f'SELECT COUNT(*) as count FROM products WHERE quantity <= min_quantity {"AND warehouse_id = ?" if warehouse_id and warehouse_id.isdigit() else ""}',
-        params_low
-    ).fetchone()[0]
-    
-    total_value = conn.execute(
-        f'SELECT COALESCE(SUM(quantity * price), 0) as total FROM products {where_clause}',
-        params
-    ).fetchone()[0]
-    
-    out_of_stock = conn.execute(
-        f'SELECT COUNT(*) as count FROM products WHERE (quantity < 0 OR quantity IS NULL) {"AND warehouse_id = ?" if warehouse_id and warehouse_id.isdigit() else ""}',
-        params_low
-    ).fetchone()[0]
-    
-    warehouses_count = conn.execute('SELECT COUNT(*) FROM warehouses').fetchone()[0]
-    
-    conn.close()
-    return jsonify({
-        'total': total, 
-        'low_stock': low_stock, 
-        'total_value': total_value, 
-        'out_of_stock': out_of_stock,
-        'warehouses_count': warehouses_count
-    })
+
 
 @app.route('/api/reports', methods=['GET'])
 def get_reports():
@@ -1370,85 +1153,13 @@ def mark_all_notifications_read():
     conn.close()
     return jsonify({'success': True})
 
-@app.route('/api/kpis', methods=['GET'])
-def get_kpis():
-    warehouse_id = request.args.get('warehouse_id')
-    period = int(request.args.get('period', 30))
-    category = request.args.get('category', '')
-    date_start = request.args.get('date_start')
-    date_end = request.args.get('date_end')
-    conn = get_db()
-    
-    where_parts = []
-    params = []
-    if warehouse_id and warehouse_id.isdigit():
-        where_parts.append('warehouse_id = ?')
-        params.append(int(warehouse_id))
-    if category:
-        where_parts.append('category = ?')
-        params.append(category)
-    
-    where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
-    where_sql = f'WHERE {where_clause}'
-    
-    date_filter = f"AND created_at >= date('now', '-{period} days')"
-    if date_start:
-        date_filter = f"AND created_at >= '{date_start}'"
-    if date_end:
-        date_filter += f" AND created_at <= '{date_end}'"
-    
-    total_products = conn.execute(f'SELECT COUNT(*) FROM products {where_sql}', params).fetchone()[0]
-    total_value = conn.execute(f'SELECT COALESCE(SUM(quantity * price), 0) FROM products {where_sql}', params).fetchone()[0]
-    avg_price = conn.execute(f'SELECT COALESCE(AVG(price), 0) FROM products {where_sql}', params).fetchone()[0]
-    
-    params_low = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-    low_stock = conn.execute(
-        f'SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND {where_clause}',
-        params_low
-    ).fetchone()[0]
-    out_of_stock = conn.execute(
-        f'SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) AND {where_clause}',
-        params_low
-    ).fetchone()[0]
-    
-    in_movements = conn.execute(f'''
-        SELECT COALESCE(SUM(quantity), 0) FROM stock_movements 
-        WHERE type = 'in' {date_filter}
-    ''').fetchone()[0]
-    
-    out_movements = conn.execute(f'''
-        SELECT COALESCE(SUM(quantity), 0) FROM stock_movements 
-        WHERE type = 'out' {date_filter}
-    ''').fetchone()[0]
-    
-    today_movements = conn.execute('''
-        SELECT COUNT(*) FROM stock_movements 
-        WHERE date(created_at) = date('now')
-    ''').fetchone()[0]
-    
-    rotation_rate = (out_movements / total_products * 100) if total_products > 0 else 0
-    
-    conn.close()
-    return jsonify({
-        'total_products': total_products,
-        'total_value': round(total_value, 2),
-        'avg_price': round(avg_price, 2),
-        'low_stock': low_stock,
-        'out_of_stock': out_of_stock,
-        'in_movements': in_movements,
-        'out_movements': out_movements,
-        'today_movements': today_movements,
-        'rotation_rate': round(rotation_rate, 1),
-        'period': period,
-        'date_start': date_start,
-        'date_end': date_end
-    })
+
 
 @app.route('/api/kpis/trends', methods=['GET'])
 def get_kpis_trends():
     from datetime import datetime, timedelta
     warehouse_id = request.args.get('warehouse_id')
-    period = int(request.args.get('period', 30))
+    period = _safe_int(request.args.get('period', 30), 30)
     conn = get_db()
     
     trends = []
@@ -1476,17 +1187,16 @@ def get_kpis_trends():
     
     conn.close()
     return jsonify(trends)
-    return jsonify(trends)
 
 @app.route('/api/kpis/top-products', methods=['GET'])
 def get_top_products():
     warehouse_id = request.args.get('warehouse_id')
-    period = int(request.args.get('period', 30))
-    limit = int(request.args.get('limit', 10))
+    period = _safe_int(request.args.get('period', 30), 30)
+    limit = _safe_int(request.args.get('limit', 10), 10)
     conn = get_db()
     
     if warehouse_id and warehouse_id.isdigit():
-        products = conn.execute('''
+        products = conn.execute(f'''
             SELECT p.id, p.name, p.sku, p.quantity, p.price,
                    (SELECT COUNT(*) FROM stock_movements m WHERE m.product_id = p.id AND m.created_at >= date('now', '-{period} days')) as movement_count,
                    (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'in' AND m.created_at >= date('now', '-{period} days')) as total_in,
@@ -1564,108 +1274,12 @@ def get_warehouse_overview():
     conn.close()
     return jsonify([dict(w) for w in warehouses_data])
 
-@app.route('/api/categories', methods=['GET'])
-def get_categories():
-    conn = get_db()
-    categories = conn.execute('SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != "" ORDER BY category').fetchall()
-    conn.close()
-    return jsonify([c['category'] for c in categories])
 
-@app.route('/api/kpis/dashboard', methods=['GET'])
-def get_dashboard_kpis():
-    warehouse_id = request.args.get('warehouse_id')
-    period = int(request.args.get('period', 30))
-    conn = get_db()
-    
-    where_clause = 'WHERE warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ''
-    params = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-    prev_period = period * 2
-    
-    total_products = conn.execute(f'SELECT COUNT(*) FROM products {where_clause}', params).fetchone()[0]
-    total_value = conn.execute(f'SELECT COALESCE(SUM(quantity * price), 0) FROM products {where_clause}', params).fetchone()[0]
-    avg_price = total_value / total_products if total_products > 0 else 0
-    
-    params_low = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-    low_stock = conn.execute(
-        f'SELECT COUNT(*) FROM products WHERE quantity < min_quantity AND is_deleted = 0 {"AND warehouse_id = ?" if warehouse_id and warehouse_id.isdigit() else ""}',
-        params_low
-    ).fetchone()[0]
-    out_of_stock = conn.execute(
-        f'SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) AND is_deleted = 0 {"AND warehouse_id = ?" if warehouse_id and warehouse_id.isdigit() else ""}',
-        params_low
-    ).fetchone()[0]
-    
-    products_to_order = conn.execute(f'''
-        SELECT id, name, sku, quantity, min_quantity, (min_quantity - quantity) as needed
-        FROM products
-        WHERE quantity < min_quantity AND is_deleted = 0 {'AND warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ""}
-        ORDER BY needed DESC
-        LIMIT 10
-    ''', params_low).fetchall()
-    
-    in_movements = conn.execute(f'''
-        SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
-        WHERE type = 'in' AND created_at >= date('now', '-{period} days')
-    ''').fetchone()[0]
-    
-    out_movements = conn.execute(f'''
-        SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
-        WHERE type = 'out' AND created_at >= date('now', '-{period} days')
-    ''').fetchone()[0]
-    
-    prev_in = conn.execute(f'''
-        SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
-        WHERE type = 'in' AND created_at >= date('now', '-{prev_period} days') AND created_at < date('now', '-{period} days')
-    ''').fetchone()[0]
-    
-    prev_out = conn.execute(f'''
-        SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
-        WHERE type = 'out' AND created_at >= date('now', '-{prev_period} days') AND created_at < date('now', '-{period} days')
-    ''').fetchone()[0]
-    
-    today_movements = conn.execute("SELECT COUNT(*) FROM stock_movements WHERE date(created_at) = date('now')").fetchone()[0]
-    
-    avg_daily_out = out_movements / period if period > 0 else 1
-    dio = total_products / avg_daily_out if avg_daily_out > 0 else 0
-    
-    rotation_rate = (out_movements / total_products * 100) if total_products > 0 else 0
-    prev_rotation = (prev_out / total_products * 100) if total_products > 0 else 0
-    
-    in_trend = ((in_movements - prev_in) / prev_in * 100) if prev_in > 0 else 0
-    out_trend = ((out_movements - prev_out) / prev_out * 100) if prev_out > 0 else 0
-    
-    expiring_soon_params = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-    expiring_soon = conn.execute(f'''
-        SELECT COUNT(*) FROM products
-        WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', '+30 days') {'AND warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ""}
-    ''', expiring_soon_params).fetchone()[0]
-    
-    total_alerts = low_stock + out_of_stock + expiring_soon
-    
-    conn.close()
-    return jsonify({
-        'total_products': total_products,
-        'total_value': round(total_value, 2),
-        'avg_price': round(avg_price, 2),
-        'low_stock': low_stock,
-        'out_of_stock': out_of_stock,
-        'products_to_order': [dict(p) for p in products_to_order],
-        'expiring_soon': expiring_soon,
-        'total_alerts': total_alerts,
-        'in_movements': in_movements,
-        'out_movements': out_movements,
-        'today_movements': today_movements,
-        'rotation_rate': round(rotation_rate, 1),
-        'dio': round(dio, 1),
-        'in_trend': round(in_trend, 1),
-        'out_trend': round(out_trend, 1),
-        'period': period
-    })
 
 @app.route('/api/kpis/orders-summary', methods=['GET'])
 def get_orders_summary():
     warehouse_id = request.args.get('warehouse_id')
-    period = int(request.args.get('period', 30))
+    period = _safe_int(request.args.get('period', 30), 30)
     conn = get_db()
     
     brouillon = conn.execute("SELECT COUNT(*) FROM purchase_orders WHERE status='brouillon'").fetchone()[0]
@@ -1679,7 +1293,7 @@ def get_orders_summary():
 @app.route('/api/kpis/invoices-summary', methods=['GET'])
 def get_invoices_summary():
     warehouse_id = request.args.get('warehouse_id')
-    period = int(request.args.get('period', 30))
+    period = _safe_int(request.args.get('period', 30), 30)
     conn = get_db()
     
     unpaid = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='envoyee'").fetchone()[0]
@@ -1693,7 +1307,7 @@ def get_invoices_summary():
 @app.route('/api/kpis/customers-summary', methods=['GET'])
 def get_customers_summary():
     warehouse_id = request.args.get('warehouse_id')
-    period = int(request.args.get('period', 30))
+    period = _safe_int(request.args.get('period', 30), 30)
     conn = get_db()
     
     total = conn.execute('SELECT COUNT(*) FROM customers').fetchone()[0]
@@ -1705,7 +1319,7 @@ def get_customers_summary():
 @app.route('/api/kpis/evolution', methods=['GET'])
 def get_evolution():
     warehouse_id = request.args.get('warehouse_id')
-    period = int(request.args.get('period', 30))
+    period = _safe_int(request.args.get('period', 30), 30)
     conn = get_db()
     
     evolution = []
@@ -1734,60 +1348,12 @@ def get_evolution():
     conn.close()
     return jsonify(evolution)
 
-@app.route('/api/kpis/alertes', methods=['GET'])
-def get_alertes():
-    warehouse_id = request.args.get('warehouse_id')
-    conn = get_db()
-    
-    params_where = [int(warehouse_id)] if warehouse_id and warehouse_id.isdigit() else []
-    
-    low_stock = conn.execute(f'''
-        SELECT id, name, sku, quantity, min_quantity, price, (min_quantity - quantity) as needed
-        FROM products
-        WHERE quantity < min_quantity AND is_deleted = 0 {'AND warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ""}
-        ORDER BY needed DESC
-        LIMIT 10
-    ''', params_where).fetchall()
-    
-    out_of_stock = conn.execute(f'''
-        SELECT id, name, sku, min_quantity, price
-        FROM products
-        WHERE (quantity < 0 OR quantity IS NULL) AND is_deleted = 0 {'AND warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ""}
-        ORDER BY min_quantity DESC
-        LIMIT 10
-    ''', params_where).fetchall()
-    
-    expiring = conn.execute(f'''
-        SELECT id, name, lot_number, expiry_date, quantity,
-               CAST(julianday(expiry_date) - julianday('now') AS INTEGER) as days_left
-        FROM products
-        WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', '+30 days') AND expiry_date >= date('now')
-        {'AND warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ""}
-        ORDER BY expiry_date
-        LIMIT 10
-    ''', params_where).fetchall()
-    
-    inactive = conn.execute(f'''
-        SELECT p.id, p.name, p.quantity, p.price,
-               MAX(m.created_at) as last_movement
-        FROM products p
-        LEFT JOIN stock_movements m ON p.id = m.product_id
-        {'WHERE p.warehouse_id = ?' if warehouse_id and warehouse_id.isdigit() else ""}
-        GROUP BY p.id
-        HAVING MAX(m.created_at) IS NULL OR MAX(m.created_at) < date('now', '-90 days')
-        LIMIT 10
-    ''', params_where).fetchall()
-    
-    conn.close()
-    return jsonify({
-        'low_stock': [dict(p) for p in low_stock],
-        'out_of_stock': [dict(p) for p in out_of_stock],
-        'expiring': [dict(p) for p in expiring],
-        'inactive': [dict(p) for p in inactive]
-    })
+
 
 @app.route('/api/seed-data', methods=['POST'])
 def seed_data():
+    if not app.debug:
+        return jsonify({'error': 'Action non autorisée en production'}), 403
     conn = get_db()
     c = conn.cursor()
     
@@ -1923,61 +1489,7 @@ def delete_customer(customer_id):
     conn.close()
     return jsonify({'success': True})
 
-def get_price_for_customer(product, customer_type, is_loyal):
-    # Tarif normal = price_base (moyenne d'achât + 40%)
-    normal_price = product['price_base'] if product['price_base'] > 0 else product['price']
-    
-    # Tarif école = normal - 20% (prioritaire sur fidélité)
-    if customer_type == 'ecole':
-        return round(normal_price * 0.80, 2)
-    
-    # Tarif fidélité = normal - 15%
-    if is_loyal:
-        return round(normal_price * 0.85, 2)
-    
-    # Tarif étudiant = normal - 15%
-    if customer_type == 'etudiant':
-        return round(normal_price * 0.85, 2)
-    
-    # Tarif normal par défaut
-    return round(normal_price, 2)
 
-@app.route('/api/products/for-sale', methods=['GET'])
-def get_products_for_sale():
-    warehouse_id = request.args.get('warehouse_id')
-    customer_id = request.args.get('customer_id')
-    search = request.args.get('search', '')
-    conn = get_db()
-    
-    params = []
-    if warehouse_id and warehouse_id.isdigit():
-        query = 'SELECT * FROM products WHERE quantity > 0 AND warehouse_id = ?'
-        params.append(int(warehouse_id))
-    else:
-        query = 'SELECT * FROM products WHERE quantity > 0'
-    
-    if search:
-        query += ' AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ?)'
-        params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
-    
-    query += ' ORDER BY name'
-    
-    products = conn.execute(query, params).fetchall()
-    customer = None
-    if customer_id and customer_id.isdigit():
-        customer = conn.execute('SELECT * FROM customers WHERE id=?', (int(customer_id),)).fetchone()
-    
-    result = []
-    for p in products:
-        prod_dict = dict(p)
-        if customer:
-            prod_dict['sale_price'] = get_price_for_customer(prod_dict, customer['type'], customer['is_loyal'])
-        else:
-            prod_dict['sale_price'] = prod_dict.get('price_base', prod_dict.get('price', 0))
-        result.append(prod_dict)
-    
-    conn.close()
-    return jsonify(result)
 
 @app.route('/api/invoices', methods=['GET'])
 def get_invoices():
@@ -2284,6 +1796,14 @@ def generate_invoice_pdf(invoice_id):
     invoice_data = dict(invoice)
     items_data = [dict(item) for item in items]
     
+    def _esc(d):
+        for k, v in d.items():
+            if isinstance(v, str):
+                d[k] = html.escape(v)
+    _esc(invoice_data)
+    for item in items_data:
+        _esc(item)
+    
     # Build party HTML based on invoice type
     if invoice_data.get('type', 'facture') == 'fournisseur':
         party_html = f"""
@@ -2491,30 +2011,28 @@ def get_kpis_sales():
     
     date_start = request.args.get('date_start')
     date_end = request.args.get('date_end')
-    period = int(request.args.get('period', 30))
+    period = _safe_int(request.args.get('period', 30), 30)
     
-    # Build date filters
     date_filter = ""
-    params = []
+    date_params = []
     if date_start and date_end:
         date_filter = "AND date(created_at) BETWEEN ? AND ?"
-        params = [date_start, date_end]
+        date_params = [date_start, date_end]
     elif date_start:
         date_filter = "AND date(created_at) >= ?"
-        params = [date_start]
+        date_params = [date_start]
     elif date_end:
         date_filter = "AND date(created_at) <= ?"
-        params = [date_end]
+        date_params = [date_end]
     else:
-        date_filter = "AND created_at >= date('now', '-" + str(period) + " days')"
+        date_filter = "AND created_at >= date('now', ?)"
+        date_params = [f'-{period} days']
     
-    # CA période
     query = "SELECT COALESCE(SUM(total), 0) as total FROM pos_transactions WHERE status = 'completed' " + date_filter
-    ca_periode = conn.execute(query, tuple(params) if params else (tuple(params) if params else ())).fetchone()[0]
+    ca_periode = conn.execute(query, tuple(date_params)).fetchone()[0]
     
-    # Nb ventes période
     query = "SELECT COUNT(*) as count FROM pos_transactions WHERE status = 'completed' " + date_filter
-    nb_ventes_periode = conn.execute(query, tuple(params) if params and len(params) > 0 else (tuple(params) if params else ())).fetchone()[0]
+    nb_ventes_periode = conn.execute(query, tuple(date_params)).fetchone()[0]
     
     # Si pas de dates personnalisées, calculer trend
     ca_trend = 0
@@ -2539,21 +2057,7 @@ def get_kpis_sales():
         WHERE status = 'completed' AND date(created_at) = date('now')
     """).fetchone()[0]
     
-    # Ticket moyen - utiliser la période, pas le jour
     ticket_moyen = ca_periode / nb_ventes_periode if nb_ventes_periode > 0 else 0
-    
-    # CA today (always)
-    ca_jour = conn.execute("""
-        SELECT COALESCE(SUM(total), 0) as total 
-        FROM pos_transactions 
-        WHERE status = 'completed' AND date(created_at) = date('now')
-    """).fetchone()[0]
-    
-    nb_ventes_jour = conn.execute("""
-        SELECT COUNT(*) as count 
-        FROM pos_transactions 
-        WHERE status = 'completed' AND date(created_at) = date('now')
-    """).fetchone()[0]
     
     conn.close()
     return jsonify({
@@ -2598,8 +2102,8 @@ def get_kpis_margins():
     cat_data = {}
     for s in sales_by_product:
         cat = s['category'] or 'Sans categorie'
-        purchase_price = purchase_prices.get(s['product_id'], s['product_id'])
-        if purchase_price == s['product_id']:
+        purchase_price = purchase_prices.get(s['product_id'], 0)
+        if purchase_price == 0:
             purchase_price = conn.execute('SELECT COALESCE(price_base, 0) FROM products WHERE id = ?', (s['product_id'],)).fetchone()[0]
         
         vente = s['total_selling']
@@ -2708,7 +2212,7 @@ def get_kpis_invoices_status():
 def get_kpis_sales_daily():
     """KPI Ventes quotidiennes sur période (pour graphique Area)"""
     conn = get_db()
-    period = int(request.args.get('period', 30))
+    period = _safe_int(request.args.get('period', 30), 30)
     
     from datetime import datetime, timedelta
     today = datetime.now()
@@ -2766,8 +2270,8 @@ def get_kpis_top_selling():
     Priority: date_start/date_end > period
     """
     conn = get_db()
-    limit = int(request.args.get('limit', 10))
-    period = int(request.args.get('period', 30))
+    limit = _safe_int(request.args.get('limit', 10), 10)
+    period = _safe_int(request.args.get('period', 30), 30)
     date_start = request.args.get('date_start')
     date_end = request.args.get('date_end')
     
@@ -2809,7 +2313,7 @@ def get_kpis_top_selling():
 def get_kpis_sessions_history():
     """KPI Historique des sessions de caisse fermées"""
     conn = get_db()
-    limit = int(request.args.get('limit', 20))
+    limit = _safe_int(request.args.get('limit', 20), 20)
     status = request.args.get('status', 'closed')
     
     sessions = conn.execute("""
@@ -2836,7 +2340,7 @@ def get_kpis_sessions_history():
 def get_kpis_sessions_summary():
     """KPI Résumé des sessions sur période"""
     conn = get_db()
-    period = int(request.args.get('period', 30))
+    period = _safe_int(request.args.get('period', 30), 30)
     
     summary = conn.execute("""
         SELECT 
@@ -3250,7 +2754,7 @@ def get_pos_customers():
 def get_pos_recent_transactions():
     """Get recent POS transactions"""
     conn = get_db()
-    limit = int(request.args.get('limit', 20))
+    limit = _safe_int(request.args.get('limit', 20), 20)
     session_id = request.args.get('session_id')
     
     if session_id:
@@ -3278,7 +2782,7 @@ def get_pos_recent_transactions():
 def get_pos_best_sellers():
     """Get best selling products for POS"""
     conn = get_db()
-    limit = int(request.args.get('limit', 5))
+    limit = _safe_int(request.args.get('limit', 5), 5)
     
     products = conn.execute('''
         SELECT p.id, p.name, p.sku, p.price, p.price_base, 
@@ -3305,7 +2809,7 @@ def get_main_account():
         conn.close()
         return jsonify({'error': 'Compte principal non trouvé'}), 404
     
-    limit = int(request.args.get('limit', 50))
+    limit = _safe_int(request.args.get('limit', 50), 50)
     transactions = conn.execute('''
         SELECT * FROM main_account_transactions 
         ORDER BY created_at DESC
@@ -3447,6 +2951,14 @@ def generate_pos_ticket_pdf(ticket_number):
     items = conn.execute('SELECT * FROM pos_transaction_items WHERE transaction_id = ?', 
                        (transaction['id'],)).fetchall()
     items = [dict(item) for item in items]
+    
+    def _esc(d):
+        for k, v in d.items():
+            if isinstance(v, str):
+                d[k] = html.escape(v)
+    _esc(transaction)
+    for item in items:
+        _esc(item)
     
     conn.close()
     
