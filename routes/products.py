@@ -124,12 +124,17 @@ def add_product():
     data = request.json
     with get_db() as conn:
         try:
+            sku = data.get('sku', '')
+            if not sku:
+                count = conn.execute('SELECT COALESCE(MAX(id), 0) + 1 FROM products').fetchone()[0]
+                sku = 'SKU-' + str(count).zfill(4)
+            
             conn.execute('''
                 INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price,
                 price_base, price_loyal, price_school, price_student, tax_category, category, warehouse_id, location_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                data.get('name', ''), data.get('description', ''), data.get('sku', ''), data.get('barcode', ''),
+                data.get('name', ''), data.get('description', ''), sku, data.get('barcode', ''),
                 data.get('quantity', 0), data.get('min_quantity', 5), data.get('max_quantity', 100),
                 data.get('price', 0), data.get('price_base', 0), data.get('price_loyal', 0),
                 data.get('price_school', 0), data.get('price_student', 0), data.get('tax_category', '20'),
@@ -223,6 +228,37 @@ def delete_product(product_id):
             conn.execute('DELETE FROM products WHERE id=?', (product_id,))
             conn.commit()
             return jsonify({'success': True, 'message': 'Produit supprimé définitivement'})
+
+@products_bp.route('/api/products/calculate-prices', methods=['POST'])
+def calculate_product_prices():
+    data = request.json
+    product_id = data.get('product_id')
+    if not product_id:
+        return jsonify({'error': 'product_id requis'}), 400
+    
+    with get_db() as conn:
+        product = conn.execute('SELECT price, price_base, purchase_price_avg FROM products WHERE id=?', (product_id,)).fetchone()
+        if not product:
+            return jsonify({'error': 'Produit non trouvé'}), 404
+        
+        base = product['price_base'] if product['price_base'] and product['price_base'] > 0 else (product['purchase_price_avg'] or product['price'] or 0) * 1.40
+        price_loyal = base * 0.85
+        price_student = base * 0.85
+        price_school = base * 0.80
+        
+        conn.execute('UPDATE products SET price_base=?, price_loyal=?, price_student=?, price_school=? WHERE id=?',
+                     (base, price_loyal, price_student, price_school, product_id))
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'prices': {
+                'price_base': round(base, 2),
+                'price_loyal': round(price_loyal, 2),
+                'price_student': round(price_student, 2),
+                'price_school': round(price_school, 2)
+            }
+        })
 
 @products_bp.route('/api/products/for-sale', methods=['GET'])
 def get_products_for_sale():

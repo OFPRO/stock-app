@@ -2280,6 +2280,76 @@
         </div>
     </div>
     
+    <!-- Product Modal -->
+    <div class="modal" id="productModal">
+        <div class="modal-content wide">
+            <div class="modal-header">
+                <div class="modal-title" id="productModalTitle">Nouveau Produit</div>
+                <button class="modal-close" onclick="closeModal('productModal')">&times;</button>
+            </div>
+            <form id="productForm" onsubmit="saveProduct(event)">
+                <div class="modal-body">
+                    <input type="hidden" id="productId">
+                    <div class="form-group">
+                        <label class="form-label">Nom du produit</label>
+                        <input type="text" id="productName" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea id="productDescription" class="form-input" rows="2"></textarea>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div class="form-group">
+                            <label class="form-label">SKU</label>
+                            <input type="text" id="productSku" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Code-barres</label>
+                            <input type="text" id="productBarcode" class="form-input">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Prix de vente (DH)</label>
+                            <input type="number" id="productPrice" class="form-input" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quantité initiale</label>
+                            <input type="number" id="productQuantity" class="form-input" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Catégorie</label>
+                            <select id="productCategory" class="form-select">
+                                <option value="Général">Général</option>
+                                <option value="Informatique">Informatique</option>
+                                <option value="Bureautique">Bureautique</option>
+                                <option value="Papeterie">Papeterie</option>
+                                <option value="Fournitures">Fournitures</option>
+                                <option value="Câbles">Câbles</option>
+                                <option value="Accessoires">Accessoires</option>
+                                <option value="Éclairage">Éclairage</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Stock minimum</label>
+                            <input type="number" id="productMinQty" class="form-input" min="0" value="5">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Stock maximum</label>
+                            <input type="number" id="productMaxQty" class="form-input" min="0" value="100">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('productModal')">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <!-- Warehouse Modal -->
     <div class="modal" id="warehouseModal">
         <div class="modal-content">
@@ -3660,7 +3730,7 @@ row.innerHTML = '<td><div class="product-search-wrapper"><input type="text" clas
             var purchasePrice = parseFloat(document.getElementById('stockPurchasePrice').value) || 0;
             var note = document.getElementById('stockNote').value;
             
-            await fetch('/api/products/' + productId + '/full', {
+            await fetch('/api/stock/' + productId, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: type, quantity: qty, purchase_price: purchasePrice, note: note })
@@ -3725,7 +3795,60 @@ row.innerHTML = '<td><div class="product-search-wrapper"><input type="text" clas
         }
         
         function openProductModal() {
-            showTab('products');
+            document.getElementById('productId').value = '';
+            document.getElementById('productForm').reset();
+            document.getElementById('productModalTitle').textContent = 'Nouveau Produit';
+            document.getElementById('productModal').classList.add('active');
+        }
+        
+        function editProductModal(product) {
+            document.getElementById('productId').value = product.id;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productSku').value = product.sku || '';
+            document.getElementById('productBarcode').value = product.barcode || '';
+            document.getElementById('productPrice').value = product.price || 0;
+            document.getElementById('productQuantity').value = product.quantity || 0;
+            document.getElementById('productCategory').value = product.category || 'Général';
+            document.getElementById('productMinQty').value = product.min_quantity || 5;
+            document.getElementById('productMaxQty').value = product.max_quantity || 100;
+            document.getElementById('productModalTitle').textContent = 'Modifier Produit';
+            document.getElementById('productModal').classList.add('active');
+        }
+        
+        async function saveProduct(e) {
+            e.preventDefault();
+            var id = document.getElementById('productId').value;
+            var data = {
+                name: document.getElementById('productName').value,
+                description: document.getElementById('productDescription').value,
+                sku: document.getElementById('productSku').value,
+                barcode: document.getElementById('productBarcode').value,
+                price: parseFloat(document.getElementById('productPrice').value) || 0,
+                quantity: parseInt(document.getElementById('productQuantity').value) || 0,
+                category: document.getElementById('productCategory').value,
+                min_quantity: parseInt(document.getElementById('productMinQty').value) || 5,
+                max_quantity: parseInt(document.getElementById('productMaxQty').value) || 100
+            };
+            try {
+                var method = id ? 'PUT' : 'POST';
+                var url = id ? '/api/products/' + id : '/api/products';
+                var res = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                var result = await res.json();
+                if (result.success) {
+                    closeModal('productModal');
+                    loadProducts();
+                    showSuccess(id ? 'Produit modifié avec succès' : 'Produit créé avec succès');
+                } else {
+                    showError(result.error || 'Erreur lors de l\'enregistrement');
+                }
+            } catch(e) {
+                showError('Erreur lors de l\'enregistrement du produit');
+            }
         }
         
         async function loadLocations() {
