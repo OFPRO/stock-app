@@ -171,63 +171,120 @@ def update_product(product_id):
 
 @products_bp.route('/api/products/<int:product_id>', methods=['DELETE'])
 def delete_product(product_id):
-    soft_delete_only = request.args.get('soft', 'true').lower() == 'true'
-    
     with get_db() as conn:
         product = conn.execute('SELECT * FROM products WHERE id=?', (product_id,)).fetchone()
         if not product:
             return jsonify({'error': 'Produit non trouvé'}), 404
         
-        if soft_delete_only:
-            invoices = conn.execute('''
-                SELECT id, status FROM invoices 
-                WHERE id IN (SELECT invoice_id FROM invoice_items WHERE product_id=?)
-            ''', (product_id,)).fetchall()
-            
-            has_unpaid_invoices = False
-            for inv in invoices:
-                if inv['status'] not in ['payee', 'envoyee']:
-                    has_unpaid_invoices = True
-                    break
-            
-            if has_unpaid_invoices:
-                conn.execute('''
-                    UPDATE invoices SET status='annule' 
-                    WHERE id IN (SELECT invoice_id FROM invoice_items WHERE product_id=?)
-                    AND status NOT IN ('payee')
-                ''', (product_id,))
-                conn.commit()
-            
-            orders = conn.execute('''
-                SELECT id, status FROM purchase_orders 
-                WHERE id IN (SELECT order_id FROM purchase_order_items WHERE product_id=?)
-            ''', (product_id,)).fetchall()
-            
-            for order in orders:
-                if order['status'] == 'brouillon':
-                    conn.execute('DELETE FROM purchase_order_items WHERE order_id=? AND product_id=?', 
-                              (order['id'], product_id))
-                    conn.execute('DELETE FROM purchase_orders WHERE id=? AND status=?', 
-                              (order['id'], 'brouillon'))
-            
-            conn.execute('DELETE FROM notifications WHERE product_id=?', (product_id,))
-            
-            if product['quantity'] and product['quantity'] > 0:
-                conn.execute('UPDATE products SET is_liquidation=1 WHERE id=?', (product_id,))
-            else:
-                conn.execute('UPDATE products SET is_deleted=1, deleted_at=CURRENT_TIMESTAMP WHERE id=?', (product_id,))
-                conn.execute('''
-                    INSERT INTO stock_movements (product_id, type, quantity, note)
-                    VALUES (?, 'other', 0, 'Produit supprimé (archivé)')
-                ''', (product_id,))
-            
-            conn.commit()
-            return jsonify({'success': True, 'message': 'Produit archivé'})
-        else:
+        product = dict(product)
+        
+        if product.get('is_deleted'):
+            return jsonify({'error': 'Produit déjà supprimé'}), 400
+        
+        details = []
+        
+        # ── Étape 1 : Détruire le stock restant ──
+        if product['quantity'] and product['quantity'] > 0:
+            qty = product['quantity']
+            conn.execute('UPDATE products SET quantity=0 WHERE id=?', (product_id,))
             conn.execute('DELETE FROM stock WHERE product_id=?', (product_id,))
-            conn.execute('DELETE FROM products WHERE id=?', (product_id,))
-            conn.commit()
-            return jsonify({'success': True, 'message': 'Produit supprimé définitivement'})
+            conn.execute('''
+                INSERT INTO stock_movements (product_id, type, quantity, note)
+                VALUES (?, 'destruction', ?, 'Stock détruit - suppression produit')
+            ''', (product_id, qty))
+            details.append(f"Stock détruit: {qty} unité(s)")
+        
+        # ── Étape 2 : Factures non payées → annulées ──
+        unpaid_invoices = conn.execute('''
+            SELECT id, invoice_number, status FROM invoices 
+            WHERE id IN (SELECT invoice_id FROM invoice_items WHERE product_id=?)
+            AND status NOT IN ('payee')
+        ''', (product_id,)).fetchall()
+        for inv in unpaid_invoices:
+            conn.execute("UPDATE invoices SET status='annulee', updated_at=CURRENT_TIMESTAMP WHERE id=?", (inv['id'],))
+            details.append(f"Facture {inv['invoice_number']} annulée")
+        
+        # ── Étape 3 : Commandes brouillon → annulées ──
+        draft_orders = conn.execute('''
+            SELECT po.id, po.order_number, COUNT(poi2.id) as item_count
+            FROM purchase_orders po
+            JOIN purchase_order_items poi ON poi.order_id = po.id
+            LEFT JOIN purchase_order_items poi2 ON poi2.order_id = po.id
+            WHERE poi.product_id = ? AND po.status = 'brouillon'
+            GROUP BY po.id
+        ''', (product_id,)).fetchall()
+        for order in draft_orders:
+            conn.execute('DELETE FROM purchase_order_items WHERE order_id=? AND product_id=?', 
+                      (order['id'], product_id))
+            remaining = conn.execute('SELECT COUNT(*) as c FROM purchase_order_items WHERE order_id=?', 
+                                   (order['id'],)).fetchone()
+            if remaining['c'] == 0:
+                conn.execute("UPDATE purchase_orders SET status='annulee' WHERE id=?", (order['id'],))
+            details.append(f"Commande {order['order_number']}: ligne produit retirée")
+        
+        # ── Étape 4 : Commandes reçues → retournées ──
+        received_orders = conn.execute('''
+            SELECT DISTINCT po.id, po.order_number, po.warehouse_id
+            FROM purchase_orders po
+            JOIN purchase_order_items poi ON poi.order_id = po.id
+            WHERE poi.product_id = ? AND po.status = 'recue'
+        ''', (product_id,)).fetchall()
+        for order in received_orders:
+            items = conn.execute('SELECT quantity FROM purchase_order_items WHERE order_id=? AND product_id=?',
+                               (order['id'], product_id)).fetchall()
+            total_qty = sum(int(it['quantity']) for it in items)
+            qty = total_qty
+            conn.execute('UPDATE products SET quantity = MAX(0, quantity - ?) WHERE id=?', (qty, product_id))
+            default_location = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', 
+                                          (order['warehouse_id'],)).fetchone()
+            if default_location:
+                stock_entry = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?',
+                                         (product_id, default_location['id'])).fetchone()
+                if stock_entry:
+                    new_qty = max(0, stock_entry['quantity'] - qty)
+                    if new_qty > 0:
+                        conn.execute('UPDATE stock SET quantity=? WHERE id=?', (new_qty, stock_entry['id']))
+                    else:
+                        conn.execute('DELETE FROM stock WHERE id=?', (stock_entry['id'],))
+            conn.execute('''
+                INSERT INTO stock_movements (product_id, type, quantity, source_location_id, note)
+                VALUES (?, 'retour', ?, ?, 'Stock retourné - suppression produit')
+            ''', (product_id, qty, default_location['id'] if default_location else None))
+            conn.execute("UPDATE purchase_orders SET status='retournee' WHERE id=?", (order['id'],))
+            details.append(f"Commande {order['order_number']}: stock retourné ({qty} unité(s))")
+        
+        # ── Étape 5 : Commandes payées → annulées + remboursement ──
+        paid_orders = conn.execute('''
+            SELECT po.id, po.order_number, po.total, poi.quantity as item_qty, poi.unit_price
+            FROM purchase_orders po
+            JOIN purchase_order_items poi ON poi.order_id = po.id
+            WHERE poi.product_id = ? AND po.status = 'paye'
+        ''', (product_id,)).fetchall()
+        for item in paid_orders:
+            refund_amount = item['item_qty'] * item['unit_price']
+            conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (refund_amount,))
+            conn.execute('''
+                INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
+                VALUES ('refund', ?, 'product_deleted', ?, ?)
+            ''', (refund_amount, product_id, 
+                  f"Remboursement commande {item['order_number']} - produit supprimé"))
+            details.append(f"Commande {item['order_number']}: {refund_amount:.2f} DH remboursé")
+        
+        # ── Étape 6 : Nettoyage données liées ──
+        conn.execute('DELETE FROM notifications WHERE product_id=?', (product_id,))
+        conn.execute('DELETE FROM reordering_rules WHERE product_id=?', (product_id,))
+        
+        # ── Étape 7 : Soft-delete du produit ──
+        conn.execute('UPDATE products SET is_deleted=1, deleted_at=CURRENT_TIMESTAMP, quantity=0 WHERE id=?', 
+                    (product_id,))
+        conn.execute('''
+            INSERT INTO stock_movements (product_id, type, quantity, note)
+            VALUES (?, 'other', 0, 'Produit supprimé (soft-delete)')
+        ''', (product_id,))
+        details.append("Produit marqué comme supprimé")
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Produit supprimé avec cascade', 'details': details})
 
 @products_bp.route('/api/products/calculate-prices', methods=['POST'])
 def calculate_product_prices():
@@ -268,11 +325,12 @@ def get_products_for_sale():
     
     with get_db() as conn:
         params = []
+        base_where = 'quantity > 0 AND is_deleted = 0'
         if warehouse_id:
-            query = 'SELECT * FROM products WHERE quantity > 0 AND warehouse_id = ?'
+            query = 'SELECT * FROM products WHERE ' + base_where + ' AND warehouse_id = ?'
             params.append(warehouse_id)
         else:
-            query = 'SELECT * FROM products WHERE quantity > 0'
+            query = 'SELECT * FROM products WHERE ' + base_where
         
         if search:
             query += ' AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ?)'

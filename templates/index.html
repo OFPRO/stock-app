@@ -1439,9 +1439,15 @@
                     <div class="card">
                         <div class="card-header">
                             <div class="card-title">Produits</div>
-                            <button class="btn btn-primary" onclick="openProductModal()">
-                                <i class="fas fa-plus"></i> Nouveau
-                            </button>
+                            <div style="display:flex;gap:0.5rem;align-items:center;">
+                                <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.35rem;cursor:pointer;">
+                                    <input type="checkbox" id="showArchivedProducts" onchange="loadProducts()">
+                                    Archivés
+                                </label>
+                                <button class="btn btn-primary" onclick="openProductModal()">
+                                    <i class="fas fa-plus"></i> Nouveau
+                                </button>
+                            </div>
                         </div>
                         <input type="text" class="form-input" placeholder="Rechercher..." style="margin-bottom:1rem;max-width:300px;" oninput="renderProducts(this.value)">
                         <div id="productsListView"></div>
@@ -2243,6 +2249,7 @@
             </div>
             
             <div class="modal-footer">
+                <button type="button" class="btn btn-danger" onclick="deleteProductFromDetail()" id="detailDeleteBtn"><i class="fas fa-trash"></i> Supprimer</button>
                 <button type="button" class="btn btn-outline" onclick="closeModal('productDetailModal')">Fermer</button>
             </div>
         </div>
@@ -3436,7 +3443,10 @@ async function loadDashboard() {
         }
 
         async function loadProducts() {
-            var res = await fetch('/api/products');
+            var showArchived = document.getElementById('showArchivedProducts') ? document.getElementById('showArchivedProducts').checked : false;
+            var url = '/api/products';
+            if (showArchived) url += '?include_archived=true';
+            var res = await fetch(url);
             products = await res.json();
             renderProducts();
             loadBestSellers();
@@ -3467,16 +3477,23 @@ function renderProducts(filter) {
             var html = '<table class="table"><thead><tr><th>Produit</th><th>SKU</th><th>Qte</th><th>Prix</th><th>Actions</th></tr></thead><tbody>';
             for (var i = 0; i < filtered.length; i++) {
                 var p = filtered[i];
+                var isDeleted = p.is_deleted == 1;
+                var rowClass = isDeleted ? ' style="opacity:0.5;text-decoration:line-through;"' : '';
                 var statusClass = p.quantity <= p.min_quantity ? 'badge-danger' : (p.quantity <= p.min_quantity * 1.5 ? 'badge-warning' : 'badge-success');
-                html += '<tr>';
-                html += '<td><a href="#" onclick="openProductDetail(' + p.id + ')" class="product-link">' + p.name + '</a></td>';
+                html += '<tr' + rowClass + '>';
+                html += '<td><a href="#" onclick="openProductDetail(' + p.id + ')" class="product-link">' + p.name + (isDeleted ? ' <span class="badge badge-danger">Supprimé</span>' : '') + '</a></td>';
                 html += '<td>' + (p.sku || '-') + '</td>';
                 html += '<td><span class="badge ' + statusClass + '">' + p.quantity + '</span></td>';
                 html += '<td>' + (p.price || 0).toFixed(2) + ' DH</td>';
                 html += '<td>';
-                html += '<button class="btn btn-sm btn-success" onclick="openStockModal(' + p.id + ', \'in\')" title="Entree">+</button> ';
-                html += '<button class="btn btn-sm btn-warning" onclick="openStockModal(' + p.id + ', \'out\')" title="Sortie">-</button> ';
-                html += '<button class="btn btn-sm btn-outline" onclick="openProductDetail(' + p.id + ')" title="Details"><i class="fas fa-eye"></i></button>';
+                if (!isDeleted) {
+                    html += '<button class="btn btn-sm btn-success" onclick="openStockModal(' + p.id + ', \'in\')" title="Entree">+</button> ';
+                    html += '<button class="btn btn-sm btn-warning" onclick="openStockModal(' + p.id + ', \'out\')" title="Sortie">-</button> ';
+                    html += '<button class="btn btn-sm btn-outline" onclick="openProductDetail(' + p.id + ')" title="Details"><i class="fas fa-eye"></i></button> ';
+                    html += '<button class="btn btn-sm btn-danger" onclick="confirmDeleteProduct(' + p.id + ', \'' + p.name.replace(/'/g, "\\'") + '\')" title="Supprimer"><i class="fas fa-trash"></i></button>';
+                } else {
+                    html += '<button class="btn btn-sm btn-outline" onclick="openProductDetail(' + p.id + ')" title="Details"><i class="fas fa-eye"></i></button>';
+                }
                 html += '</td></tr>';
             }
             html += '</tbody></table>';
@@ -3848,6 +3865,36 @@ row.innerHTML = '<td><div class="product-search-wrapper"><input type="text" clas
                 }
             } catch(e) {
                 showError('Erreur lors de l\'enregistrement du produit');
+            }
+        }
+        
+        function confirmDeleteProduct(productId, productName) {
+            if (!confirm('Supprimer définitivement "' + productName + '" ?\n\nCette action va :\n- Détruire le stock restant\n- Annuler les commandes brouillon\n- Retourner le stock des commandes reçues\n- Rembourser le compte principal pour les commandes payées\n- Annuler les factures impayées liées\n\nCette action est irréversible.')) return;
+            deleteProduct(productId);
+        }
+        
+        function deleteProductFromDetail() {
+            if (!currentProductDetail) return;
+            confirmDeleteProduct(currentProductDetail.id, currentProductDetail.name);
+        }
+        
+        async function deleteProduct(productId) {
+            try {
+                var res = await fetch('/api/products/' + productId, { method: 'DELETE' });
+                var data = await res.json();
+                if (data.success) {
+                    showSuccess(data.message || 'Produit supprimé');
+                    if (data.details) {
+                        var detailStr = data.details.join('\\n');
+                        showSuccess('Détails : ' + detailStr);
+                    }
+                    closeModal('productDetailModal');
+                    loadProducts();
+                } else {
+                    showError(data.error || 'Erreur lors de la suppression');
+                }
+            } catch(e) {
+                showError('Erreur lors de la suppression du produit');
             }
         }
         
