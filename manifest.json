@@ -1,0 +1,9 @@
+{
+  "name": "Gestion de Stock",
+  "short_name": "Stock",
+  "description": "Application de gestion de stock v1.1",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb"
+}

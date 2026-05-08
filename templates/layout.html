@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GLM Stock{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --sidebar-width: 260px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); }
+        
+        .app { display: flex; min-height: 100vh; }
+        
+        .sidebar { width: var(--sidebar-width); background: var(--text); color: white; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100; }
+        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-logo { font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
+        .sidebar-logo i { color: var(--primary-light); }
+        .nav-menu { padding: 1rem 0; }
+        .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem; color: rgba(255,255,255,0.7); cursor: pointer; transition: all 0.2s; text-decoration: none; }
+        .nav-item:hover { background: rgba(255,255,255,0.1); color: white; }
+        .nav-item.active { background: var(--primary); color: white; }
+        .nav-item i { width: 20px; text-align: center; }
+        
+        .main { flex: 1; margin-left: var(--sidebar-width); }
+        .header { background: var(--card); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
+        .header-title { display: flex; align-items: center; gap: 1rem; }
+        .page-title { font-size: 1.25rem; font-weight: 600; }
+        
+        .content { padding: 2rem; }
+        
+        .back-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--border); border-radius: 8px; text-decoration: none; color: var(--text); font-weight: 500; }
+        .back-btn:hover { background: var(--text-light); color: white; }
+        
+        {% block extra_style %}{% endblock %}
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-cubes"></i> GLM Stock
+            </div>
+        </div>
+        <nav class="nav-menu">
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=dashboard'">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=products'">
+                <i class="fas fa-box"></i> Produits
+            </a>
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=warehouses'">
+                <i class="fas fa-warehouse"></i> Entrepôts
+            </a>
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=movements'">
+                <i class="fas fa-exchange-alt"></i> Mouvements
+            </a>
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=suppliers'">
+                <i class="fas fa-truck"></i> Fournisseurs
+            </a>
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=orders'">
+                <i class="fas fa-shopping-cart"></i> Commandes
+            </a>
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=customers'">
+                <i class="fas fa-users"></i> Clients
+            </a>
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=invoices'">
+                <i class="fas fa-file-invoice"></i> Factures
+            </a>
+            <a class="nav-item" href="javascript:void(0)" onclick="window.location.href='/?tab=pos'">
+                <i class="fas fa-cash-register"></i> POS
+            </a>
+            <a class="nav-item" href="/" onclick="window.location.href='/?tab=reports'">
+                <i class="fas fa-chart-bar"></i> Rapports
+            </a>
+        </nav>
+    </aside>
+    
+    <main class="main">
+        <header class="header">
+            <div class="header-title">
+                <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i> Retour</a>
+                <span class="page-title">{% block header_title %}{% endblock %}</span>
+            </div>
+        </header>
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</body>
+</html>

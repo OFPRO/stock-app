@@ -1,0 +1,1989 @@
+from flask import Flask, render_template, request, jsonify, Response, send_from_directory
+import sqlite3
+import csv
+import random
+from io import StringIO
+from datetime import datetime, timedelta
+
+app = Flask(__name__)
+DB_NAME = 'stock.db'
+
+def get_db():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db()
+    c = conn.cursor()
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS warehouses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            address TEXT,
+            manager TEXT,
+            is_default INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            warehouse_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT DEFAULT 'rack',
+            capacity INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            sku TEXT UNIQUE,
+            barcode TEXT,
+            quantity INTEGER DEFAULT 0,
+            min_quantity INTEGER DEFAULT 5,
+            max_quantity INTEGER DEFAULT 100,
+            price REAL DEFAULT 0,
+            price_base REAL DEFAULT 0,
+            price_loyal REAL DEFAULT 0,
+            price_school REAL DEFAULT 0,
+            price_student REAL DEFAULT 0,
+            tax_category TEXT DEFAULT '20',
+            lot_number TEXT,
+            serial_number TEXT,
+            expiry_date DATE,
+            supplier_id INTEGER,
+            category TEXT DEFAULT 'Général',
+            warehouse_id INTEGER DEFAULT 1,
+            location_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    try:
+        c.execute('ALTER TABLE products ADD COLUMN price_base REAL DEFAULT 0')
+    except:
+        pass
+    try:
+        c.execute('ALTER TABLE products ADD COLUMN price_loyal REAL DEFAULT 0')
+    except:
+        pass
+    try:
+        c.execute('ALTER TABLE products ADD COLUMN price_school REAL DEFAULT 0')
+    except:
+        pass
+    try:
+        c.execute('ALTER TABLE products ADD COLUMN price_student REAL DEFAULT 0')
+    except:
+        pass
+    try:
+        c.execute("ALTER TABLE products ADD COLUMN tax_category TEXT DEFAULT '20'")
+    except:
+        pass
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS stock (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            location_id INTEGER,
+            quantity INTEGER DEFAULT 0,
+            FOREIGN KEY (product_id) REFERENCES products(id),
+            FOREIGN KEY (location_id) REFERENCES locations(id)
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS stock_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER,
+            type TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            source_location_id INTEGER,
+            dest_location_id INTEGER,
+            lot_number TEXT,
+            serial_number TEXT,
+            note TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS suppliers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            address TEXT,
+            contact_person TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS purchase_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_number TEXT UNIQUE,
+            supplier_id INTEGER,
+            warehouse_id INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'brouillon',
+            total REAL DEFAULT 0,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sent_at TIMESTAMP,
+            received_at TIMESTAMP,
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS purchase_order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER,
+            product_id INTEGER,
+            quantity INTEGER,
+            unit_price REAL DEFAULT 0,
+            received_qty INTEGER DEFAULT 0,
+            FOREIGN KEY (order_id) REFERENCES purchase_orders(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS reordering_rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            warehouse_id INTEGER DEFAULT 1,
+            min_quantity INTEGER DEFAULT 5,
+            max_quantity INTEGER DEFAULT 100,
+            trigger_type TEXT DEFAULT 'manual',
+            supplier_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES products(id),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id),
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT,
+            product_id INTEGER,
+            warehouse_id INTEGER,
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            type TEXT DEFAULT 'particulier',
+            email TEXT,
+            phone TEXT,
+            address TEXT,
+            client_code TEXT UNIQUE,
+            discount_rate REAL DEFAULT 0,
+            is_loyal INTEGER DEFAULT 0,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_number TEXT UNIQUE NOT NULL,
+            customer_id INTEGER,
+            warehouse_id INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'brouillon',
+            subtotal REAL DEFAULT 0,
+            discount_total REAL DEFAULT 0,
+            tax_amount REAL DEFAULT 0,
+            total REAL DEFAULT 0,
+            notes TEXT,
+            due_date DATE,
+            paid_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (customer_id) REFERENCES customers(id),
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
+        )
+    ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS invoice_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_id INTEGER NOT NULL,
+            product_id INTEGER,
+            product_name TEXT,
+            product_sku TEXT,
+            quantity INTEGER NOT NULL,
+            unit_price REAL NOT NULL,
+            discount_percent REAL DEFAULT 0,
+            tax_rate REAL DEFAULT 20,
+            line_total REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (invoice_id) REFERENCES invoices(id),
+            FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+    ''')
+    
+    default_warehouse = c.execute('SELECT id FROM warehouses LIMIT 1').fetchone()
+    if not default_warehouse:
+        c.execute('''
+            INSERT INTO warehouses (name, address, is_default) VALUES ('Entrepôt Principal', 'Adresse par défaut', 1)
+        ''')
+        warehouse_id = c.execute('SELECT last_insert_rowid()').fetchone()[0]
+        c.execute('''
+            INSERT INTO locations (warehouse_id, name, type) VALUES (?, 'Zone principale', 'zone')
+        ''', (warehouse_id,))
+    
+    conn.commit()
+    conn.close()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/api/warehouses', methods=['GET'])
+def get_warehouses():
+    conn = get_db()
+    warehouses = conn.execute('SELECT * FROM warehouses ORDER BY is_default DESC, name').fetchall()
+    conn.close()
+    return jsonify([dict(w) for w in warehouses])
+
+@app.route('/api/warehouses', methods=['POST'])
+def add_warehouse():
+    data = request.json
+    conn = get_db()
+    try:
+        conn.execute('''
+            INSERT INTO warehouses (name, address, manager)
+            VALUES (?, ?, ?)
+        ''', (data['name'], data.get('address', ''), data.get('manager', '')))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/warehouses/<int:warehouse_id>', methods=['PUT'])
+def update_warehouse(warehouse_id):
+    data = request.json
+    conn = get_db()
+    conn.execute('''
+        UPDATE warehouses SET name=?, address=?, manager=? WHERE id=?
+    ''', (data['name'], data.get('address', ''), data.get('manager', ''), warehouse_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/warehouses/<int:warehouse_id>', methods=['DELETE'])
+def delete_warehouse(warehouse_id):
+    conn = get_db()
+    has_products = conn.execute('SELECT COUNT(*) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
+    if has_products > 0:
+        conn.close()
+        return jsonify({'error': 'Impossible de supprimer un entrepôt avec des produits'}), 400
+    conn.execute('DELETE FROM locations WHERE warehouse_id=?', (warehouse_id,))
+    conn.execute('DELETE FROM warehouses WHERE id=? AND is_default != 1', (warehouse_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/locations', methods=['GET'])
+def get_locations():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    if warehouse_id:
+        locations = conn.execute('SELECT * FROM locations WHERE warehouse_id=? ORDER BY name', (warehouse_id,)).fetchall()
+    else:
+        locations = conn.execute('SELECT l.*, w.name as warehouse_name FROM locations l JOIN warehouses w ON l.warehouse_id = w.id ORDER BY w.name, l.name').fetchall()
+    conn.close()
+    return jsonify([dict(l) for l in locations])
+
+@app.route('/api/locations', methods=['POST'])
+def add_location():
+    data = request.json
+    conn = get_db()
+    try:
+        conn.execute('''
+            INSERT INTO locations (warehouse_id, name, type, capacity)
+            VALUES (?, ?, ?, ?)
+        ''', (data['warehouse_id'], data['name'], data.get('type', 'rack'), data.get('capacity')))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/locations/<int:location_id>', methods=['PUT'])
+def update_location(location_id):
+    data = request.json
+    conn = get_db()
+    conn.execute('''
+        UPDATE locations SET name=?, type=?, capacity=? WHERE id=?
+    ''', (data['name'], data.get('type', 'rack'), data.get('capacity'), location_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/locations/<int:location_id>', methods=['DELETE'])
+def delete_location(location_id):
+    conn = get_db()
+    has_stock = conn.execute('SELECT COUNT(*) FROM stock WHERE location_id=?', (location_id,)).fetchone()[0]
+    if has_stock > 0:
+        conn.close()
+        return jsonify({'error': 'Impossible de supprimer une zone avec du stock'}), 400
+    conn.execute('DELETE FROM locations WHERE id=?', (location_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    query = '''
+        SELECT p.*, s.name as supplier_name, w.name as warehouse_name, l.name as location_name
+        FROM products p
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+        LEFT JOIN warehouses w ON p.warehouse_id = w.id
+        LEFT JOIN locations l ON p.location_id = l.id
+    '''
+    if warehouse_id:
+        query += f' WHERE p.warehouse_id = {warehouse_id}'
+    query += ' ORDER BY p.name'
+    
+    products = conn.execute(query).fetchall()
+    conn.close()
+    return jsonify([dict(p) for p in products])
+
+@app.route('/api/products', methods=['POST'])
+def add_product():
+    data = request.json
+    conn = get_db()
+    try:
+        conn.execute('''
+            INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price, price_base, price_loyal, price_school, price_student, tax_category, lot_number, serial_number, expiry_date, supplier_id, category, warehouse_id, location_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data['name'], data.get('description', ''), data.get('sku', ''), data.get('barcode', ''),
+              data.get('quantity', 0), data.get('min_quantity', 5), data.get('max_quantity', 100), data.get('price', 0),
+              data.get('price_base', 0), data.get('price_loyal', 0), data.get('price_school', 0), data.get('price_student', 0),
+              data.get('tax_category', '20'), data.get('lot_number', ''), data.get('serial_number', ''),
+              data.get('expiry_date', ''), data.get('supplier_id'), data.get('category', 'Général'),
+              data.get('warehouse_id', 1), data.get('location_id')))
+        
+        product_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        if data.get('location_id'):
+            existing = conn.execute('SELECT id FROM stock WHERE product_id=? AND location_id=?', 
+                                    (product_id, data.get('location_id'))).fetchone()
+            if existing:
+                conn.execute('UPDATE stock SET quantity = quantity + ? WHERE id=?', 
+                           (data.get('quantity', 0), existing['id']))
+            else:
+                conn.execute('INSERT INTO stock (product_id, location_id, quantity) VALUES (?, ?, ?)',
+                           (product_id, data.get('location_id'), data.get('quantity', 0)))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'product_id': product_id})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/products/<int:product_id>', methods=['PUT'])
+def update_product(product_id):
+    data = request.json
+    conn = get_db()
+    conn.execute('''
+        UPDATE products SET name=?, description=?, sku=?, barcode=?, quantity=?, min_quantity=?, max_quantity=?, price=?,
+        price_base=?, price_loyal=?, price_school=?, price_student=?, tax_category=?,
+        lot_number=?, serial_number=?, expiry_date=?, supplier_id=?, category=?, warehouse_id=?, location_id=?
+        WHERE id=?
+    ''', (data['name'], data.get('description', ''), data.get('sku', ''), data.get('barcode', ''),
+          data.get('quantity'), data.get('min_quantity', 5), data.get('max_quantity', 100), data.get('price', 0),
+          data.get('price_base', 0), data.get('price_loyal', 0), data.get('price_school', 0), data.get('price_student', 0),
+          data.get('tax_category', '20'), data.get('lot_number', ''), data.get('serial_number', ''),
+          data.get('expiry_date', ''), data.get('supplier_id'), data.get('category', 'Général'),
+          data.get('warehouse_id', 1), data.get('location_id'), product_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/products/<int:product_id>', methods=['DELETE'])
+def delete_product(product_id):
+    conn = get_db()
+    conn.execute('DELETE FROM stock WHERE product_id=?', (product_id,))
+    conn.execute('DELETE FROM products WHERE id=?', (product_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/stock/<int:product_id>', methods=['POST'])
+def stock_movement(product_id):
+    data = request.json
+    movement_type = data.get('type')
+    quantity = data.get('quantity', 0)
+    note = data.get('note', '')
+    lot_number = data.get('lot_number', '')
+    serial_number = data.get('serial_number', '')
+    location_id = data.get('location_id')
+    
+    conn = get_db()
+    
+    if movement_type == 'in':
+        conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (quantity, product_id))
+        
+        if location_id:
+            existing = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?', 
+                                    (product_id, location_id)).fetchone()
+            if existing:
+                conn.execute('UPDATE stock SET quantity = quantity + ? WHERE id=?', (quantity, existing['id']))
+            else:
+                conn.execute('INSERT INTO stock (product_id, location_id, quantity) VALUES (?, ?, ?)',
+                           (product_id, location_id, quantity))
+                
+    elif movement_type == 'out':
+        conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=?', (quantity, product_id))
+        
+        if location_id:
+            existing = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?', 
+                                    (product_id, location_id)).fetchone()
+            if existing:
+                new_qty = max(0, existing['quantity'] - quantity)
+                conn.execute('UPDATE stock SET quantity = ? WHERE id=?', (new_qty, existing['id']))
+
+    conn.execute('''
+        INSERT INTO stock_movements (product_id, type, quantity, dest_location_id, lot_number, serial_number, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (product_id, movement_type, quantity, location_id, lot_number, serial_number, note))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/stock/transfer', methods=['POST'])
+def stock_transfer():
+    data = request.json
+    product_id = data.get('product_id')
+    quantity = data.get('quantity', 0)
+    from_location_id = data.get('from_location_id')
+    to_location_id = data.get('to_location_id')
+    note = data.get('note', 'Transfert')
+    
+    conn = get_db()
+    
+    if from_location_id:
+        from_stock = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?', 
+                                  (product_id, from_location_id)).fetchone()
+        if not from_stock or from_stock['quantity'] < quantity:
+            conn.close()
+            return jsonify({'error': 'Stock insuffisant à la source'}), 400
+        conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=?', (quantity, from_stock['id']))
+    
+    if to_location_id:
+        to_stock = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?', 
+                                (product_id, to_location_id)).fetchone()
+        if to_stock:
+            conn.execute('UPDATE stock SET quantity = quantity + ? WHERE id=?', (quantity, to_stock['id']))
+        else:
+            conn.execute('INSERT INTO stock (product_id, location_id, quantity) VALUES (?, ?, ?)',
+                       (product_id, to_location_id, quantity))
+    
+    conn.execute('''
+        INSERT INTO stock_movements (product_id, type, quantity, source_location_id, dest_location_id, note)
+        VALUES (?, 'transfer', ?, ?, ?, ?)
+    ''', (product_id, quantity, from_location_id, to_location_id, note))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/stock/inter-warehouse', methods=['POST'])
+def inter_warehouse_transfer():
+    data = request.json
+    product_id = data.get('product_id')
+    quantity = data.get('quantity', 0)
+    from_warehouse_id = data.get('from_warehouse_id')
+    to_warehouse_id = data.get('to_warehouse_id')
+    note = data.get('note', 'Transfert inter-entrepôt')
+    
+    conn = get_db()
+    
+    from_loc = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', (from_warehouse_id,)).fetchone()
+    to_loc = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', (to_warehouse_id,)).fetchone()
+    
+    if not from_loc or not to_loc:
+        conn.close()
+        return jsonify({'error': 'Entrepôts non configurés'}), 400
+    
+    if from_warehouse_id:
+        from_stock = conn.execute('''
+            SELECT s.id, s.quantity FROM stock s
+            JOIN locations l ON s.location_id = l.id
+            WHERE s.product_id=? AND l.warehouse_id=?
+        ''', (product_id, from_warehouse_id)).fetchone()
+        
+        if not from_stock or from_stock['quantity'] < quantity:
+            conn.close()
+            return jsonify({'error': 'Stock insuffisant dans l\'entrepôt source'}), 400
+        conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=?', (quantity, from_stock['id']))
+    
+    to_stock = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?', 
+                            (product_id, to_loc['id'])).fetchone()
+    if to_stock:
+        conn.execute('UPDATE stock SET quantity = quantity + ? WHERE id=?', (quantity, to_stock['id']))
+    else:
+        conn.execute('INSERT INTO stock (product_id, location_id, quantity) VALUES (?, ?, ?)',
+                   (product_id, to_loc['id'], quantity))
+    
+    conn.execute('''
+        INSERT INTO stock_movements (product_id, type, quantity, source_location_id, dest_location_id, note)
+        VALUES (?, 'inter_warehouse', ?, ?, ?, ?)
+    ''', (product_id, quantity, from_loc['id'], to_loc['id'], note))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/movements', methods=['GET'])
+def get_all_movements():
+    product_id = request.args.get('product_id')
+    warehouse_id = request.args.get('warehouse_id')
+    
+    conn = get_db()
+    query = '''
+        SELECT m.*, p.name as product_name, 
+               sl.name as source_location, dl.name as dest_location
+        FROM stock_movements m
+        JOIN products p ON m.product_id = p.id
+        LEFT JOIN locations sl ON m.source_location_id = sl.id
+        LEFT JOIN locations dl ON m.dest_location_id = dl.id
+        WHERE 1=1
+    '''
+    
+    if product_id:
+        query += f' AND m.product_id = {product_id}'
+    if warehouse_id:
+        query += f' AND (p.warehouse_id = {warehouse_id} OR EXISTS (SELECT 1 FROM locations l JOIN stock s ON s.location_id = l.id WHERE s.product_id = p.id AND l.warehouse_id = {warehouse_id}))'
+    
+    query += ' ORDER BY m.created_at DESC LIMIT 100'
+    
+    movements = conn.execute(query).fetchall()
+    conn.close()
+    return jsonify([dict(m) for m in movements])
+
+@app.route('/api/movements/<int:product_id>', methods=['GET'])
+def get_movements(product_id):
+    conn = get_db()
+    movements = conn.execute('''
+        SELECT * FROM stock_movements WHERE product_id = ? ORDER BY created_at DESC
+    ''', (product_id,)).fetchall()
+    conn.close()
+    return jsonify([dict(m) for m in movements])
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    
+    where_clause = f'WHERE warehouse_id = {warehouse_id}' if warehouse_id else ''
+    
+    total = conn.execute(f'SELECT COUNT(*) as count FROM products {where_clause}').fetchone()[0]
+    low_stock = conn.execute(f'SELECT COUNT(*) as count FROM products WHERE quantity <= min_quantity {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}').fetchone()[0]
+    total_value = conn.execute(f'SELECT COALESCE(SUM(quantity * price), 0) as total FROM products {where_clause}').fetchone()[0]
+    out_of_stock = conn.execute(f'SELECT COUNT(*) as count FROM products WHERE quantity = 0 {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}').fetchone()[0]
+    
+    warehouses_count = conn.execute('SELECT COUNT(*) FROM warehouses').fetchone()[0]
+    
+    conn.close()
+    return jsonify({
+        'total': total, 
+        'low_stock': low_stock, 
+        'total_value': total_value, 
+        'out_of_stock': out_of_stock,
+        'warehouses_count': warehouses_count
+    })
+
+@app.route('/api/reports', methods=['GET'])
+def get_reports():
+    conn = get_db()
+    report_type = request.args.get('type', 'overview')
+    warehouse_id = request.args.get('warehouse_id')
+
+    if report_type == 'overview':
+        where = f'WHERE warehouse_id = {warehouse_id}' if warehouse_id else ''
+        total_products = conn.execute(f'SELECT COUNT(*) FROM products {where}').fetchone()[0]
+        total_value = conn.execute(f'SELECT COALESCE(SUM(quantity * price), 0) FROM products {where}').fetchone()[0]
+        low_stock = conn.execute(f'SELECT COUNT(*) FROM products WHERE quantity <= min_quantity {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}').fetchone()[0]
+        out_of_stock = conn.execute(f'SELECT COUNT(*) FROM products WHERE quantity = 0 {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}').fetchone()[0]
+        expiring_soon = conn.execute(f'''
+            SELECT COUNT(*) FROM products
+            WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', '+30 days') {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}
+        ''').fetchone()[0]
+        conn.close()
+        return jsonify({
+            'total_products': total_products,
+            'total_value': total_value,
+            'low_stock': low_stock,
+            'out_of_stock': out_of_stock,
+            'expiring_soon': expiring_soon
+        })
+
+    elif report_type == 'rotation':
+        where = f'WHERE p.warehouse_id = {warehouse_id}' if warehouse_id else ''
+        products = conn.execute(f'''
+            SELECT p.name, p.quantity, p.min_quantity,
+                   (SELECT COUNT(*) FROM stock_movements WHERE product_id = p.id) as movements
+            FROM products p
+            {where}
+            ORDER BY movements DESC
+            LIMIT 20
+        ''').fetchall()
+        conn.close()
+        return jsonify([dict(p) for p in products])
+
+    elif report_type == 'expiry':
+        where = f'WHERE warehouse_id = {warehouse_id}' if warehouse_id else ''
+        products = conn.execute(f'''
+            SELECT name, lot_number, expiry_date, quantity
+            FROM products
+            WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', '+90 days')
+            {'AND warehouse_id = ' + warehouse_id if warehouse_id else ''}
+            ORDER BY expiry_date
+        ''').fetchall()
+        conn.close()
+        return jsonify([dict(p) for p in products])
+
+    elif report_type == 'categories':
+        where = f'WHERE warehouse_id = {warehouse_id}' if warehouse_id else ''
+        data = conn.execute(f'''
+            SELECT category, COUNT(*) as count, SUM(quantity) as total_qty, SUM(quantity * price) as value
+            FROM products
+            {where}
+            GROUP BY category
+        ''').fetchall()
+        conn.close()
+        return jsonify([dict(d) for d in data])
+
+    elif report_type == 'low_stock':
+        where = f'WHERE warehouse_id = {warehouse_id}' if warehouse_id else ''
+        products = conn.execute(f'''
+            SELECT name, quantity, min_quantity, max_quantity, price, (min_quantity - quantity) as needed
+            FROM products
+            WHERE quantity <= min_quantity {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}
+            ORDER BY needed DESC
+        ''').fetchall()
+        conn.close()
+        return jsonify([dict(p) for p in products])
+
+    elif report_type == 'warehouses':
+        data = conn.execute('''
+            SELECT w.id, w.name, w.address, 
+                   COUNT(p.id) as product_count, 
+                   COALESCE(SUM(p.quantity), 0) as total_quantity,
+                   COALESCE(SUM(p.quantity * p.price), 0) as total_value
+            FROM warehouses w
+            LEFT JOIN products p ON w.id = p.warehouse_id
+            GROUP BY w.id
+        ''').fetchall()
+        conn.close()
+        return jsonify([dict(d) for d in data])
+
+    conn.close()
+    return jsonify({})
+
+@app.route('/api/reports/export', methods=['GET'])
+def export_report():
+    report_type = request.args.get('type', 'products')
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+
+    if report_type == 'products':
+        where = f'WHERE warehouse_id = {warehouse_id}' if warehouse_id else ''
+        products = conn.execute(f'SELECT * FROM products {where} ORDER BY name').fetchall()
+        headers = ['ID', 'Nom', 'Description', 'SKU', 'Code-barres', 'Quantité', 'Seuil Min', 'Max', 'Prix', 'Catégorie', 'Lot', 'N° Série', 'DLC', 'Fournisseur', 'Entrepôt']
+        data = [[p['id'], p['name'], p['description'], p['sku'], p['barcode'], p['quantity'],
+                p['min_quantity'], p['max_quantity'], p['price'], p['category'], p['lot_number'],
+                p['serial_number'], p['expiry_date'], p['supplier_id'], p['warehouse_id']] for p in products]
+    elif report_type == 'movements':
+        query = '''
+            SELECT m.created_at, p.name, m.type, m.quantity, m.lot_number, m.note
+            FROM stock_movements m
+            JOIN products p ON m.product_id = p.id
+        '''
+        if warehouse_id:
+            query += f' WHERE p.warehouse_id = {warehouse_id}'
+        query += ' ORDER BY m.created_at DESC LIMIT 500'
+        movements = conn.execute(query).fetchall()
+        headers = ['Date', 'Produit', 'Type', 'Quantité', 'Lot', 'Note']
+        data = [[m['created_at'], m['name'], m['type'], m['quantity'], m['lot_number'], m['note']] for m in movements]
+    else:
+        conn.close()
+        return jsonify({'error': 'Invalid report type'}), 400
+
+    conn.close()
+
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(headers)
+    cw.writerows(data)
+    output = si.getvalue()
+
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment;filename=rapport_{report_type}_{datetime.now().strftime('%Y%m%d')}.csv"}
+    )
+
+@app.route('/api/suppliers', methods=['GET'])
+def get_suppliers():
+    conn = get_db()
+    suppliers = conn.execute('SELECT * FROM suppliers ORDER BY name').fetchall()
+    conn.close()
+    return jsonify([dict(s) for s in suppliers])
+
+@app.route('/api/suppliers', methods=['POST'])
+def add_supplier():
+    data = request.json
+    conn = get_db()
+    try:
+        conn.execute('''
+            INSERT INTO suppliers (name, email, phone, address, contact_person)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (data['name'], data.get('email', ''), data.get('phone', ''),
+              data.get('address', ''), data.get('contact_person', '')))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/suppliers/<int:supplier_id>', methods=['PUT'])
+def update_supplier(supplier_id):
+    data = request.json
+    conn = get_db()
+    conn.execute('''
+        UPDATE suppliers SET name=?, email=?, phone=?, address=?, contact_person=?
+        WHERE id=?
+    ''', (data['name'], data.get('email', ''), data.get('phone', ''),
+          data.get('address', ''), data.get('contact_person', ''), supplier_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/suppliers/<int:supplier_id>', methods=['DELETE'])
+def delete_supplier(supplier_id):
+    conn = get_db()
+    conn.execute('DELETE FROM suppliers WHERE id=?', (supplier_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/orders', methods=['GET'])
+def get_orders():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    status = request.args.get('status', 'all')
+    query = '''
+        SELECT o.*, s.name as supplier_name, w.name as warehouse_name
+        FROM purchase_orders o
+        LEFT JOIN suppliers s ON o.supplier_id = s.id
+        LEFT JOIN warehouses w ON o.warehouse_id = w.id
+    '''
+    conditions = []
+    if status != 'all':
+        conditions.append(f"o.status = '{status}'")
+    if warehouse_id:
+        conditions.append(f"o.warehouse_id = {warehouse_id}")
+    
+    if conditions:
+        query += ' WHERE ' + ' AND '.join(conditions)
+    query += ' ORDER BY o.created_at DESC'
+
+    orders = conn.execute(query).fetchall()
+    conn.close()
+    return jsonify([dict(o) for o in orders])
+
+@app.route('/api/orders', methods=['POST'])
+def create_order():
+    data = request.json
+    conn = get_db()
+
+    order_number = f"PO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    supplier_id = data.get('supplier_id')
+    warehouse_id = data.get('warehouse_id', 1)
+    notes = data.get('notes', '')
+    items = data.get('items', [])
+
+    try:
+        conn.execute('''
+            INSERT INTO purchase_orders (order_number, supplier_id, warehouse_id, notes, status)
+            VALUES (?, ?, ?, ?, 'brouillon')
+        ''', (order_number, supplier_id, warehouse_id, notes))
+        order_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+
+        total = 0
+        for item in items:
+            conn.execute('''
+                INSERT INTO purchase_order_items (order_id, product_id, quantity, unit_price)
+                VALUES (?, ?, ?, ?)
+            ''', (order_id, item['product_id'], item['quantity'], item.get('unit_price', 0)))
+            total += item['quantity'] * item.get('unit_price', 0)
+
+        conn.execute('UPDATE purchase_orders SET total=? WHERE id=?', (total, order_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'order_id': order_id})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/orders/<int:order_id>', methods=['PUT'])
+def update_order(order_id):
+    data = request.json
+    conn = get_db()
+    status = data.get('status')
+
+    if status == 'envoyee':
+        conn.execute('''
+            UPDATE purchase_orders SET status='envoyee', sent_at=CURRENT_TIMESTAMP WHERE id=?
+        ''', (order_id,))
+    elif status == 'recue':
+        conn.execute('''
+            UPDATE purchase_orders SET status='recue', received_at=CURRENT_TIMESTAMP WHERE id=?
+        ''', (order_id,))
+        items = conn.execute('SELECT * FROM purchase_order_items WHERE order_id=?', (order_id,)).fetchall()
+        order = conn.execute('SELECT warehouse_id FROM purchase_orders WHERE id=?', (order_id,)).fetchone()
+        
+        default_location = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', 
+                                        (order['warehouse_id'],)).fetchone()
+        
+        for item in items:
+            conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?',
+                      (item['quantity'], item['product_id']))
+            
+            if default_location:
+                existing = conn.execute('SELECT id FROM stock WHERE product_id=? AND location_id=?', 
+                                        (item['product_id'], default_location['id'])).fetchone()
+                if existing:
+                    conn.execute('UPDATE stock SET quantity = quantity + ? WHERE id=?',
+                               (item['quantity'], existing['id']))
+                else:
+                    conn.execute('INSERT INTO stock (product_id, location_id, quantity) VALUES (?, ?, ?)',
+                               (item['product_id'], default_location['id'], item['quantity']))
+            
+            conn.execute('''
+                INSERT INTO stock_movements (product_id, type, quantity, dest_location_id, note)
+                VALUES (?, 'in', ?, ?, 'Commande recue')
+            ''', (item['product_id'], item['quantity'], default_location['id'] if default_location else None))
+            
+    elif status == 'annulee':
+        conn.execute("UPDATE purchase_orders SET status='annulee' WHERE id=?", (order_id,))
+    else:
+        conn.execute('UPDATE purchase_orders SET notes=? WHERE id=?', (data.get('notes', ''), order_id))
+
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/orders/<int:order_id>/items', methods=['GET'])
+def get_order_items(order_id):
+    conn = get_db()
+    items = conn.execute('''
+        SELECT poi.*, p.name as product_name
+        FROM purchase_order_items poi
+        JOIN products p ON poi.product_id = p.id
+        WHERE poi.order_id=?
+    ''', (order_id,)).fetchall()
+    conn.close()
+    return jsonify([dict(i) for i in items])
+
+@app.route('/api/orders/<int:order_id>', methods=['DELETE'])
+def delete_order(order_id):
+    conn = get_db()
+    conn.execute('DELETE FROM purchase_order_items WHERE order_id=?', (order_id,))
+    conn.execute('DELETE FROM purchase_orders WHERE id=?', (order_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/reorder-rules', methods=['GET'])
+def get_reorder_rules():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    
+    if warehouse_id:
+        rules = conn.execute('''
+            SELECT r.*, p.name as product_name, p.quantity as current_qty, p.min_quantity, s.name as supplier_name
+            FROM reordering_rules r
+            JOIN products p ON r.product_id = p.id
+            LEFT JOIN suppliers s ON r.supplier_id = s.id
+            WHERE r.warehouse_id = ?
+            ORDER BY p.name
+        ''', (warehouse_id,)).fetchall()
+    else:
+        rules = conn.execute('''
+            SELECT r.*, p.name as product_name, p.quantity as current_qty, p.min_quantity, s.name as supplier_name
+            FROM reordering_rules r
+            JOIN products p ON r.product_id = p.id
+            LEFT JOIN suppliers s ON r.supplier_id = s.id
+            ORDER BY p.name
+        ''').fetchall()
+    
+    conn.close()
+    return jsonify([dict(r) for r in rules])
+
+@app.route('/api/reorder-rules', methods=['POST'])
+def add_reorder_rule():
+    data = request.json
+    conn = get_db()
+    try:
+        conn.execute('''
+            INSERT INTO reordering_rules (product_id, warehouse_id, min_quantity, max_quantity, trigger_type, supplier_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (data['product_id'], data.get('warehouse_id', 1), data.get('min_quantity', 5), 
+              data.get('max_quantity', 100), data.get('trigger_type', 'manual'), data.get('supplier_id')))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/reorder-rules/<int:rule_id>', methods=['PUT'])
+def update_reorder_rule(rule_id):
+    data = request.json
+    conn = get_db()
+    conn.execute('''
+        UPDATE reordering_rules SET min_quantity=?, max_quantity=?, trigger_type=?, supplier_id=?
+        WHERE id=?
+    ''', (data.get('min_quantity', 5), data.get('max_quantity', 100), data.get('trigger_type', 'manual'),
+          data.get('supplier_id'), rule_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/reorder-rules/<int:rule_id>', methods=['DELETE'])
+def delete_reorder_rule(rule_id):
+    conn = get_db()
+    conn.execute('DELETE FROM reordering_rules WHERE id=?', (rule_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/replenishment', methods=['GET'])
+def get_replenishment():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    
+    where = f'WHERE r.warehouse_id = {warehouse_id}' if warehouse_id else ''
+    
+    products = conn.execute(f'''
+        SELECT r.id as rule_id, p.id as product_id, p.name, p.sku, p.quantity as current_qty, r.min_quantity, r.max_quantity, r.trigger_type,
+               r.supplier_id, r.warehouse_id as rule_warehouse_id, s.name as supplier_name,
+               MAX(0, r.max_quantity - p.quantity) as suggested_qty
+        FROM reordering_rules r
+        JOIN products p ON r.product_id = p.id
+        LEFT JOIN suppliers s ON r.supplier_id = s.id
+        {where}
+        ORDER BY p.name
+    ''').fetchall()
+    
+    conn.close()
+    return jsonify([dict(p) for p in products])
+
+@app.route('/api/notifications', methods=['GET'])
+def get_notifications():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    
+    query = '''
+        SELECT n.*, p.name as product_name
+        FROM notifications n
+        LEFT JOIN products p ON n.product_id = p.id
+    '''
+    if warehouse_id:
+        query += f' WHERE n.warehouse_id = {warehouse_id} OR n.warehouse_id IS NULL'
+    query += ' ORDER BY n.created_at DESC LIMIT 50'
+    
+    notifications = conn.execute(query).fetchall()
+    unread = conn.execute('SELECT COUNT(*) FROM notifications WHERE is_read = 0').fetchone()[0]
+    
+    conn.close()
+    return jsonify({'notifications': [dict(n) for n in notifications], 'unread_count': unread})
+
+@app.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
+def mark_notification_read(notification_id):
+    conn = get_db()
+    conn.execute('UPDATE notifications SET is_read = 1 WHERE id=?', (notification_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/notifications/mark-all-read', methods=['POST'])
+def mark_all_notifications_read():
+    conn = get_db()
+    conn.execute('UPDATE notifications SET is_read = 1')
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/kpis', methods=['GET'])
+def get_kpis():
+    warehouse_id = request.args.get('warehouse_id')
+    period = int(request.args.get('period', 30))
+    category = request.args.get('category', '')
+    date_start = request.args.get('date_start')
+    date_end = request.args.get('date_end')
+    conn = get_db()
+    
+    where_parts = []
+    if warehouse_id:
+        where_parts.append(f'warehouse_id = {warehouse_id}')
+    if category:
+        where_parts.append(f"category = '{category}'")
+    
+    where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
+    where_sql = f'WHERE {where_clause}'
+    
+    date_filter = f"AND created_at >= date('now', '-{period} days')"
+    if date_start:
+        date_filter = f"AND created_at >= '{date_start}'"
+    if date_end:
+        date_filter += f" AND created_at <= '{date_end}'"
+    
+    total_products = conn.execute(f'SELECT COUNT(*) FROM products {where_sql}').fetchone()[0]
+    total_value = conn.execute(f'SELECT COALESCE(SUM(quantity * price), 0) FROM products {where_sql}').fetchone()[0]
+    avg_price = conn.execute(f'SELECT COALESCE(AVG(price), 0) FROM products {where_sql}').fetchone()[0]
+    
+    low_stock = conn.execute(f'SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND {where_clause}').fetchone()[0]
+    out_of_stock = conn.execute(f'SELECT COUNT(*) FROM products WHERE quantity = 0 AND {where_clause}').fetchone()[0]
+    
+    in_movements = conn.execute(f'''
+        SELECT COALESCE(SUM(quantity), 0) FROM stock_movements 
+        WHERE type = 'in' {date_filter}
+    ''').fetchone()[0]
+    
+    out_movements = conn.execute(f'''
+        SELECT COALESCE(SUM(quantity), 0) FROM stock_movements 
+        WHERE type = 'out' {date_filter}
+    ''').fetchone()[0]
+    
+    today_movements = conn.execute('''
+        SELECT COUNT(*) FROM stock_movements 
+        WHERE date(created_at) = date('now')
+    ''').fetchone()[0]
+    
+    rotation_rate = (out_movements / total_products * 100) if total_products > 0 else 0
+    
+    conn.close()
+    return jsonify({
+        'total_products': total_products,
+        'total_value': round(total_value, 2),
+        'avg_price': round(avg_price, 2),
+        'low_stock': low_stock,
+        'out_of_stock': out_of_stock,
+        'in_movements': in_movements,
+        'out_movements': out_movements,
+        'today_movements': today_movements,
+        'rotation_rate': round(rotation_rate, 1),
+        'period': period,
+        'date_start': date_start,
+        'date_end': date_end
+    })
+
+@app.route('/api/kpis/trends', methods=['GET'])
+def get_kpis_trends():
+    from datetime import datetime, timedelta
+    warehouse_id = request.args.get('warehouse_id')
+    period = int(request.args.get('period', 30))
+    conn = get_db()
+    
+    trends = []
+    today = datetime.now()
+    
+    for i in range(period - 1, -1, -1):
+        target_date = (today - timedelta(days=i)).strftime('%Y-%m-%d')
+        
+        entry = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
+            WHERE type = 'in' AND date(created_at) = ?
+        ''', (target_date,)).fetchone()[0]
+        
+        exit_qty = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
+            WHERE type = 'out' AND date(created_at) = ?
+        ''', (target_date,)).fetchone()[0]
+        
+        trends.append({
+            'date': target_date,
+            'entries': entry,
+            'exits': exit_qty,
+            'net': entry - exit_qty
+        })
+    
+    conn.close()
+    return jsonify(trends)
+    return jsonify(trends)
+
+@app.route('/api/kpis/top-products', methods=['GET'])
+def get_top_products():
+    warehouse_id = request.args.get('warehouse_id')
+    period = int(request.args.get('period', 30))
+    limit = int(request.args.get('limit', 10))
+    conn = get_db()
+    
+    where = f'WHERE p.warehouse_id = {warehouse_id}' if warehouse_id else ''
+    
+    products = conn.execute(f'''
+        SELECT p.id, p.name, p.sku, p.quantity, p.price,
+               (SELECT COUNT(*) FROM stock_movements m WHERE m.product_id = p.id AND m.created_at >= date('now', '-{period} days')) as movement_count,
+               (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'in' AND m.created_at >= date('now', '-{period} days')) as total_in,
+               (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'out' AND m.created_at >= date('now', '-{period} days')) as total_out
+        FROM products p
+        {where}
+        ORDER BY movement_count DESC
+        LIMIT {limit}
+    ''').fetchall()
+    
+    conn.close()
+    return jsonify([dict(p) for p in products])
+
+@app.route('/api/kpis/by-location', methods=['GET'])
+def get_kpis_by_location():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    
+    if warehouse_id:
+        locations = conn.execute('''
+            SELECT l.id, l.name, l.type, w.name as warehouse_name,
+                   COALESCE(SUM(s.quantity), 0) as total_qty,
+                   COALESCE(SUM(s.quantity * p.price), 0) as total_value
+            FROM locations l
+            JOIN warehouses w ON l.warehouse_id = w.id
+            LEFT JOIN stock s ON s.location_id = l.id
+            LEFT JOIN products p ON s.product_id = p.id
+            WHERE l.warehouse_id = ?
+            GROUP BY l.id
+            ORDER BY total_value DESC
+        ''', (warehouse_id,)).fetchall()
+    else:
+        locations = conn.execute('''
+            SELECT l.id, l.name, l.type, w.name as warehouse_name,
+                   COALESCE(SUM(s.quantity), 0) as total_qty,
+                   COALESCE(SUM(s.quantity * p.price), 0) as total_value
+            FROM locations l
+            JOIN warehouses w ON l.warehouse_id = w.id
+            LEFT JOIN stock s ON s.location_id = l.id
+            LEFT JOIN products p ON s.product_id = p.id
+            GROUP BY l.id
+            ORDER BY total_value DESC
+        ''').fetchall()
+    
+    conn.close()
+    return jsonify([dict(l) for l in locations])
+
+@app.route('/api/kpis/warehouse-overview', methods=['GET'])
+def get_warehouse_overview():
+    conn = get_db()
+    
+    warehouses_data = conn.execute('''
+        SELECT w.id, w.name, w.address,
+               COUNT(DISTINCT p.id) as product_count,
+               COALESCE(SUM(p.quantity), 0) as total_quantity,
+               COALESCE(SUM(p.quantity * p.price), 0) as total_value,
+               COUNT(DISTINCT l.id) as location_count
+        FROM warehouses w
+        LEFT JOIN products p ON w.id = p.warehouse_id
+        LEFT JOIN locations l ON w.id = l.warehouse_id
+        GROUP BY w.id
+        ORDER BY w.name
+    ''').fetchall()
+    
+    conn.close()
+    return jsonify([dict(w) for w in warehouses_data])
+
+@app.route('/api/categories', methods=['GET'])
+def get_categories():
+    conn = get_db()
+    categories = conn.execute('SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != "" ORDER BY category').fetchall()
+    conn.close()
+    return jsonify([c['category'] for c in categories])
+
+@app.route('/api/kpis/dashboard', methods=['GET'])
+def get_dashboard_kpis():
+    warehouse_id = request.args.get('warehouse_id')
+    period = int(request.args.get('period', 30))
+    conn = get_db()
+    
+    where_clause = f'WHERE warehouse_id = {warehouse_id}' if warehouse_id else ''
+    prev_period = period * 2
+    
+    total_products = conn.execute(f'SELECT COUNT(*) FROM products {where_clause}').fetchone()[0]
+    total_value = conn.execute(f'SELECT COALESCE(SUM(quantity * price), 0) FROM products {where_clause}').fetchone()[0]
+    avg_price = total_value / total_products if total_products > 0 else 0
+    
+    low_stock = conn.execute(f'SELECT COUNT(*) FROM products WHERE quantity <= min_quantity {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}').fetchone()[0]
+    out_of_stock = conn.execute(f'SELECT COUNT(*) FROM products WHERE quantity = 0 {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}').fetchone()[0]
+    
+    in_movements = conn.execute(f'''
+        SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
+        WHERE type = 'in' AND created_at >= date('now', '-{period} days')
+    ''').fetchone()[0]
+    
+    out_movements = conn.execute(f'''
+        SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
+        WHERE type = 'out' AND created_at >= date('now', '-{period} days')
+    ''').fetchone()[0]
+    
+    prev_in = conn.execute(f'''
+        SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
+        WHERE type = 'in' AND created_at >= date('now', '-{prev_period} days') AND created_at < date('now', '-{period} days')
+    ''').fetchone()[0]
+    
+    prev_out = conn.execute(f'''
+        SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
+        WHERE type = 'out' AND created_at >= date('now', '-{prev_period} days') AND created_at < date('now', '-{period} days')
+    ''').fetchone()[0]
+    
+    today_movements = conn.execute('SELECT COUNT(*) FROM stock_movements WHERE date(created_at) = date(\'now\')').fetchone()[0]
+    
+    avg_daily_out = out_movements / period if period > 0 else 1
+    dio = total_products / avg_daily_out if avg_daily_out > 0 else 0
+    
+    rotation_rate = (out_movements / total_products * 100) if total_products > 0 else 0
+    prev_rotation = (prev_out / total_products * 100) if total_products > 0 else 0
+    
+    in_trend = ((in_movements - prev_in) / prev_in * 100) if prev_in > 0 else 0
+    out_trend = ((out_movements - prev_out) / prev_out * 100) if prev_out > 0 else 0
+    
+    expiring_soon = conn.execute(f'''
+        SELECT COUNT(*) FROM products
+        WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', '+30 days') {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}
+    ''').fetchone()[0]
+    
+    total_alerts = low_stock + out_of_stock + expiring_soon
+    
+    conn.close()
+    return jsonify({
+        'total_products': total_products,
+        'total_value': round(total_value, 2),
+        'avg_price': round(avg_price, 2),
+        'low_stock': low_stock,
+        'out_of_stock': out_of_stock,
+        'expiring_soon': expiring_soon,
+        'total_alerts': total_alerts,
+        'in_movements': in_movements,
+        'out_movements': out_movements,
+        'today_movements': today_movements,
+        'rotation_rate': round(rotation_rate, 1),
+        'dio': round(dio, 1),
+        'in_trend': round(in_trend, 1),
+        'out_trend': round(out_trend, 1),
+        'period': period
+    })
+
+@app.route('/api/kpis/evolution', methods=['GET'])
+def get_evolution():
+    warehouse_id = request.args.get('warehouse_id')
+    period = int(request.args.get('period', 30))
+    conn = get_db()
+    
+    evolution = []
+    today = datetime.now()
+    
+    for i in range(period - 1, -1, -1):
+        target_date = (today - timedelta(days=i)).strftime('%Y-%m-%d')
+        
+        entry = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
+            WHERE type = 'in' AND date(created_at) = ?
+        ''', (target_date,)).fetchone()[0]
+        
+        exit_qty = conn.execute('''
+            SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
+            WHERE type = 'out' AND date(created_at) = ?
+        ''', (target_date,)).fetchone()[0]
+        
+        evolution.append({
+            'date': target_date,
+            'entries': entry,
+            'exits': exit_qty,
+            'net': entry - exit_qty
+        })
+    
+    conn.close()
+    return jsonify(evolution)
+
+@app.route('/api/kpis/alertes', methods=['GET'])
+def get_alertes():
+    warehouse_id = request.args.get('warehouse_id')
+    conn = get_db()
+    
+    where = f'WHERE warehouse_id = {warehouse_id}' if warehouse_id else ''
+    
+    low_stock = conn.execute(f'''
+        SELECT id, name, quantity, min_quantity, price, (min_quantity - quantity) as needed
+        FROM products
+        WHERE quantity <= min_quantity AND quantity > 0 {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}
+        ORDER BY needed DESC
+        LIMIT 10
+    ''').fetchall()
+    
+    out_of_stock = conn.execute(f'''
+        SELECT id, name, min_quantity, price
+        FROM products
+        WHERE quantity = 0 {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}
+        ORDER BY min_quantity DESC
+        LIMIT 10
+    ''').fetchall()
+    
+    expiring = conn.execute(f'''
+        SELECT id, name, lot_number, expiry_date, quantity,
+               CAST(julianday(expiry_date) - julianday('now') AS INTEGER) as days_left
+        FROM products
+        WHERE expiry_date IS NOT NULL AND expiry_date <= date('now', '+30 days') AND expiry_date >= date('now')
+        {f" AND warehouse_id = {warehouse_id}" if warehouse_id else ""}
+        ORDER BY expiry_date
+        LIMIT 10
+    ''').fetchall()
+    
+    inactive = conn.execute(f'''
+        SELECT p.id, p.name, p.quantity, p.price,
+               MAX(m.created_at) as last_movement
+        FROM products p
+        LEFT JOIN stock_movements m ON p.id = m.product_id
+        {f" WHERE p.warehouse_id = {warehouse_id}" if warehouse_id else ""}
+        GROUP BY p.id
+        HAVING MAX(m.created_at) IS NULL OR MAX(m.created_at) < date('now', '-90 days')
+        LIMIT 10
+    ''').fetchall()
+    
+    conn.close()
+    return jsonify({
+        'low_stock': [dict(p) for p in low_stock],
+        'out_of_stock': [dict(p) for p in out_of_stock],
+        'expiring': [dict(p) for p in expiring],
+        'inactive': [dict(p) for p in inactive]
+    })
+
+@app.route('/api/seed-data', methods=['POST'])
+def seed_data():
+    conn = get_db()
+    c = conn.cursor()
+    
+    products_data = [
+        ('Clavier USB Standard', 'Clavier filaire 105 touches', 'KB001', '123456789001', 25.99, 45, 10, 'Périphériques'),
+        ('Souris Optique Sans Fil', 'Souris wireless 1600 DPI', 'MO001', '123456789002', 19.99, 60, 15, 'Périphériques'),
+        ('Écran 24 pouces Full HD', 'Moniteur LED 1920x1080', 'EC001', '123456789003', 149.99, 20, 5, 'Périphériques'),
+        ('Webcam HD 1080p', 'Caméra autofocus avec micro', 'WC001', '123456789004', 59.99, 30, 8, 'Périphériques'),
+        ('Casque Audio USB', 'Microphone intégré réduction bruit', 'CA001', '123456789005', 45.99, 35, 10, 'Périphériques'),
+        ('Clavier Mécanique RGB', 'Switchs bleus rétroéclairé', 'KB002', '123456789006', 89.99, 25, 8, 'Périphériques'),
+        ('Tapis de Souris XL', 'Surface 90x40cm antidérapant', 'TS001', '123456789007', 15.99, 80, 20, 'Accessoires'),
+        ('Hub USB 7 Ports', 'Alimentation externe 5V/2A', 'HB001', '123456789008', 29.99, 40, 12, 'Accessoires'),
+        ('Câble HDMI 2m', '高速 HDMI 4K@60Hz', 'CB001', '123456789009', 12.99, 100, 25, 'Câbles'),
+        ('Câble HDMI 5m', '高速 HDMI 4K@60Hz', 'CB002', '123456789010', 19.99, 60, 15, 'Câbles'),
+        ('Support Laptop Aluminium', 'Régliable hauteur 15-45cm', 'SL001', '123456789011', 39.99, 30, 10, 'Accessoires'),
+        ('Enceinte Bluetooth Portable', '10W batterie 8h', 'EN001', '123456789012', 34.99, 45, 12, 'Périphériques'),
+        ('Lampe Bureau LED', '3 niveaux luminosité tactile', 'LB001', '123456789013', 24.99, 55, 15, 'Éclairage'),
+        ('Lampe Bureau LED USB', 'Clip sur écran USB', 'LB002', '123456789014', 14.99, 70, 20, 'Éclairage'),
+        ('Sac à Dos Tech 15.6"', 'Compartiment laptop antichoc', 'SA001', '123456789015', 49.99, 35, 10, 'Accessoires'),
+        ('Agrafeuse Métallique', 'Capacité 50 feuilles', 'AG001', '123456789016', 8.99, 90, 25, 'Bureau'),
+        ('Bloc-Notes A4 100 Feuilles', 'Ligné perforation', 'BN001', '123456789017', 5.99, 120, 30, 'Bureau'),
+        ('Stylo Bille Lot de 50', 'Bleu noir rouge vert', 'ST001', '123456789018', 9.99, 150, 40, 'Bureau'),
+        ('Marqueurs Fluo Lot de 12', 'Couleurs assorted', 'MR001', '123456789019', 7.99, 80, 20, 'Bureau'),
+        ('Piles AA Alcaline Lot de 24', 'Longue durée 10 ans', 'BT001', '123456789020', 11.99, 100, 30, 'Accessoires'),
+    ]
+    
+    warehouses = [(1, 'Entrepôt Principal'), (2, 'Entrepot fes')]
+    categories_list = ['Périphériques', 'Accessoires', 'Bureau', 'Câbles', 'Éclairage']
+    
+    c.execute('DELETE FROM stock_movements')
+    c.execute('DELETE FROM products')
+    conn.commit()
+    
+    product_ids = []
+    for i, (name, desc, sku, barcode, price, qty, min_qty, category) in enumerate(products_data):
+        wh = warehouses[i % len(warehouses)]
+        c.execute('''
+            INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price, price_base, price_loyal, price_school, price_student, category, warehouse_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, desc, sku, barcode, qty, min_qty, qty * 2, price, price, price * 0.9, price * 0.85, price * 0.8, category, wh[0], datetime.now().isoformat()))
+        product_ids.append(c.lastrowid)
+    
+    conn.commit()
+    
+    movement_types = ['in', 'out', 'in', 'in', 'out', 'in', 'in', 'out']
+    for _ in range(60):
+        product_id = random.choice(product_ids)
+        movement_type = random.choice(movement_types)
+        quantity = random.randint(1, 30)
+        days_ago = random.randint(0, 29)
+        created_at = (datetime.now() - timedelta(days=days_ago, hours=random.randint(0, 23), minutes=random.randint(0, 59))).isoformat()
+        
+        c.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (quantity if movement_type == 'in' else -quantity, product_id))
+        
+        c.execute('''
+            INSERT INTO stock_movements (product_id, type, quantity, note, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (product_id, movement_type, quantity, f'Mouvement aléatoire - {created_at[:10]}', created_at))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': '20 produits et 60 mouvements générés avec succès'})
+
+@app.route('/api/customers', methods=['GET'])
+def get_customers():
+    search = request.args.get('search', '')
+    conn = get_db()
+    if search:
+        customers = conn.execute('''
+            SELECT * FROM customers 
+            WHERE name LIKE ? OR client_code LIKE ? OR email LIKE ?
+            ORDER BY name
+        ''', (f'%{search}%', f'%{search}%', f'%{search}%')).fetchall()
+    else:
+        customers = conn.execute('SELECT * FROM customers ORDER BY name').fetchall()
+    conn.close()
+    return jsonify([dict(c) for c in customers])
+
+@app.route('/api/customers', methods=['POST'])
+def add_customer():
+    data = request.json
+    conn = get_db()
+    try:
+        existing = conn.execute('SELECT COUNT(*) FROM customers').fetchone()[0]
+        client_code = f"CLI-{datetime.now().strftime('%Y%m%d')}-{existing + 1:04d}"
+        
+        conn.execute('''
+            INSERT INTO customers (name, type, email, phone, address, client_code, discount_rate, is_loyal, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data['name'], data.get('type', 'particulier'), data.get('email', ''), 
+              data.get('phone', ''), data.get('address', ''), client_code,
+              data.get('discount_rate', 0), data.get('is_loyal', 0), data.get('notes', '')))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/customers/<int:customer_id>', methods=['GET'])
+def get_customer(customer_id):
+    conn = get_db()
+    customer = conn.execute('SELECT * FROM customers WHERE id=?', (customer_id,)).fetchone()
+    conn.close()
+    if customer:
+        return jsonify(dict(customer))
+    return jsonify({'error': 'Client non trouvé'}), 404
+
+@app.route('/api/customers/<int:customer_id>', methods=['PUT'])
+def update_customer(customer_id):
+    data = request.json
+    conn = get_db()
+    conn.execute('''
+        UPDATE customers SET name=?, type=?, email=?, phone=?, address=?, discount_rate=?, is_loyal=?, notes=?, updated_at=CURRENT_TIMESTAMP
+        WHERE id=?
+    ''', (data['name'], data.get('type', 'particulier'), data.get('email', ''), 
+          data.get('phone', ''), data.get('address', ''), data.get('discount_rate', 0),
+          data.get('is_loyal', 0), data.get('notes', ''), customer_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
+def delete_customer(customer_id):
+    conn = get_db()
+    has_invoices = conn.execute('SELECT COUNT(*) FROM invoices WHERE customer_id=?', (customer_id,)).fetchone()[0]
+    if has_invoices > 0:
+        conn.close()
+        return jsonify({'error': 'Impossible de supprimer un client avec des factures'}), 400
+    conn.execute('DELETE FROM customers WHERE id=?', (customer_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+def get_price_for_customer(product, customer_type, is_loyal):
+    if is_loyal and product['price_loyal'] > 0:
+        return product['price_loyal']
+    if customer_type == 'ecole' and product['price_school'] > 0:
+        return product['price_school']
+    if customer_type == 'etudiant' and product['price_student'] > 0:
+        return product['price_student']
+    if product['price_base'] > 0:
+        return product['price_base']
+    return product['price']
+
+@app.route('/api/products/for-sale', methods=['GET'])
+def get_products_for_sale():
+    warehouse_id = request.args.get('warehouse_id')
+    customer_id = request.args.get('customer_id')
+    search = request.args.get('search', '')
+    conn = get_db()
+    
+    if warehouse_id:
+        query = f'SELECT * FROM products WHERE quantity > 0 AND warehouse_id = {warehouse_id}'
+    else:
+        query = 'SELECT * FROM products WHERE quantity > 0'
+    
+    if search:
+        query += f" AND (name LIKE '%{search}%' OR sku LIKE '%{search}%' OR barcode LIKE '%{search}%')"
+    
+    query += ' ORDER BY name'
+    
+    products = conn.execute(query).fetchall()
+    customer = None
+    if customer_id:
+        customer = conn.execute('SELECT * FROM customers WHERE id=?', (customer_id,)).fetchone()
+    
+    result = []
+    for p in products:
+        prod_dict = dict(p)
+        if customer:
+            prod_dict['sale_price'] = get_price_for_customer(prod_dict, customer['type'], customer['is_loyal'])
+        else:
+            prod_dict['sale_price'] = prod_dict.get('price_base', prod_dict.get('price', 0))
+        result.append(prod_dict)
+    
+    conn.close()
+    return jsonify(result)
+
+@app.route('/api/invoices', methods=['GET'])
+def get_invoices():
+    warehouse_id = request.args.get('warehouse_id')
+    status = request.args.get('status', 'all')
+    conn = get_db()
+    
+    query = '''
+        SELECT i.*, c.name as customer_name, c.client_code, w.name as warehouse_name
+        FROM invoices i
+        LEFT JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN warehouses w ON i.warehouse_id = w.id
+        WHERE 1=1
+    '''
+    params = []
+    if warehouse_id:
+        query += ' AND i.warehouse_id = ?'
+        params.append(warehouse_id)
+    if status != 'all':
+        query += ' AND i.status = ?'
+        params.append(status)
+    query += ' ORDER BY i.created_at DESC'
+    
+    invoices = conn.execute(query, params).fetchall()
+    conn.close()
+    return jsonify([dict(i) for i in invoices])
+
+@app.route('/api/invoices', methods=['POST'])
+def create_invoice():
+    data = request.json
+    conn = get_db()
+    
+    try:
+        invoice_count = conn.execute('SELECT COUNT(*) FROM invoices').fetchone()[0]
+        invoice_number = f"FAC-{datetime.now().strftime('%Y%m%d')}-{invoice_count + 1:04d}"
+        
+        warehouse_id = data.get('warehouse_id', 1)
+        customer_id = data.get('customer_id')
+        notes = data.get('notes', '')
+        items = data.get('items', [])
+        
+        conn.execute('''
+            INSERT INTO invoices (invoice_number, customer_id, warehouse_id, notes, status)
+            VALUES (?, ?, ?, ?, 'brouillon')
+        ''', (invoice_number, customer_id, warehouse_id, notes))
+        invoice_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        subtotal = 0
+        discount_total = 0
+        tax_amount = 0
+        
+        customer = conn.execute('SELECT * FROM customers WHERE id=?', (customer_id,)).fetchone() if customer_id else None
+        
+        for item in items:
+            product = conn.execute('SELECT * FROM products WHERE id=?', (item['product_id'])).fetchone()
+            if not product:
+                continue
+            
+            if customer:
+                unit_price = get_price_for_customer(dict(product), customer['type'], customer['is_loyal'])
+            else:
+                unit_price = item.get('unit_price', product['price_base'] if product['price_base'] > 0 else product['price'])
+            
+            discount_percent = item.get('discount_percent', 0)
+            qty = item.get('quantity', 1)
+            tax_rate = float(item.get('tax_rate', product.get('tax_category', '20') or '20'))
+            
+            line_subtotal = qty * unit_price
+            discount_amount = line_subtotal * (discount_percent / 100)
+            line_total = line_subtotal - discount_amount
+            
+            tax_line = line_total * (tax_rate / 100)
+            
+            subtotal += line_subtotal
+            discount_total += discount_amount
+            tax_amount += tax_line
+            
+            conn.execute('''
+                INSERT INTO invoice_items (invoice_id, product_id, product_name, product_sku, quantity, unit_price, discount_percent, tax_rate, line_total)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (invoice_id, item['product_id'], product['name'], product['sku'], qty, unit_price, discount_percent, tax_rate, line_total))
+            
+            conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=?', (qty, item['product_id']))
+            conn.execute('''
+                INSERT INTO stock_movements (product_id, type, quantity, note)
+                VALUES (?, 'out', ?, ?)
+            ''', (item['product_id'], qty, f'Vente facture {invoice_number}'))
+        
+        total = subtotal - discount_total + tax_amount
+        
+        conn.execute('''
+            UPDATE invoices SET subtotal=?, discount_total=?, tax_amount=?, total=? WHERE id=?
+        ''', (subtotal, discount_total, tax_amount, total, invoice_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'invoice_id': invoice_id, 'invoice_number': invoice_number})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/invoices/<int:invoice_id>', methods=['GET'])
+def get_invoice(invoice_id):
+    conn = get_db()
+    invoice = conn.execute('''
+        SELECT i.*, c.name as customer_name, c.client_code, c.type as customer_type, c.address as customer_address, c.phone as customer_phone, c.email as customer_email,
+               w.name as warehouse_name, w.address as warehouse_address
+        FROM invoices i
+        LEFT JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN warehouses w ON i.warehouse_id = w.id
+        WHERE i.id=?
+    ''', (invoice_id,)).fetchone()
+    
+    if not invoice:
+        conn.close()
+        return jsonify({'error': 'Facture non trouvée'}), 404
+    
+    items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+    
+    result = dict(invoice)
+    result['items'] = [dict(i) for i in items]
+    
+    conn.close()
+    return jsonify(result)
+
+@app.route('/api/invoices/<int:invoice_id>', methods=['PUT'])
+def update_invoice(invoice_id):
+    data = request.json
+    conn = get_db()
+    status = data.get('status')
+    
+    if status == 'payee':
+        conn.execute('''
+            UPDATE invoices SET status='payee', paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?
+        ''', (invoice_id,))
+    elif status == 'annulee':
+        old_items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+        for item in old_items:
+            conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
+            conn.execute('''
+                INSERT INTO stock_movements (product_id, type, quantity, note)
+                VALUES (?, 'in', ?, ?)
+            ''', (item['product_id'], item['quantity'], 'Annulation facture'))
+        conn.execute("UPDATE invoices SET status='annulee', updated_at=CURRENT_TIMESTAMP WHERE id=?", (invoice_id,))
+    else:
+        conn.execute('UPDATE invoices SET notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (data.get('notes', ''), invoice_id))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/invoices/<int:invoice_id>', methods=['DELETE'])
+def delete_invoice(invoice_id):
+    conn = get_db()
+    invoice = conn.execute('SELECT status FROM invoices WHERE id=?', (invoice_id,)).fetchone()
+    if invoice and invoice['status'] == 'payee':
+        conn.close()
+        return jsonify({'error': 'Impossible de supprimer une facture payée'}), 400
+    
+    conn.execute('DELETE FROM invoice_items WHERE invoice_id=?', (invoice_id,))
+    conn.execute('DELETE FROM invoices WHERE id=?', (invoice_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/invoices/<int:invoice_id>/items', methods=['GET'])
+def get_invoice_items(invoice_id):
+    conn = get_db()
+    items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+    conn.close()
+    return jsonify([dict(i) for i in items])
+
+@app.route('/api/invoices/<int:invoice_id>/items', methods=['POST'])
+def add_invoice_item(invoice_id):
+    data = request.json
+    conn = get_db()
+    
+    try:
+        product = conn.execute('SELECT * FROM products WHERE id=?', (data['product_id'])).fetchone()
+        invoice = conn.execute('SELECT * FROM invoices WHERE id=?', (invoice_id,)).fetchone()
+        customer = conn.execute('SELECT * FROM customers WHERE id=?', (invoice['customer_id'])).fetchone() if invoice['customer_id'] else None
+        
+        if customer:
+            unit_price = get_price_for_customer(dict(product), customer['type'], customer['is_loyal'])
+        else:
+            unit_price = data.get('unit_price', product['price_base'] if product['price_base'] > 0 else product['price'])
+        
+        qty = data.get('quantity', 1)
+        tax_rate = float(data.get('tax_rate', product.get('tax_category', '20') or '20'))
+        discount_percent = data.get('discount_percent', 0)
+        
+        line_total = qty * unit_price * (1 - discount_percent / 100)
+        
+        conn.execute('''
+            INSERT INTO invoice_items (invoice_id, product_id, product_name, product_sku, quantity, unit_price, discount_percent, tax_rate, line_total)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (invoice_id, product['id'], product['name'], product['sku'], qty, unit_price, discount_percent, tax_rate, line_total))
+        
+        conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=?', (qty, product['id']))
+        conn.execute('''
+            INSERT INTO stock_movements (product_id, type, quantity, note)
+            VALUES (?, 'out', ?, ?)
+        ''', (product['id'], qty, f'Vente facture {invoice["invoice_number"]}'))
+        
+        recalculate_invoice(invoice_id, conn)
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 400
+
+def recalculate_invoice(invoice_id, conn):
+    items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+    
+    subtotal = sum(item['line_total'] for item in items)
+    discount_total = sum(item['quantity'] * item['unit_price'] * item['discount_percent'] / 100 for item in items)
+    tax_amount = sum(item['line_total'] * item['tax_rate'] / 100 for item in items)
+    total = subtotal - discount_total + tax_amount
+    
+    conn.execute('''
+        UPDATE invoices SET subtotal=?, discount_total=?, tax_amount=?, total=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
+    ''', (subtotal, discount_total, tax_amount, total, invoice_id))
+
+@app.route('/api/invoices/<int:invoice_id>/items/<int:item_id>', methods=['DELETE'])
+def delete_invoice_item(invoice_id, item_id):
+    conn = get_db()
+    item = conn.execute('SELECT * FROM invoice_items WHERE id=? AND invoice_id=?', (item_id, invoice_id)).fetchone()
+    
+    if item:
+        conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
+        conn.execute('DELETE FROM invoice_items WHERE id=?', (item_id,))
+        recalculate_invoice(invoice_id, conn)
+        conn.commit()
+    
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/invoices/<int:invoice_id>/pdf', methods=['GET'])
+def generate_invoice_pdf(invoice_id):
+    conn = get_db()
+    invoice = conn.execute('''
+        SELECT i.*, c.name as customer_name, c.client_code, c.type as customer_type, c.address as customer_address, c.phone as customer_phone, c.email as customer_email,
+               w.name as warehouse_name, w.address as warehouse_address, w.manager as warehouse_manager
+        FROM invoices i
+        LEFT JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN warehouses w ON i.warehouse_id = w.id
+        WHERE i.id=?
+    ''', (invoice_id,)).fetchone()
+    
+    if not invoice:
+        conn.close()
+        return jsonify({'error': 'Facture non trouvée'}), 404
+    
+    items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+    
+    customer_type_labels = {
+        'particulier': 'Particulier',
+        'entreprise': 'Entreprise',
+        'ecole': 'École',
+        'etudiant': 'Étudiant'
+    }
+    
+    status_labels = {
+        'brouillon': 'Brouillon',
+        'envoyee': 'Envoyée',
+        'payee': 'Payée',
+        'annulee': 'Annulée'
+    }
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }}
+            .header {{ display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid #2563eb; padding-bottom: 20px; }}
+            .company {{ font-size: 14px; font-weight: bold; }}
+            .invoice-title {{ font-size: 24px; color: #2563eb; }}
+            .invoice-number {{ font-size: 14px; color: #666; margin-top: 5px; }}
+            .info-section {{ display: flex; justify-content: space-between; margin-bottom: 20px; }}
+            .info-box {{ width: 45%; }}
+            .info-box h4 {{ color: #2563eb; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }}
+            .info-box p {{ margin: 3px 0; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            th {{ background: #2563eb; color: white; padding: 10px; text-align: left; }}
+            td {{ padding: 8px 10px; border-bottom: 1px solid #ddd; }}
+            .totals {{ width: 300px; margin-left: auto; }}
+            .totals table {{ margin: 0; }}
+            .totals td {{ padding: 6px 10px; }}
+            .totals .total-row {{ background: #2563eb; color: white; font-weight: bold; }}
+            .status {{ display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: bold; }}
+            .status-brouillon {{ background: #fef9c3; color: #ca8a04; }}
+            .status-envoyee {{ background: #dbeafe; color: #2563eb; }}
+            .status-payee {{ background: #dcfce7; color: #16a34a; }}
+            .status-annulee {{ background: #fee2e2; color: #dc2626; }}
+            .footer {{ margin-top: 40px; text-align: center; color: #666; font-size: 10px; }}
+            .print-btn {{ background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div>
+                <div class="company">{invoice['warehouse_name'] or 'Gestion de Stock'}</div>
+                <p>{invoice.get('warehouse_address', 'Adresse entrepôt')}</p>
+            </div>
+            <div style="text-align: right;">
+                <div class="invoice-title">FACTURE</div>
+                <div class="invoice-number">N° {invoice['invoice_number']}</div>
+                <div style="margin-top: 10px;">
+                    <span class="status status-{invoice['status']}">{status_labels.get(invoice['status'], invoice['status'])}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <div class="info-box">
+                <h4>Client</h4>
+                <p><strong>{invoice['customer_name'] or 'Client non identifié'}</strong></p>
+                <p>Code: {invoice.get('client_code', '-')}</p>
+                <p>Type: {customer_type_labels.get(invoice.get('customer_type', ''), invoice.get('customer_type', '-'))}</p>
+                <p>{invoice.get('customer_address', '')}</p>
+                <p>Tél: {invoice.get('customer_phone', '')}</p>
+                <p>Email: {invoice.get('customer_email', '')}</p>
+            </div>
+            <div class="info-box">
+                <h4>Informations</h4>
+                <p><strong>Date:</strong> {invoice['created_at'][:10] if invoice['created_at'] else '-'}</p>
+                <p><strong>Échéance:</strong> {invoice.get('due_date', '-')}</p>
+                <p><strong> Entrepôt:</strong> {invoice['warehouse_name']}</p>
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Produit</th>
+                    <th>SKU</th>
+                    <th style="text-align: center;">Qté</th>
+                    <th style="text-align: right;">Prix Unit.</th>
+                    <th style="text-align: right;">Remise</th>
+                    <th style="text-align: right;">TVA</th>
+                    <th style="text-align: right;">Total HT</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    
+    for item in items:
+        html += f"""
+                <tr>
+                    <td>{item['product_name']}</td>
+                    <td>{item['product_sku'] or '-'}</td>
+                    <td style="text-align: center;">{item['quantity']}</td>
+                    <td style="text-align: right;">{item['unit_price']:.2f} DH</td>
+                    <td style="text-align: right;">{item['discount_percent']}%</td>
+                    <td style="text-align: right;">{item['tax_rate']}%</td>
+                    <td style="text-align: right;">{item['line_total']:.2f} DH</td>
+                </tr>
+        """
+    
+    html += f"""
+            </tbody>
+        </table>
+        
+        <div class="totals">
+            <table>
+                <tr><td>Sous-total HT:</td><td style="text-align: right;">{invoice['subtotal']:.2f} DH</td></tr>
+                <tr><td>Remises totales:</td><td style="text-align: right;">-{invoice['discount_total']:.2f} DH</td></tr>
+                <tr><td>TVA:</td><td style="text-align: right;">{invoice['tax_amount']:.2f} DH</td></tr>
+                <tr class="total-row"><td>Total TTC:</td><td style="text-align: right;">{invoice['total']:.2f} DH</td></tr>
+            </table>
+        </div>
+        
+        {'<p style="margin-top: 20px;"><strong>Notes:</strong> ' + invoice['notes'] + '</p>' if invoice['notes'] else ''}
+        
+        <div class="footer">
+            <p>Merci pour votre confiance</p>
+            <p>Generated by Gestion de Stock</p>
+        </div>
+        
+        <button class="print-btn" onclick="window.print()">Imprimer / Télécharger PDF</button>
+    </body>
+    </html>
+    """
+    
+    conn.close()
+    
+    return Response(html, mimetype='text/html')
+
+@app.route('/api/invoice-stats', methods=['GET'])
+def get_invoice_stats():
+    conn = get_db()
+    
+    total_invoices = conn.execute('SELECT COUNT(*) FROM invoices').fetchone()[0]
+    total_amount = conn.execute('SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != "annulee"').fetchone()[0]
+    paid_amount = conn.execute('SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = "payee"').fetchone()[0]
+    pending_amount = conn.execute('SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status IN ("brouillon", "envoyee")').fetchone()[0]
+    
+    conn.close()
+    return jsonify({
+        'total_invoices': total_invoices,
+        'total_amount': round(total_amount, 2),
+        'paid_amount': round(paid_amount, 2),
+        'pending_amount': round(pending_amount, 2)
+    })
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('.', 'manifest.json')
+
+@app.route('/api/seed-data', methods=['POST'])
+def seed_data():
+if __name__ == __main__:
+    init_db()
+
+    init_db()
+    app.run(debug=True, port=5001)
