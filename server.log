@@ -242,3 +242,110 @@
 127.0.0.1 - - [05/May/2026 02:36:54] "GET /api/customers HTTP/1.1" 200 -
 127.0.0.1 - - [05/May/2026 02:36:54] "GET /api/pos/cash-movements HTTP/1.1" 200 -
 127.0.0.1 - - [05/May/2026 02:36:54] "GET /api/pos/best-sellers?limit=5 HTTP/1.1" 200 -
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/kpis.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/kpis.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/products.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/products.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/products.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/products.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/products.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/kpis.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+ * Detected change in '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 188-484-977
+127.0.0.1 - - [08/May/2026 02:37:21] "GET /api/products HTTP/1.1" 200 -
+127.0.0.1 - - [08/May/2026 02:37:21] "GET /api/kpis HTTP/1.1" 200 -
+127.0.0.1 - - [08/May/2026 02:37:21] "GET /api/stats HTTP/1.1" 200 -
+127.0.0.1 - - [08/May/2026 02:37:21] "GET /api/categories HTTP/1.1" 200 -
+127.0.0.1 - - [08/May/2026 02:37:21] "[33mGET /api/products/1 HTTP/1.1[0m" 404 -
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/multiprocessing/resource_tracker.py:216: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

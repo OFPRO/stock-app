@@ -9,8 +9,10 @@ DB_NAME = 'stock.db'
 
 @contextmanager
 def get_db():
-    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+    conn = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA busy_timeout=30000')
     try:
         yield conn
     finally:
@@ -48,11 +50,17 @@ def get_kpis():
         where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
         where_sql = f'WHERE {where_clause}'
         
-        date_filter = f"AND created_at >= date('now', '-{period} days')"
+        date_filter = ""
+        date_params = []
         if date_start:
-            date_filter = f"AND created_at >= '{date_start}'"
+            date_filter += " AND created_at >= ?"
+            date_params.append(date_start)
         if date_end:
-            date_filter += f" AND created_at <= '{date_end}'"
+            date_filter += " AND created_at <= ?"
+            date_params.append(date_end)
+        if not date_start and not date_end:
+            date_filter = "AND created_at >= date('now', ?)"
+            date_params.append(f'-{period} days')
         
         total_products = conn.execute(f'SELECT COUNT(*) FROM products {where_sql}', params).fetchone()[0]
         total_value = conn.execute(f'SELECT COALESCE(SUM(quantity * price), 0) FROM products {where_sql}', params).fetchone()[0]
@@ -68,11 +76,11 @@ def get_kpis():
         
         in_movements = conn.execute(f'''
             SELECT COALESCE(SUM(quantity), 0) FROM stock_movements WHERE type = 'in' {date_filter}
-        ''').fetchone()[0]
+        ''', date_params).fetchone()[0]
         
         out_movements = conn.execute(f'''
             SELECT COALESCE(SUM(quantity), 0) FROM stock_movements WHERE type = 'out' {date_filter}
-        ''').fetchone()[0]
+        ''', date_params).fetchone()[0]
         
         today_movements = conn.execute("SELECT COUNT(*) FROM stock_movements WHERE date(created_at) = date('now')").fetchone()[0]
         rotation_rate = (out_movements / total_products * 100) if total_products > 0 else 0
