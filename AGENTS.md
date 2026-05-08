@@ -1,0 +1,1 @@
+/Users/mac/.opencode_config/master_rules.md
