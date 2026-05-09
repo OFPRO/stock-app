@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 DB_NAME = 'stock.db'
 
 def main():
+    from app import init_db
+    init_db()
+    
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row  # Add this for named column access
     print("\n=== ENRICHED SEEDING DATABASE ===\n")
@@ -137,12 +140,15 @@ def main():
             price_base, price_loyal, price_school, price_student, tax_category, category, 
             supplier_id, warehouse_id, location_id, lot_number, expiry_date, is_deleted)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-        ''', (p[0], p[1], 1234560001000+i, qty, 10, p[5], p[2], p[2], p[2]*0.9, p[2]*0.85, p[2]*0.8, 
+        ''', (p[0], p[1], 1234560001000+i, qty, 10, p[5], p[2], round(p[2]*0.6, 2), p[2]*0.9, p[2]*0.85, p[2]*0.8, 
               '20', p[4], random.choice(sup_ids), random.choice(wh_ids), random.choice(loc_ids),
               f'LOT-{2024}{i+1:03d}', expiry))
         prod_ids.append(conn.execute('SELECT last_insert_rowid()').fetchone()[0])
     conn.commit()
     print(f'✓ {len(prod_ids)} products')
+    # Set purchase_price_avg = price_base for all products
+    conn.execute('UPDATE products SET purchase_price_avg = price_base')
+    conn.commit()
     
     # ==== STOCK per location ====
     for p in prod_ids:
@@ -165,11 +171,13 @@ def main():
                     (product_id, mov_type, qty, random.choice(loc_ids), random.choice(loc_ids), 
                      f'Mouvement {mov_type}', created_at))
         
-        # Update product quantity
+        # Update product quantity (skip 'out' if stock would go negative)
         if mov_type == 'in':
             conn.execute('UPDATE products SET quantity = quantity + ? WHERE id = ?', (qty, product_id))
         else:
-            conn.execute('UPDATE products SET quantity = quantity - ? WHERE id = ?', (qty, product_id))
+            current = conn.execute('SELECT quantity FROM products WHERE id = ?', (product_id,)).fetchone()[0]
+            if current >= qty:
+                conn.execute('UPDATE products SET quantity = quantity - ? WHERE id = ?', (qty, product_id))
     conn.commit()
     print(f'✓ 200 stock movements')
     
@@ -260,17 +268,20 @@ def main():
             
             # Update stock
             if inv_status != 'brouillon':
-                conn.execute('UPDATE products SET quantity = quantity - ? WHERE id = ?', (qty, product_id))
-                conn.execute('''INSERT INTO stock_movements (product_id, type, quantity, note, created_at)
-                             VALUES (?, 'out', ?, ?, ?)''', (product_id, qty, f'Vente FAC-2026-{inv_id:05d}', 
-                             (today - timedelta(days=random.randint(0, 30))).strftime('%Y-%m-%d %H:%M:%S')))
+                current = conn.execute('SELECT quantity FROM products WHERE id = ?', (product_id,)).fetchone()[0]
+                if current >= qty:
+                    conn.execute('UPDATE products SET quantity = quantity - ? WHERE id = ?', (qty, product_id))
+                    conn.execute('''INSERT INTO stock_movements (product_id, type, quantity, note, created_at)
+                                 VALUES (?, 'out', ?, ?, ?)''', (product_id, qty, f'Vente FAC-2026-{inv_id:05d}', 
+                                 (today - timedelta(days=random.randint(0, 30))).strftime('%Y-%m-%d %H:%M:%S')))
             
             total_sales += line_total
     conn.commit()
     print(f'✓ Invoice items created')
     
     # ==== PURCHASE ORDERS (30) ====
-    po_statuses = ['brouillon']*5 + ['envoyee']*10 + ['recue']*12 + ['annulee']*3
+    po_statuses = ['brouillon']*5 + ['envoyee']*10 + ['received']*12 + ['annulee']*3
+    po_ids = []
     for i in range(30):
         days_ago = random.randint(5, 60)
         created_at = (today - timedelta(days=days_ago)).strftime('%Y-%m-%d')
@@ -280,7 +291,7 @@ def main():
         received_at = None
         if status == 'envoyee':
             sent_at = (today - timedelta(days=random.randint(1, days_ago))).strftime('%Y-%m-%d')
-        elif status == 'recue':
+        elif status == 'received':
             sent_at = (today - timedelta(days=random.randint(5, days_ago))).strftime('%Y-%m-%d')
             received_at = (today - timedelta(days=random.randint(1, 5))).strftime('%Y-%m-%d')
         
@@ -290,8 +301,32 @@ def main():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (f'PO-2026-{i+1:04d}', random.choice(sup_ids), random.choice(wh_ids), status,
               random.uniform(500, 15000), '', created_at, sent_at, received_at))
+        po_ids.append(conn.execute('SELECT last_insert_rowid()').fetchone()[0])
     conn.commit()
     print(f'✓ 30 purchase orders')
+    
+    # ==== PURCHASE ORDER ITEMS ====
+    for po_id in po_ids:
+        for _ in range(random.randint(2, 6)):
+            product_id = random.choice(prod_ids)
+            qty = random.randint(5, 50)
+            unit_price = round(random.uniform(2, 80), 2)
+            line_total = round(qty * unit_price, 2)
+            conn.execute('''
+                INSERT INTO purchase_order_items (order_id, product_id, quantity, unit_price)
+                VALUES (?, ?, ?, ?)
+            ''', (po_id, product_id, qty, unit_price))
+    conn.commit()
+    print(f'✓ Purchase order items created')
+    
+    # Update stock from received purchase orders
+    received_pos = conn.execute("SELECT id FROM purchase_orders WHERE status = 'received'").fetchall()
+    for po_row in received_pos:
+        items = conn.execute("SELECT product_id, quantity FROM purchase_order_items WHERE order_id=?", (po_row[0],)).fetchall()
+        for item in items:
+            conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
+    conn.commit()
+    print(f'✓ Stock updated from received purchase orders')
     
     # ==== REORDERING RULES ====
     for p in prod_ids[:25]:

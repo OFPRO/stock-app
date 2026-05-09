@@ -201,9 +201,26 @@ def init_db():
     except Exception:
         pass
     
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS stock (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            location_id INTEGER,
+            quantity INTEGER DEFAULT 0,
+            FOREIGN KEY (product_id) REFERENCES products(id),
+            FOREIGN KEY (location_id) REFERENCES locations(id)
+        )
+    ''')
+    
     # Fix negative stock: set to 0 and enforce non-negative going forward
-    c.execute('UPDATE products SET quantity = 0 WHERE quantity < 0')
-    c.execute('UPDATE stock SET quantity = 0 WHERE quantity < 0')
+    try:
+        c.execute('UPDATE products SET quantity = 0 WHERE quantity < 0')
+    except Exception:
+        pass
+    try:
+        c.execute('UPDATE stock SET quantity = 0 WHERE quantity < 0')
+    except Exception:
+        pass
     c.execute('''CREATE TRIGGER IF NOT EXISTS products_quantity_nonnegative
         BEFORE UPDATE OF quantity ON products
         WHEN NEW.quantity < 0
@@ -216,17 +233,6 @@ def init_db():
         BEGIN
             SELECT RAISE(ABORT, 'La quantité ne peut pas être négative');
         END''')
-    
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS stock (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER NOT NULL,
-            location_id INTEGER,
-            quantity INTEGER DEFAULT 0,
-            FOREIGN KEY (product_id) REFERENCES products(id),
-            FOREIGN KEY (location_id) REFERENCES locations(id)
-        )
-    ''')
     
     c.execute('''
         CREATE TABLE IF NOT EXISTS stock_movements (
@@ -2096,6 +2102,7 @@ def serve_manifest():
 def get_kpis_sales():
     """KPI Ventes: CA du jour, nombre de ventes, ticket moyen
     Supports: period=30 (default), date_start, date_end
+    Inclut les ventes POS et les factures payees
     """
     conn = get_db()
     
@@ -2103,35 +2110,56 @@ def get_kpis_sales():
     date_end = request.args.get('date_end')
     period = _safe_int(request.args.get('period', 30), 30)
     
-    date_filter = ""
+    pos_date_filter = ""
+    inv_date_filter = ""
     date_params = []
     if date_start and date_end:
-        date_filter = "AND date(created_at) BETWEEN ? AND ?"
+        pos_date_filter = "AND date(created_at) BETWEEN ? AND ?"
+        inv_date_filter = "AND date(paid_at) BETWEEN ? AND ?"
         date_params = [date_start, date_end]
     elif date_start:
-        date_filter = "AND date(created_at) >= ?"
+        pos_date_filter = "AND date(created_at) >= ?"
+        inv_date_filter = "AND date(paid_at) >= ?"
         date_params = [date_start]
     elif date_end:
-        date_filter = "AND date(created_at) <= ?"
+        pos_date_filter = "AND date(created_at) <= ?"
+        inv_date_filter = "AND date(paid_at) <= ?"
         date_params = [date_end]
     else:
-        date_filter = "AND created_at >= date('now', ?)"
+        pos_date_filter = "AND created_at >= date('now', ?)"
+        inv_date_filter = "AND paid_at >= date('now', ?)"
         date_params = ['-' + str(period) + ' days']
     
-    query = "SELECT COALESCE(SUM(total), 0) as total FROM pos_transactions WHERE status = 'completed' " + date_filter
-    ca_periode = conn.execute(query, tuple(date_params)).fetchone()[0]
+    ca_periode = conn.execute(
+        "SELECT COALESCE(SUM(total), 0) as total FROM pos_transactions WHERE status = 'completed' " + pos_date_filter,
+        tuple(date_params)
+    ).fetchone()[0] + conn.execute(
+        "SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE status = 'payee' " + inv_date_filter,
+        tuple(date_params)
+    ).fetchone()[0]
     
-    query = "SELECT COUNT(*) as count FROM pos_transactions WHERE status = 'completed' " + date_filter
-    nb_ventes_periode = conn.execute(query, tuple(date_params)).fetchone()[0]
+    nb_ventes_periode = conn.execute(
+        "SELECT COUNT(*) as count FROM pos_transactions WHERE status = 'completed' " + pos_date_filter,
+        tuple(date_params)
+    ).fetchone()[0] + conn.execute(
+        "SELECT COUNT(*) as count FROM invoices WHERE status = 'payee' " + inv_date_filter,
+        tuple(date_params)
+    ).fetchone()[0]
     
     # Si pas de dates personnalisées, calculer trend
     ca_trend = 0
     if not date_start and not date_end:
-        ca_prev = conn.execute("""
+        ca_prev_pos = conn.execute("""
             SELECT COALESCE(SUM(total), 0) as total 
             FROM pos_transactions 
             WHERE status = 'completed' AND created_at >= date('now', '-60 days') AND created_at < date('now', '-30 days')
         """).fetchone()[0]
+        ca_prev_inv = conn.execute("""
+            SELECT COALESCE(SUM(total), 0) as total 
+            FROM invoices 
+            WHERE status = 'payee' AND paid_at >= date('now', '-60 days') AND paid_at < date('now', '-30 days')
+        """).fetchone()[0]
+        ca_prev = ca_prev_pos + ca_prev_inv
         ca_trend = ((ca_periode - ca_prev) / ca_prev * 100) if ca_prev > 0 else 0
     
     # CA today (always)
@@ -2139,12 +2167,20 @@ def get_kpis_sales():
         SELECT COALESCE(SUM(total), 0) as total 
         FROM pos_transactions 
         WHERE status = 'completed' AND date(created_at) = date('now')
+    """).fetchone()[0] + conn.execute("""
+        SELECT COALESCE(SUM(total), 0) as total 
+        FROM invoices 
+        WHERE status = 'payee' AND date(paid_at) = date('now')
     """).fetchone()[0]
     
     nb_ventes_jour = conn.execute("""
         SELECT COUNT(*) as count 
         FROM pos_transactions 
         WHERE status = 'completed' AND date(created_at) = date('now')
+    """).fetchone()[0] + conn.execute("""
+        SELECT COUNT(*) as count 
+        FROM invoices 
+        WHERE status = 'payee' AND date(paid_at) = date('now')
     """).fetchone()[0]
     
     ticket_moyen = ca_periode / nb_ventes_periode if nb_ventes_periode > 0 else 0
@@ -2165,19 +2201,19 @@ def get_kpis_margins():
     """KPI Marge: Marge brute basée sur les ventes réelles (prix vente vs prix achat moyen)"""
     conn = get_db()
     
-    # Prix d'achat moyen par produit depuis les réceptions
+    # Prix d'achat moyen par produit depuis les réceptions (seed: 'recue')
     purchase_avg = conn.execute("""
         SELECT poi.product_id, 
                COALESCE(AVG(poi.unit_price), 0) as avg_purchase_price
         FROM purchase_order_items poi
         JOIN purchase_orders po ON poi.order_id = po.id
-        WHERE po.status = 'received'
+        WHERE po.status IN ('received', 'recue')
         GROUP BY poi.product_id
     """).fetchall()
     purchase_prices = {p['product_id']: p['avg_purchase_price'] for p in purchase_avg}
     
-    # Ventes réelles par produit (uniquement produits effectivement vendus)
-    sales_by_product = conn.execute("""
+    # Ventes via factures
+    invoice_sales = conn.execute("""
         SELECT ii.product_id, p.category,
                SUM(ii.quantity * ii.unit_price) as total_selling,
                SUM(ii.quantity) as total_qty_sold
@@ -2188,13 +2224,28 @@ def get_kpis_margins():
         GROUP BY ii.product_id, p.category
     """).fetchall()
     
+    # Ventes via POS (caisse)
+    pos_sales = conn.execute("""
+        SELECT pti.product_id, p.category,
+               SUM(pti.quantity * pti.unit_price) as total_selling,
+               SUM(pti.quantity) as total_qty_sold
+        FROM pos_transaction_items pti
+        JOIN pos_transactions t ON pti.transaction_id = t.id
+        JOIN products p ON pti.product_id = p.id
+        WHERE t.status = 'completed'
+        GROUP BY pti.product_id, p.category
+    """).fetchall()
+    
+    # Combiner les deux sources
+    sales_by_product = list(invoice_sales) + list(pos_sales)
+    
     # Calcul marge par catégorie
     cat_data = {}
     for s in sales_by_product:
         cat = s['category'] or 'Sans categorie'
         purchase_price = purchase_prices.get(s['product_id'], 0)
         if purchase_price == 0:
-            purchase_price = conn.execute('SELECT COALESCE(price_base, 0) FROM products WHERE id = ?', (s['product_id'],)).fetchone()[0]
+            purchase_price = conn.execute('SELECT COALESCE(purchase_price_avg, price_base, 0) FROM products WHERE id = ?', (s['product_id'],)).fetchone()[0]
         
         vente = s['total_selling']
         achat = s['total_qty_sold'] * purchase_price
@@ -2311,22 +2362,34 @@ def get_kpis_sales_daily():
     for i in range(period - 1, -1, -1):
         target_date = (today - timedelta(days=i)).strftime('%Y-%m-%d')
         
-        ca = conn.execute("""
+        ca_pos = conn.execute("""
             SELECT COALESCE(SUM(total), 0) as total 
             FROM pos_transactions 
             WHERE status = 'completed' AND date(created_at) = ?
         """, (target_date,)).fetchone()[0]
         
-        nb = conn.execute("""
+        ca_inv = conn.execute("""
+            SELECT COALESCE(SUM(total), 0) as total 
+            FROM invoices 
+            WHERE status = 'payee' AND date(paid_at) = ?
+        """, (target_date,)).fetchone()[0]
+        
+        nb_pos = conn.execute("""
             SELECT COUNT(*) as count 
             FROM pos_transactions 
             WHERE status = 'completed' AND date(created_at) = ?
         """, (target_date,)).fetchone()[0]
         
+        nb_inv = conn.execute("""
+            SELECT COUNT(*) as count 
+            FROM invoices 
+            WHERE status = 'payee' AND date(paid_at) = ?
+        """, (target_date,)).fetchone()[0]
+        
         daily_sales.append({
             'date': target_date,
-            'ca': round(ca, 2),
-            'nb_ventes': nb
+            'ca': round(ca_pos + ca_inv, 2),
+            'nb_ventes': nb_pos + nb_inv
         })
     
     conn.close()
@@ -2337,7 +2400,8 @@ def get_kpis_categories_distribution():
     """KPI Répartition des ventes par catégorie (pour Donut)"""
     conn = get_db()
     
-    categories = conn.execute("""
+    # Ventes via factures
+    inv_cat = conn.execute("""
         SELECT p.category,
                COALESCE(SUM(ii.quantity), 0) as qty_vendue,
                COALESCE(SUM(ii.line_total), 0) as ca
@@ -2346,10 +2410,30 @@ def get_kpis_categories_distribution():
         LEFT JOIN invoices i ON ii.invoice_id = i.id AND i.status = 'payee'
         WHERE p.category IS NOT NULL AND p.category != ''
         GROUP BY p.category
-        ORDER BY ca DESC
     """).fetchall()
     
-    result = [dict(c) for c in categories]
+    # Ventes via POS (caisse)
+    pos_cat = conn.execute("""
+        SELECT p.category,
+               COALESCE(SUM(pti.quantity), 0) as qty_vendue,
+               COALESCE(SUM(pti.line_total), 0) as ca
+        FROM products p
+        LEFT JOIN pos_transaction_items pti ON p.id = pti.product_id
+        LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed'
+        WHERE p.category IS NOT NULL AND p.category != ''
+        GROUP BY p.category
+    """).fetchall()
+    
+    # Fusionner les deux sources
+    merged = {}
+    for row in list(inv_cat) + list(pos_cat):
+        cat = row['category']
+        if cat not in merged:
+            merged[cat] = {'category': cat, 'qty_vendue': 0, 'ca': 0}
+        merged[cat]['qty_vendue'] += row['qty_vendue']
+        merged[cat]['ca'] += row['ca']
+    
+    result = list(merged.values())
     conn.close()
     return jsonify(result)
 
@@ -2383,7 +2467,8 @@ def get_kpis_top_selling():
             date_filter = "AND t.created_at >= date('now', '-' || ? || ' days')"
         date_params = (str(period),)
     
-    products = conn.execute("""
+    # Ventes via POS
+    pos_products = conn.execute("""
         SELECT p.id, p.name, p.sku, p.category,
                COALESCE(SUM(pti.quantity), 0) as qty_vendue,
                COALESCE(SUM(pti.line_total), 0) as ca
@@ -2391,11 +2476,31 @@ def get_kpis_top_selling():
         LEFT JOIN pos_transaction_items pti ON p.id = pti.product_id
         LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed' """ + date_filter + """
         GROUP BY p.id
-        ORDER BY qty_vendue DESC
-        LIMIT ?
-    """, date_params + (limit,)).fetchall()
+    """, date_params).fetchall()
     
-    result = [dict(p) for p in products]
+    # Ventes via factures
+    inv_products = conn.execute("""
+        SELECT p.id, p.name, p.sku, p.category,
+               COALESCE(SUM(ii.quantity), 0) as qty_vendue,
+               COALESCE(SUM(ii.line_total), 0) as ca
+        FROM products p
+        LEFT JOIN invoice_items ii ON p.id = ii.product_id
+        LEFT JOIN invoices i ON ii.invoice_id = i.id AND i.status = 'payee'
+        GROUP BY p.id
+    """).fetchall()
+    
+    # Fusionner par produit
+    merged = {}
+    for row in list(pos_products) + list(inv_products):
+        pid = row['id']
+        if pid not in merged:
+            merged[pid] = dict(row)
+            merged[pid]['qty_vendue'] = 0
+            merged[pid]['ca'] = 0
+        merged[pid]['qty_vendue'] += row['qty_vendue']
+        merged[pid]['ca'] += row['ca']
+    
+    result = sorted(merged.values(), key=lambda x: x['qty_vendue'], reverse=True)[:limit]
     conn.close()
     return jsonify(result)
 
