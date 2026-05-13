@@ -1,0 +1,13 @@
+*.db*
+*.pyc
+__pycache__/
+.gstack/
+.bak
+*.db
+*.db-shm
+*.db-wal
+*.pyc
+__pycache__/
+*.bak
+.env
+venv/
