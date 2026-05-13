@@ -332,7 +332,7 @@
         /* REPORTS STYLES */
         .reports-nav .btn { padding: 0.5rem 1rem; font-size: 0.85rem; }
         .report-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .report-kpi-card { background: var(--card); border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+        .report-kpi-card { background: var(--card); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow); text-align: center; }
         .report-kpi-card .label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; margin-bottom: 0.5rem; }
         .report-kpi-card .value { font-size: 1.75rem; font-weight: 700; }
         .report-kpi-card .value.success { color: var(--success); }
@@ -342,14 +342,14 @@
         .report-kpi-card .trend { font-size: 0.8rem; margin-top: 0.25rem; }
         .report-kpi-card .trend.up { color: var(--success); }
         .report-kpi-card .trend.down { color: var(--danger); }
-        .report-section { background: var(--card); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .report-section { background: var(--card); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
         .report-section h3 { font-size: 1rem; margin: 0 0 1rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.5rem; }
         .report-table { width: 100%; border-collapse: collapse; }
         .report-table th { background: var(--border); padding: 0.75rem; text-align: left; font-size: 0.75rem; text-transform: uppercase; color: var(--text-light); }
         .report-table td { padding: 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-        .report-table tr:hover { background: #f8fafc; }
+        .report-table tr:hover { background: var(--color-canvas); }
         .report-chart-container { height: 300px; margin: 1rem 0; }
-        .report-insight { background: #f8fafc; border-left: 4px solid var(--primary); padding: 1rem; margin: 0.5rem 0; border-radius: 0 8px 8px 0; }
+        .report-insight { background: var(--color-canvas); border-left: 4px solid var(--primary); padding: 1rem; margin: 0.5rem 0; border-radius: 0 8px 8px 0; }
         .report-insight.positive { border-left-color: var(--success); }
         .report-insight.negative { border-left-color: var(--danger); }
         .report-insight.warning { border-left-color: var(--warning); }
@@ -358,7 +358,7 @@
         
         /* ORDER MODAL STYLES */
         .order-header-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-        .order-items-section { background: #f8fafc; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+        .order-items-section { background: var(--color-canvas); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem; }
         .order-modal-footer { 
             padding: 1rem; 
             border-top: 1px solid var(--border); 
@@ -383,7 +383,7 @@
             border-radius: 0 0 6px 6px;
             max-height: 240px; overflow-y: auto;
             z-index: 1000; display: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow-lg);
         }
         .product-suggestions.show { display: block; }
         .product-suggestion-item {
@@ -399,7 +399,7 @@
         }
         .product-suggestion-item.out-of-stock .product-name { color: var(--danger); }
         .product-suggestion-item .stock-badge {
-            font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;
+            font-size: 0.7rem; padding: 2px 6px; border-radius: var(--radius-xs);
             margin-left: 0.5rem;
         }
         .product-suggestion-item .stock-badge.danger {
@@ -414,7 +414,7 @@
         .rupture-tags-container {
             display: flex; flex-wrap: wrap; gap: 0.5rem;
             padding: 0.75rem; margin-bottom: 0.75rem;
-            background: #fef2f2; border-radius: 8px;
+            background: #fef2f2; border-radius: var(--radius-md);
             border: 1px solid var(--danger);
         }
         .rupture-tag {
@@ -429,18 +429,18 @@
         .order-items-table .order-qty, .order-items-table .order-price { width: 100%; padding: 0.5rem; }
         .order-item-total { font-weight: 600; text-align: right; }
         .order-total-final { font-size: 1.1rem; font-weight: 700; color: var(--primary); text-align: right; }
-        .order-item-row:hover { background: #f1f5f9; }
+        .order-item-row:hover { background: var(--color-border-subtle); }
         .order-item-row td { vertical-align: middle; }
         
         /* ERROR MESSAGE */
-        #errorMsg { display: none; position: fixed; top: 1rem; right: 1rem; padding: 1rem 1.5rem; background: var(--danger); color: white; border-radius: 8px; z-index: 2000; }
+        #errorMsg { display: none; position: fixed; top: 1rem; right: 1rem; padding: 1rem 1.5rem; background: var(--danger); color: white; border-radius: var(--radius-md); z-index: 2000; }
         
         /* EMPTY STATE */
         .empty { text-align: center; padding: 3rem; color: var(--text-light); }
         .empty i { font-size: 3rem; margin-bottom: 1rem; display: block; }
         
         /* CHART CONTAINER */
-        .chart-container { background: var(--card); border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .chart-container { background: var(--card); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); }
         #chartWrapper { height: 300px; position: relative; }
         
         /* DASHBOARD MODERNE */
@@ -471,9 +471,9 @@
         
         .kpi-card { 
             background: var(--card); 
-            border-radius: 12px; 
+            border-radius: var(--radius-lg); 
             padding: 1rem 1.25rem; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
             transition: transform 0.2s, box-shadow 0.2s;
             border: 1px solid transparent;
         }
@@ -546,7 +546,7 @@
             padding: 2rem;
             color: var(--text-light);
             background: var(--card);
-            border-radius: 12px;
+            border-radius: var(--radius-lg);
         }
         
         /* RESPONSIVE */
@@ -611,7 +611,7 @@
         .btn-refresh {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             padding: 0.5rem;
             cursor: pointer;
             color: var(--text);
@@ -633,7 +633,7 @@
         /* KPI Section */
         .kpi-section {
             background: var(--card);
-            border-radius: 16px;
+            border-radius: var(--radius-xl);
             padding: 1.5rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
@@ -690,7 +690,7 @@
         /* KPI Card */
         .kpi-item {
             background: var(--bg);
-            border-radius: 12px;
+            border-radius: var(--radius-lg);
             padding: 1.25rem;
             border: 1px solid var(--border);
             transition: all 0.2s ease;
@@ -710,7 +710,7 @@
         .kpi-item-icon {
             width: 36px;
             height: 36px;
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -729,7 +729,7 @@
             align-items: center;
             gap: 0.25rem;
             padding: 0.25rem 0.5rem;
-            border-radius: 9999px;
+            border-radius: var(--radius-pill);
         }
         .kpi-item-trend.up { background: #d1fae5; color: #059669; }
         .kpi-item-trend.down { background: #fee2e2; color: #dc2626; }
@@ -771,7 +771,7 @@
             padding: 4rem 2rem;
             color: var(--text-light);
             background: var(--card);
-            border-radius: 16px;
+            border-radius: var(--radius-xl);
         }
         .loading-spinner {
             width: 40px;
@@ -820,7 +820,7 @@
             align-items: center;
             padding: 0.75rem 1.5rem;
             background: var(--card);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             border: 1px solid var(--border);
         }
         .product-stock-badge .stock-value {
@@ -850,7 +850,7 @@
         }
         .product-status-badge {
             padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
+            border-radius: var(--radius-pill);
             font-size: 0.75rem;
             font-weight: 600;
         }
@@ -909,7 +909,7 @@
         .detail-card {
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             padding: 1rem;
         }
         .detail-card h4 {
@@ -949,7 +949,7 @@
             padding: 0.75rem;
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: var(--radius-sm);
         }
         .stock-location-item .location-name { font-weight: 500; }
         .stock-location-item .location-qty { font-weight: 700; color: var(--primary); }
@@ -962,7 +962,7 @@
         .stat-item {
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             padding: 1rem;
             text-align: center;
         }
@@ -987,7 +987,7 @@
         .pricing-card {
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             padding: 1rem;
             text-align: center;
         }
@@ -1003,14 +1003,14 @@
         .discount-table {
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             padding: 1rem;
         }
         
         .supplier-info-card {
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-md);
             padding: 1rem;
         }
         .supplier-header {
@@ -1046,7 +1046,7 @@
             padding: 0.75rem;
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: var(--radius-sm);
         }
         .movement-item.in { border-left: 3px solid var(--success); }
         .movement-item.out { border-left: 3px solid var(--warning); }
@@ -1081,22 +1081,22 @@
         /* POS STYLES */
         .pos-container { display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem; height: calc(100vh - 150px); }
         .pos-left { display: flex; flex-direction: column; gap: 1rem; }
-        .pos-right { display: flex; flex-direction: column; gap: 1rem; background: var(--card); border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .pos-session-bar { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--card); border-radius: 12px; }
+        .pos-right { display: flex; flex-direction: column; gap: 1rem; background: var(--card); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); }
+        .pos-session-bar { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--card); border-radius: var(--radius-lg); }
         .pos-session-info { display: flex; align-items: center; gap: 1rem; font-weight: 600; }
-        .pos-search-bar { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: var(--card); border-radius: 12px; }
+        .pos-search-bar { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: var(--card); border-radius: var(--radius-lg); }
         .pos-search-bar i { color: var(--text-light); }
         .pos-search-bar input { flex: 1; border: none; outline: none; font-size: 1rem; }
-        .pos-search-results { max-height: 200px; overflow-y: auto; background: var(--card); border-radius: 8px; display: none; }
+        .pos-search-results { max-height: 200px; overflow-y: auto; background: var(--card); border-radius: var(--radius-md); display: none; }
         .pos-search-results.active { display: block; }
         .pos-search-item { padding: 0.75rem; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .pos-search-item:hover { background: #f8fafc; }
+        .pos-search-item:hover { background: var(--color-canvas); }
         .pos-search-item-name { font-weight: 600; }
         .pos-search-item-price { color: var(--primary); font-weight: 600; }
         .pos-best-sellers { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; flex-wrap: wrap; }
         .pos-best-seller-tag { padding: 0.25rem 0.75rem; background: var(--primary); color: white; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
         .pos-best-seller-tag:hover { background: var(--primary-dark); transform: scale(1.05); }
-        .pos-cart { flex: 1; background: var(--card); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+        .pos-cart { flex: 1; background: var(--card); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow: hidden; }
         .pos-cart-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border); }
         .pos-cart-header h4 { margin: 0; }
         .pos-cart-items { flex: 1; overflow-y: auto; padding: 0.5rem; }
@@ -1104,18 +1104,18 @@
         .pos-cart-empty i { font-size: 3rem; margin-bottom: 0.5rem; }
         .pos-cart-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid var(--border); }
         .pos-cart-item-qty { display: flex; align-items: center; gap: 0.25rem; }
-        .pos-cart-item-qty button { width: 24px; height: 24px; border: 1px solid var(--border); background: white; cursor: pointer; border-radius: 4px; }
+        .pos-cart-item-qty button { width: 24px; height: 24px; border: 1px solid var(--border); background: white; cursor: pointer; border-radius: var(--radius-xs); }
         .pos-cart-item-qty span { min-width: 30px; text-align: center; font-weight: 600; }
         .pos-cart-item-name { flex: 1; }
         .pos-cart-item-price { font-weight: 600; color: var(--primary); }
         .pos-cart-item-remove { color: var(--danger); cursor: pointer; }
-        .pos-cart-summary { padding: 1rem; background: #f8fafc; border-top: 2px solid var(--border); }
+        .pos-cart-summary { padding: 1rem; background: var(--color-canvas); border-top: 2px solid var(--border); }
         .pos-summary-row { display: flex; justify-content: space-between; padding: 0.25rem 0; }
         .pos-summary-discount { color: var(--success); }
         .pos-summary-total { font-size: 1.25rem; font-weight: 700; border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.5rem; }
         .pos-customer-section h4, .pos-payment-section h4 { margin: 0 0 0.75rem 0; font-size: 0.9rem; color: var(--text-light); text-transform: uppercase; }
         .pos-payment-methods { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-        .pos-payment-btn { flex: 1; padding: 1rem; border: 2px solid var(--border); background: white; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; transition: all 0.2s; }
+        .pos-payment-btn { flex: 1; padding: 1rem; border: 2px solid var(--border); background: white; border-radius: var(--radius-md); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; transition: all 0.2s; }
         .pos-payment-btn i { font-size: 1.5rem; }
         .pos-payment-btn.active { border-color: var(--primary); background: #dbeafe; color: var(--primary); }
         .pos-cash-input { margin-top: 1rem; }
@@ -1185,7 +1185,7 @@
         
         .chart-card {
             background: var(--card);
-            border-radius: 16px;
+            border-radius: var(--radius-xl);
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             overflow: hidden;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -1224,7 +1224,7 @@
         
         .table-card {
             background: var(--card);
-            border-radius: 16px;
+            border-radius: var(--radius-xl);
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             overflow: hidden;
         }
@@ -1279,7 +1279,7 @@
             font-weight: 700;
             text-align: center;
             padding: 0.25rem 0.5rem;
-            border-radius: 4px;
+            border-radius: var(--radius-xs);
             font-size: 0.8rem;
         }
         .mini-table .qty.danger { background: #fee2e2; color: #dc2626; }
@@ -1339,7 +1339,7 @@
         
         @media (max-width: 1024px) {
             .pos-container { grid-template-columns: 1fr; }
-            .pos-right { position: fixed; bottom: 0; left: 0; right: 0; height: auto; border-radius: 16px 16px 0 0; z-index: 100; }
+            .pos-right { position: fixed; bottom: 0; left: 0; right: 0; height: auto; border-radius: var(--radius-xl) 16px 0 0; z-index: 100; }
         }
     </style>
 </head>
@@ -2683,7 +2683,7 @@
             
             <form id="orderForm" onsubmit="saveOrder(event)" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
                 <!-- Info Row -->
-                <div class="order-info-bar" style="padding:1rem 1.5rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;background:#f8fafc;border-bottom:1px solid var(--border);flex-shrink:0;">
+                <div class="order-info-bar" style="padding:1rem 1.5rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;background:var(--color-canvas);border-bottom:1px solid var(--border);flex-shrink:0;">
                     <div><label style="font-size:0.7rem;color:var(--text-light);display:block;margin-bottom:0.25rem;">N° Bon</label><input type="text" id="orderNumber" class="form-input" readonly placeholder="Auto"></div>
                     <div><label style="font-size:0.7rem;color:var(--text-light);display:block;margin-bottom:0.25rem;">Date</label><input type="date" id="orderDate" class="form-input"></div>
                     <div><label style="font-size:0.7rem;color:var(--text-light);display:block;margin-bottom:0.25rem;">Statut</label><select id="orderStatus" class="form-select"><option value="brouillon">Brouillon</option><option value="recue">Recue</option><option value="paye">Paye</option></select></div>
@@ -2700,7 +2700,7 @@
                     <div id="ruptureTags" style="margin-bottom:1rem;min-height:40px;"></div>
                     
                     <!-- Products Section -->
-                    <div class="products-section" style="background:#f8fafc;border-radius:10px;padding:1rem;margin-bottom:1rem;">
+                    <div class="products-section" style="background:var(--color-canvas);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem;">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><h4 style="margin:0;font-size:0.9rem;"><i class="fas fa-box"></i> Produits</h4><button type="button" class="btn btn-sm btn-success" onclick="addOrderItem()"><i class="fas fa-plus"></i> Ajouter</button></div>
                         
                         <!-- Table Header -->
@@ -2722,7 +2722,7 @@
                 </div>
                 
                 <!-- Footer -->
-                <div class="order-modal-footer" style="padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:0.75rem;justify-content:flex-end;background:#f8fafc;flex-shrink:0;">
+                <div class="order-modal-footer" style="padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:0.75rem;justify-content:flex-end;background:var(--color-canvas);flex-shrink:0;">
                     <button type="button" class="btn btn-danger" id="cancelOrderBtn" onclick="cancelOrder()" style="display:none;padding:0.5rem 1rem;background:var(--danger);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i> Annuler Commande</button>
                     <button type="button" class="btn btn-outline" onclick="closeModal('orderModal')" style="padding:0.5rem 1rem;border:1px solid var(--border);background:white;border-radius:6px;cursor:pointer;">Annuler</button>
                     <button type="button" class="btn btn-success" onclick="sendOrder()" style="padding:0.5rem 1rem;background:var(--success);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="fas fa-paper-plane"></i> Envoyer</button>
@@ -3519,6 +3519,9 @@ async function loadDashboard() {
         }
         
         // === CHART FUNCTIONS ===
+        function cssVar(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
         var charts = {};
         var chartsInitialized = false;
         
@@ -3536,13 +3539,13 @@ async function loadDashboard() {
                 charts.salesDaily = new ApexCharts(chartEl, {
                     chart: { type: 'area', height: 250, toolbar: { show: false }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
                     series: [{ name: 'CA', data: values }],
-                    colors: ['#2563eb'],
+                    colors: [cssVar('--color-primary')],
                     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
                     stroke: { curve: 'smooth', width: 2 },
-                    xaxis: { categories: dates, labels: { style: { colors: '#64748b', fontSize: '11px' } } },
-                    yaxis: { labels: { formatter: v => v.toLocaleString(), style: { colors: '#64748b', fontSize: '11px' } } },
+                    xaxis: { categories: dates, labels: { style: { colors: cssVar('--color-text-muted'), fontSize: '11px' } } },
+                    yaxis: { labels: { formatter: v => v.toLocaleString(), style: { colors: cssVar('--color-text-muted'), fontSize: '11px' } } },
                     tooltip: { y: { formatter: v => v.toLocaleString() + ' DH' } },
-                    grid: { borderColor: '#f1f5f9' }
+                    grid: { borderColor: cssVar('--color-border-subtle') }
                 });
                 charts.salesDaily.render();
             } catch(e) { console.error('SalesDaily chart error:', e); }
@@ -3589,11 +3592,11 @@ async function loadDashboard() {
                 charts.topProducts = new ApexCharts(chartEl, {
                     chart: { type: 'bar', height: 250, toolbar: { show: false }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
                     series: [{ name: 'Qte', data: values }],
-                    colors: ['#10b981'],
+                    colors: [cssVar('--color-success')],
                     plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '60%' } },
-                    xaxis: { categories: names, labels: { style: { colors: '#64748b', fontSize: '10px' } } },
-                    yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } },
-                    grid: { borderColor: '#f1f5f9' },
+                    xaxis: { categories: names, labels: { style: { colors: cssVar('--color-text-muted'), fontSize: '10px' } } },
+                    yaxis: { labels: { style: { colors: cssVar('--color-text-muted'), fontSize: '11px' } } },
+                    grid: { borderColor: cssVar('--color-border-subtle') },
                     tooltip: { y: { formatter: v => v + ' unites' } }
                 });
                 charts.topProducts.render();
@@ -3612,7 +3615,7 @@ async function loadDashboard() {
                     chart: { type: 'donut', height: 250, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
                     series: [data.payee || 0, data.envoyee || 0, data.brouillon || 0, data.annulee || 0],
                     labels: ['Payees', 'Envoyees', 'Brouillon', 'Annulees'],
-                    colors: ['#10b981', '#f59e0b', '#64748b', '#ef4444'],
+                    colors: [cssVar('--color-success'), cssVar('--color-warning'), cssVar('--color-text-muted'), cssVar('--color-danger')],
                     legend: { position: 'right', fontSize: '12px' },
                     plotOptions: { pie: { donut: { size: '65%' } } },
                     dataLabels: { enabled: false }
@@ -3636,13 +3639,13 @@ async function loadDashboard() {
                 charts.movements = new ApexCharts(chartEl, {
                     chart: { type: 'area', height: 250, stacked: false, toolbar: { show: false }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
                     series: [{ name: 'Entrees', data: entries }, { name: 'Sorties', data: exits }],
-                    colors: ['#10b981', '#f59e0b'],
+                    colors: [cssVar('--color-success'), cssVar('--color-warning')],
                     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.1 } },
                     stroke: { curve: 'smooth', width: 2 },
-                    xaxis: { categories: dates, labels: { style: { colors: '#64748b', fontSize: '11px' } } },
-                    yaxis: { labels: { style: { colors: '#64748b', fontSize: '11px' } } },
+                    xaxis: { categories: dates, labels: { style: { colors: cssVar('--color-text-muted'), fontSize: '11px' } } },
+                    yaxis: { labels: { style: { colors: cssVar('--color-text-muted'), fontSize: '11px' } } },
                     legend: { fontSize: '12px' },
-                    grid: { borderColor: '#f1f5f9' }
+                    grid: { borderColor: cssVar('--color-border-subtle') }
                 });
                 charts.movements.render();
             } catch(e) { console.error('Movements chart error:', e); }
@@ -4947,15 +4950,15 @@ var data = await res.json();
                     var typeLabel = t.type === 'in' ? 'Entrée' : 'Sortie';
                     var reasonIcon = '';
                     if (t.reason === 'card_payment') {
-                        reasonIcon = '<i class="fas fa-credit-card" style="color: #3b82f6; margin-right: 5px;"></i>';
+                        reasonIcon = '<i class="fas fa-credit-card" style="color: var(--color-info); margin-right: 5px;"></i>';
                     } else if (t.reason === 'session_close') {
-                        reasonIcon = '<i class="fas fa-cash-register" style="color: #10b981; margin-right: 5px;"></i>';
+                        reasonIcon = '<i class="fas fa-cash-register" style="color: var(--color-success); margin-right: 5px;"></i>';
                     } else if (t.reason === 'supplier_order') {
-                        reasonIcon = '<i class="fas fa-truck" style="color: #f59e0b; margin-right: 5px;"></i>';
+                        reasonIcon = '<i class="fas fa-truck" style="color: var(--color-warning); margin-right: 5px;"></i>';
                     } else if (t.reason === 'deposit') {
-                        reasonIcon = '<i class="fas fa-plus-circle" style="color: #10b981; margin-right: 5px;"></i>';
+                        reasonIcon = '<i class="fas fa-plus-circle" style="color: var(--color-success); margin-right: 5px;"></i>';
                     } else if (t.reason === 'withdraw') {
-                        reasonIcon = '<i class="fas fa-minus-circle" style="color: #ef4444; margin-right: 5px;"></i>';
+                        reasonIcon = '<i class="fas fa-minus-circle" style="color: var(--color-danger); margin-right: 5px;"></i>';
                     }
                     return '<tr>' +
                         '<td>' + date + '</td>' +
@@ -5606,7 +5609,7 @@ var data = await res.json();
                     series: [{ name: label, data: data.map(function(d) { return d[yKey] || 0; }) }],
                     xaxis: { categories: data.map(function(d) { return d[xKey] ? d[xKey].substring(5) : ''; }), labels: { style: { fontSize: '10px' } } },
                     stroke: { curve: 'smooth', width: 2 },
-                    colors: ['#2563eb'],
+                    colors: [cssVar('--color-primary')],
                     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
                     dataLabels: { enabled: false },
                     tooltip: { y: { formatter: function(val) { return val.toFixed(2); } } }
