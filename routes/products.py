@@ -1,31 +1,5 @@
 from flask import Blueprint, request, jsonify
-from contextlib import contextmanager
-import sqlite3
-import random
-
-DB_NAME = 'stock.db'
-
-@contextmanager
-def get_db():
-    conn = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA busy_timeout=30000')
-    conn.execute('PRAGMA foreign_keys=ON')
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-def validate_id(value):
-    """Validate that a value is a valid positive integer."""
-    if value is None:
-        return None
-    if isinstance(value, str) and value.isdigit():
-        return int(value)
-    if isinstance(value, int) and value > 0:
-        return value
-    return None
+from routes.db import get_db_ctx as get_db, validate_id
 
 products_bp = Blueprint('products', __name__)
 
