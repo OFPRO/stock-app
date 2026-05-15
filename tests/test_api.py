@@ -3,7 +3,7 @@ def test_index_returns_html(client):
     assert rv.status_code == 200
     assert b'StockPro' in rv.data
 
-def test_api_products(client):
+def test_api_products(client, seed_data):
     rv = client.get('/api/products')
     assert rv.status_code == 200
     data = rv.get_json()
@@ -12,10 +12,8 @@ def test_api_products(client):
     assert 'name' in data[0]
     assert 'price' in data[0]
 
-def test_api_product_detail(client):
-    products = client.get('/api/products').get_json()
-    assert len(products) > 0
-    first_id = products[0]['id']
+def test_api_product_detail(client, seed_data):
+    first_id = seed_data['product_id']
     rv = client.get(f'/api/products/{first_id}')
     assert rv.status_code == 200
     data = rv.get_json()
@@ -90,7 +88,7 @@ def test_api_kpis_alertes(client):
     assert 'low_stock' in data
     assert 'expiring' in data
 
-def test_api_categories(client):
+def test_api_categories(client, seed_data):
     rv = client.get('/api/categories')
     assert rv.status_code == 200
     data = rv.get_json()
