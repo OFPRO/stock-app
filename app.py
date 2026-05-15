@@ -5,6 +5,7 @@ import html
 from io import StringIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, Response, send_from_directory
+from routes.db import get_db, DB_NAME
 from routes.products import products_bp
 from routes.kpis import kpis_bp
 from routes.customers import customers_bp
@@ -19,15 +20,6 @@ app.register_blueprint(customers_bp)
 app.register_blueprint(suppliers_bp)
 app.register_blueprint(warehouses_bp)
 app.register_blueprint(locations_bp)
-DB_NAME = 'stock.db'
-
-def get_db():
-    conn = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA busy_timeout=30000')
-    conn.execute('PRAGMA foreign_keys=ON')
-    return conn
 
 def _safe_int(value, default):
     try:
@@ -144,71 +136,6 @@ def init_db():
         c.execute('ALTER TABLE products ADD COLUMN margin_percent REAL DEFAULT 15.0')
     except Exception:
         pass
-    try:
-        c.execute('ALTER TABLE purchase_orders ADD COLUMN paid_at TIMESTAMP')
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE invoices ADD COLUMN supplier_id INTEGER")
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE invoices ADD COLUMN type TEXT DEFAULT 'facture'")
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE invoices ADD COLUMN payment_method TEXT DEFAULT 'cash'")
-    except Exception:
-        pass
-    try:
-        c.execute('ALTER TABLE invoices ADD COLUMN tendered_amount REAL DEFAULT 0')
-    except Exception:
-        pass
-    try:
-        c.execute('ALTER TABLE invoices ADD COLUMN change_given REAL DEFAULT 0')
-    except Exception:
-        pass
-    try:
-        c.execute('ALTER TABLE warehouses ADD COLUMN ice TEXT')
-    except Exception:
-        pass
-    try:
-        c.execute('ALTER TABLE warehouses ADD COLUMN patente TEXT')
-    except Exception:
-        pass
-    try:
-        c.execute('ALTER TABLE warehouses ADD COLUMN rc TEXT')
-    except Exception:
-        pass
-    try:
-        c.execute('ALTER TABLE warehouses ADD COLUMN taxe_number TEXT')
-    except Exception:
-        pass
-    try:
-        c.execute('ALTER TABLE warehouses ADD COLUMN phone TEXT')
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE pos_transactions ADD COLUMN discount_total REAL DEFAULT 0")
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE pos_transactions ADD COLUMN change_given REAL DEFAULT 0")
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE pos_transactions ADD COLUMN transaction_number TEXT")
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE customers ADD COLUMN is_active INTEGER DEFAULT 1")
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE customers ADD COLUMN ice TEXT")
-    except Exception:
-        pass
-    
     c.execute('''
         CREATE TABLE IF NOT EXISTS stock (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -420,6 +347,19 @@ def init_db():
             FOREIGN KEY (customer_id) REFERENCES customers(id)
         )
     ''')
+    
+    try:
+        c.execute("ALTER TABLE pos_transactions ADD COLUMN discount_total REAL DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE pos_transactions ADD COLUMN change_given REAL DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE pos_transactions ADD COLUMN transaction_number TEXT")
+    except Exception:
+        pass
     
     c.execute('''
         CREATE TABLE IF NOT EXISTS pos_transaction_items (
@@ -1200,7 +1140,11 @@ def create_invoice():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (invoice_id, item['product_id'], product['name'], product['sku'], qty, unit_price, discount_percent, tax_rate, line_total))
             
-            conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (qty, item['product_id'], qty))
+            cur = conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (qty, item['product_id'], qty))
+            if cur.rowcount == 0:
+                current = conn.execute('SELECT quantity FROM products WHERE id = ?', (item['product_id'],)).fetchone()
+                stock_qty = current['quantity'] if current else 0
+                raise ValueError(f'Stock insuffisant pour {product["name"]}. Disponible: {stock_qty}, demandé: {qty}')
             conn.execute('''
                 INSERT INTO stock_movements (product_id, type, quantity, note)
                 VALUES (?, 'out', ?, ?)
@@ -1794,12 +1738,11 @@ def create_pos_transaction():
     tax = 0
     discount = 0
     for item in items:
-        base_price = item.get('base_price', item['unit_price'])
         line_ht = item['quantity'] * item['unit_price']
         line_tax = line_ht * 0.20
-        subtotal += item['quantity'] * base_price
+        subtotal += line_ht
         tax += line_tax
-        discount += (item['quantity'] * base_price) - line_ht
+        discount += line_ht * (item.get('discount_percent', 0) / 100)
     
     total = subtotal + tax - discount
     change_amount = max(0, tendered_amount - total) if payment_method == 'cash' else 0
@@ -1807,11 +1750,11 @@ def create_pos_transaction():
     # Insert transaction
     conn.execute('''
         INSERT INTO pos_transactions (
-            transaction_number, session_id, customer_id, payment_method,
+            ticket_number, transaction_number, session_id, customer_id, payment_method,
             subtotal, discount_total, tax_amount, total,
             tendered_amount, change_given, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
-    ''', (doc_number, session_id, customer_id, payment_method,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
+    ''', (doc_number, doc_number, session_id, customer_id, payment_method,
           subtotal, discount, tax, total, tendered_amount, change_amount))
     trans_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
     
@@ -1832,9 +1775,14 @@ def create_pos_transaction():
         ''', (trans_id, product_id, item.get('product_name', ''), item.get('product_sku', ''),
               qty, unit_price, discount_pct, 20, line_total))
         
-        conn.execute('''
+        cur = conn.execute('''
             UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?
         ''', (qty, product_id, qty))
+        if cur.rowcount == 0:
+            current = conn.execute('SELECT quantity FROM products WHERE id = ?', (product_id,)).fetchone()
+            stock_qty = current['quantity'] if current else 0
+            conn.close()
+            return jsonify({'error': f'Stock insuffisant pour {item.get("product_name", "produit")}. Disponible: {stock_qty}, demandé: {qty}'}), 400
         
         conn.execute('''
             INSERT INTO stock_movements (product_id, type, quantity, note)
@@ -1871,28 +1819,28 @@ def create_pos_transaction():
         if cust:
             customer_name = cust['name']
     
-    # Create facture for defined clients only (with type='facture' tag)
-    if doc_type == 'facture':
+    # Create invoice record for every POS sale
+    inv_type = 'ticket' if is_client_comptoir else 'facture'
+    conn.execute('''
+        INSERT INTO invoices (
+            invoice_number, customer_id, warehouse_id, status, type,
+            subtotal, discount_total, tax_amount, total, 
+            paid_at, payment_method, tendered_amount, change_given
+        ) VALUES (?, ?, 1, 'payee', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
+    ''', (doc_number, customer_id, inv_type, subtotal, discount, tax, total, 
+          payment_method, tendered_amount, change_amount))
+    inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    
+    for item in items:
+        line_ht = item['quantity'] * item['unit_price'] * (1 - item.get('discount_percent', 0) / 100)
+        line_total = line_ht * 1.20
         conn.execute('''
-            INSERT INTO invoices (
-                invoice_number, customer_id, warehouse_id, status, type,
-                subtotal, discount_total, tax_amount, total, 
-                paid_at, payment_method, tendered_amount, change_given
-            ) VALUES (?, ?, 1, 'payee', 'facture', ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
-        ''', (doc_number, customer_id, subtotal, discount, tax, total, 
-              payment_method, tendered_amount, change_amount))
-        inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-        
-        for item in items:
-            line_ht = item['quantity'] * item['unit_price'] * (1 - item.get('discount_percent', 0) / 100)
-            line_total = line_ht * 1.20
-            conn.execute('''
-                INSERT INTO invoice_items (
-                    invoice_id, product_id, product_name, product_sku,
-                    quantity, unit_price, discount_percent, tax_rate, line_total
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 20, ?)
-            ''', (inv_id, item['product_id'], item.get('product_name', ''), item.get('product_sku', ''),
-                  item['quantity'], item['unit_price'], item.get('discount_percent', 0), line_total))
+            INSERT INTO invoice_items (
+                invoice_id, product_id, product_name, product_sku,
+                quantity, unit_price, discount_percent, tax_rate, line_total
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 20, ?)
+        ''', (inv_id, item['product_id'], item.get('product_name', ''), item.get('product_sku', ''),
+              item['quantity'], item['unit_price'], item.get('discount_percent', 0), line_total))
     
     conn.commit()
     conn.close()
@@ -2255,7 +2203,7 @@ def generate_pos_ticket_pdf(ticket_number):
     
     <div class="totals">
         <div class="totals-row"><span>Sous-total:</span><span>{_n(transaction.get('subtotal'), 0):.2f} DH</span></div>
-        <div class="totals-row"><span>Remise:</span><span>{_n(transaction.get('discount_total'), 0):.2f} DH</span></div>
+        {f'<div class="totals-row"><span>Remise:</span><span>{_n(transaction.get("discount_total"), 0):.2f} DH</span></div>' if _n(transaction.get('discount_total'), 0) > 0 else ''}
         <div class="totals-row"><span>TVA (20%):</span><span>{_n(transaction.get('tax_amount'), 0):.2f} DH</span></div>
         <div class="totals-row grand-total"><span>TOTAL:</span><span>{_n(transaction.get('total'), 0):.2f} DH</span></div>
     </div>
@@ -2304,4 +2252,4 @@ def get_pos_transaction_by_invoice(invoice_number):
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=False, port=5001)
+    app.run(debug=False, port=5001, threaded=True)

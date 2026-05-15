@@ -153,6 +153,8 @@ export function PosPage() {
             : `/api/invoices/${res.document_number}/pdf`
           window.open(url, "_blank")
         }
+      } else {
+        alert(res.error || "Erreur lors de l'encaissement")
       }
     } finally { setSaving(false) }
   }

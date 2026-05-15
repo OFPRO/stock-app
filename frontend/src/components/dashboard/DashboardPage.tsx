@@ -9,6 +9,7 @@ import {
   Package,
   XCircle,
   Landmark,
+  RefreshCw,
 } from "lucide-react"
 import { fetchDashboardData, type DashboardData } from "@/lib/api"
 import { KpiCard } from "@/components/dashboard/KpiCard"
@@ -41,16 +42,20 @@ import {
 export function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [period, setPeriod] = useState("30")
   const [warehouseId, setWarehouseId] = useState("__all__")
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const result = await fetchDashboardData(Number(period), warehouseId)
       setData(result)
     } catch (err) {
-      console.error("Failed to load dashboard:", err)
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(msg)
+      console.error("Failed to load dashboard:", msg)
     } finally {
       setLoading(false)
     }
@@ -66,8 +71,21 @@ export function DashboardPage() {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">
-        Erreur lors du chargement du tableau de bord
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 text-muted-foreground">
+        <p>Erreur lors du chargement du tableau de bord</p>
+        {error && (
+          <p className="text-xs max-w-md text-center text-destructive bg-destructive/10 px-4 py-2 rounded-md">
+            {error}
+          </p>
+        )}
+        <button
+          onClick={load}
+          disabled={loading}
+          className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline disabled:opacity-50"
+        >
+          <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+          Réessayer
+        </button>
       </div>
     )
   }

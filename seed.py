@@ -18,7 +18,8 @@ def main():
     today = datetime.now()
     
     # Clean existing data
-    tables = ['invoice_items', 'invoices', 'stock_movements', 'stock', 'notifications', 
+    tables = ['pos_transaction_items', 'pos_transactions', 'pos_cash_movements', 'pos_sessions',
+              'main_account_transactions', 'invoice_items', 'invoices', 'stock_movements', 'stock', 'notifications', 
               'reordering_rules', 'purchase_order_items', 'purchase_orders', 
               'products', 'customers', 'locations', 'suppliers', 'warehouses']
     for t in tables:
@@ -330,6 +331,88 @@ def main():
     conn.commit()
     print(f'✓ Stock updated from received purchase orders')
     
+    # ==== POS SESSION + TRANSACTIONS ====
+    today_str = today.strftime('%Y-%m-%d %H:%M:%S')
+    conn.execute("INSERT INTO pos_sessions (session_number, opening_cash, status, opened_at) VALUES (?, ?, 'open', ?)",
+                 (f'POS-{today.strftime("%Y%m%d")}-001', 500, today_str))
+    pos_session_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    
+    pos_payment_methods = ['cash', 'cash', 'cash', 'card', 'card']
+    for i in range(20):
+        days_ago = random.randint(0, 14)
+        ts = (today - timedelta(days=days_ago, hours=random.randint(8, 18), minutes=random.randint(0, 59))).strftime('%Y-%m-%d %H:%M:%S')
+        seq = i + 1
+        doc_number = f'Ticket-{today.strftime("%Y%m%d")}-{seq:04d}'
+        payment = random.choice(pos_payment_methods)
+        items_count = random.randint(1, 4)
+        
+        subtotal = 0
+        tax = 0
+        trans_items = []
+        for _ in range(items_count):
+            product_id = random.choice(prod_ids)
+            product = conn.execute('SELECT name, sku, price, price_base, quantity FROM products WHERE id=?', (product_id,)).fetchone()
+            if product['quantity'] <= 1:
+                continue
+            qty = random.randint(1, min(3, product['quantity']))
+            if qty == 0:
+                continue
+            unit_price = round(product['price'] * random.uniform(0.9, 1.1), 2)
+            line_ht = qty * unit_price
+            subtotal += line_ht
+            tax += line_ht * 0.20
+            trans_items.append((product_id, product['name'], product['sku'], qty, unit_price, 0, 20, round(line_ht * 1.20, 2)))
+        
+        if not trans_items:
+            continue
+        
+        total = round(subtotal + tax, 2)
+        tendered = total if payment == 'card' else round(total * random.uniform(1.0, 1.5), 2)
+        change = max(0, round(tendered - total, 2))
+        
+        conn.execute('''
+            INSERT INTO pos_transactions (ticket_number, transaction_number, session_id, customer_id, payment_method,
+                subtotal, discount_total, tax_amount, total, tendered_amount, change_given, status, created_at)
+            VALUES (?, ?, ?, NULL, ?, ?, 0, ?, ?, ?, ?, 'completed', ?)
+        ''', (doc_number, doc_number, pos_session_id, payment, subtotal, tax, total, tendered, change, ts))
+        trans_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        # Create invoice record for POS ticket
+        conn.execute('''
+            INSERT INTO invoices (invoice_number, customer_id, warehouse_id, status, type,
+                subtotal, discount_total, tax_amount, total, paid_at, payment_method, tendered_amount, change_given, created_at)
+            VALUES (?, NULL, 1, 'payee', 'ticket', ?, 0, ?, ?, ?, ?, ?, ?, ?)
+        ''', (doc_number, subtotal, tax, total, ts, payment, tendered, change, ts))
+        
+        for item in trans_items:
+            conn.execute('''
+                INSERT INTO pos_transaction_items (transaction_id, product_id, product_name, product_sku,
+                    quantity, unit_price, discount_percent, tax_rate, line_total)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (trans_id, *item))
+            conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (item[3], item[0], item[3]))
+            conn.execute('''INSERT INTO stock_movements (product_id, type, quantity, note, created_at)
+                         VALUES (?, 'sale', ?, ?, ?)''', (item[0], item[3], f'Vente POS: {doc_number}', ts))
+        
+        if payment == 'cash':
+            conn.execute('INSERT INTO pos_cash_movements (session_id, type, amount, reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                        (pos_session_id, 'in', total, 'sale', doc_number, ts))
+            if change > 0:
+                conn.execute('INSERT INTO pos_cash_movements (session_id, type, amount, reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                            (pos_session_id, 'out', change, 'change', f'Monnaie rendu: {doc_number}', ts))
+        elif payment == 'card':
+            conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (total,))
+            conn.execute('''INSERT INTO main_account_transactions (type, amount, reason, reference_id, note, created_at)
+                         VALUES ('in', ?, 'card_payment', ?, ?, ?)''', (total, trans_id, f'Paiement carte: {doc_number}', ts))
+    conn.commit()
+    
+    # Close POS session
+    conn.execute("UPDATE pos_sessions SET status='closed', closed_at=?, closing_cash=? WHERE id=?",
+                 (today_str, 500 + conn.execute('SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id=? AND type=?', (pos_session_id, 'in')).fetchone()[0]
+                  - conn.execute('SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id=? AND type=?', (pos_session_id, 'out')).fetchone()[0], pos_session_id))
+    conn.commit()
+    print(f'✓ {20} POS transactions created')
+    
     # ==== REORDERING RULES ====
     for p in prod_ids[:25]:
         conn.execute('''
@@ -358,10 +441,14 @@ def main():
     total_invoices = conn.execute("SELECT COUNT(*) FROM invoices").fetchone()[0]
     total_sales_amount = conn.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status IN ('payee', 'envoyee')").fetchone()[0]
     unpaid_amount = conn.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'envoyee'").fetchone()[0]
+    pos_transactions_count = conn.execute("SELECT COUNT(*) FROM pos_transactions WHERE status='completed'").fetchone()[0]
+    pos_ca = conn.execute("SELECT COALESCE(SUM(total), 0) FROM pos_transactions WHERE status='completed'").fetchone()[0]
     
-    print(f'  Ventes: {paid_invoices} payées / {total_invoices} factures')
-    CA = conn.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'payee'").fetchone()[0]
-    print(f'  Chiffre Affaire: {CA:,.2f} DH')
+    print(f'  Factures: {paid_invoices} payées / {total_invoices} total')
+    print(f'  Transactions POS: {pos_transactions_count}')
+    print(f'  CA Factures: {total_sales_amount:,.2f} DH')
+    print(f'  CA POS: {pos_ca:,.2f} DH')
+    print(f'  CA Total: {total_sales_amount + pos_ca:,.2f} DH')
     print(f'  Créances: {unpaid_amount:,.2f} DH')
     
     # Stock stats

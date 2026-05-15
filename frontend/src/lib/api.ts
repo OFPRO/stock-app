@@ -819,7 +819,14 @@ export function createPosTransaction(data: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
-  }).then((r) => r.json())
+  }).then(async (r) => {
+    const text = await r.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      return { success: false, error: `Erreur serveur (${r.status})` }
+    }
+  })
 }
 
 export function getRecentTransactions(limit?: number, sessionId?: number): Promise<PosTransaction[]> {
