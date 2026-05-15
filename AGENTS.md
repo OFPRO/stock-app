@@ -1,5 +1,8 @@
 # StockPro — Gestion de Stock
 
+> **⚠️ AI Agents: Read `stock-app/docs/project-context.md` before implementing any code.**
+> It contains 38 critical rules covering language patterns, framework conventions, testing, code quality, workflow, and business invariants gathered via BMad multi-agent discovery.
+
 ## Stack
 - **Backend:** Python Flask (single `app.py`, port 5001)
 - **Database:** SQLite3 (`stock.db`, WAL mode, busy timeout 30s)
@@ -16,8 +19,9 @@ python seed.py       # Re-seed DB with 50 products, 30 customers, 60 invoices
 DB auto-initializes on first `python app.py` run. No migrations tool.
 
 ## Architecture
-- `app.py` — all REST routes in one file (~3575 lines). Covers: Products, Stock, Movements, Suppliers, Purchase Orders, Reordering Rules, Notifications, KPIs, Customers, Invoices, POS/Caisse, Main Account, Reports (CSV/PDF)
-- `routes/kpis.py`, `routes/products.py` — Blueprint files **defined but NOT registered** in `app.py`. Migration in progress but incomplete.
+- `app.py` — REST routes in one file (~2270 lines). Covers: Orders, Reorder Rules, Replenishment, Notifications, Invoices, POS/Caisse, Main Account, Reports (CSV/PDF)
+- `routes/db.py` — shared DB connection utilities (`get_db`, `get_db_ctx`, `validate_id`)
+- `routes/products.py` (8 routes), `routes/kpis.py` (22 routes), `routes/customers.py` (5 routes), `routes/suppliers.py` (4 routes), `routes/warehouses.py` (7 routes), `routes/locations.py` (4 routes) — Blueprint files **registered** in `app.py` (lines 17-23).
 - `templates/index.html` — legacy monolithic SPA (to be progressively replaced by React frontend)
 - `templates/layout.html` — Jinja2 base with sidebar nav
 - `templates/product_detail.html` — product detail page
@@ -31,10 +35,10 @@ DB auto-initializes on first `python app.py` run. No migrations tool.
 
 ## Key Gotchas
 - **Backup files contain SQL injection vulns** (`app.py.bak` uses raw f-string interpolation). Never copy from `*.bak` files.
-- `routes/kpis.py` and `routes/products.py` duplicate DB connection logic and route code from `app.py` but are **not wired in** — they are dead code until registered.
-- No tests, no lint config, no CI, no package manager.
-- Single git commit (`main` branch), no remotes.
-- No `.gitignore` — watch for `*.db*`, `*.pyc`, `*.bak`.
+- `routes/db.py` provides `get_db()` and `get_db_ctx()` — app.py imports `get_db` from here.
+- DB initialization (`init_db`) still uses `sqlite3.connect` directly (not shared module).
+- No Python linter/type checker (ruff/black/mypy) — self-enforced conventions in `project-context.md`.
+- 13 git commits (`main` branch), no remotes.
 - Seed script cleans all tables before inserting (destructive).
 
 ---
