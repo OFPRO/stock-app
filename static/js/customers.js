@@ -1,19 +1,23 @@
 async function loadCustomers() {
-    var res = await fetch('/api/customers');
-    customers = await res.json();
-    renderCustomers();
+    try {
+        const res = await fetch('/api/customers');
+        customers = await res.json();
+        renderCustomers();
+    } catch(e) {
+        showError('Erreur lors du chargement des clients');
+    }
 }
 
 function renderCustomers() {
-    var tbody = document.getElementById('customersTable');
+    const tbody = document.getElementById('customersTable');
     if (!tbody) return;
     if (customers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5">Aucun client</td></tr>';
         return;
     }
-    var html = '';
-    for (var i = 0; i < customers.length; i++) {
-        var c = customers[i];
+    let html = '';
+    for (let i = 0; i < customers.length; i++) {
+        const c = customers[i];
         html += '<tr><td>' + (c.client_code || '-') + '</td><td>' + c.name + '</td><td>' + (c.email || '-') + '</td><td>' + (c.phone || '-') + '</td><td>' + (c.is_loyal ? 'Oui' : 'Non') + '</td><td><button class="btn btn-sm" onclick="editCustomer(' + c.id + ')">✎</button></td></tr>';
     }
     tbody.innerHTML = html;
@@ -31,7 +35,7 @@ function openCustomerModal() {
 }
 
 function editCustomer(id) {
-    var c = customers.find(function(c) { return c.id === id; });
+    const c = customers.find(c => c.id === id);
     if (!c) return;
     document.getElementById('customerId').value = c.id;
     document.getElementById('customerName').value = c.name;
@@ -45,8 +49,8 @@ function editCustomer(id) {
 
 async function saveCustomer(e) {
     e.preventDefault();
-    var id = document.getElementById('customerId').value;
-    var data = {
+    const id = document.getElementById('customerId').value;
+    const data = {
         name: document.getElementById('customerName').value,
         type: document.getElementById('customerType').value,
         email: document.getElementById('customerEmail').value,
@@ -54,14 +58,14 @@ async function saveCustomer(e) {
         address: document.getElementById('customerAddress').value
     };
     try {
-        var method = id ? 'PUT' : 'POST';
-        var url = id ? '/api/customers/' + id : '/api/customers';
-        var res = await fetch(url, {
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? '/api/customers/' + id : '/api/customers';
+        const res = await fetch(url, {
             method: method,
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
-        var result = await res.json();
+        const result = await res.json();
         if (result.success) {
             closeModal('customerModal');
             loadCustomers();
@@ -74,31 +78,38 @@ async function saveCustomer(e) {
 }
 
 async function loadDeliveryNotes() {
-    var res = await fetch('/api/delivery-notes');
-    deliveryNotes = await res.json();
-    renderDeliveryNotes();
+    try {
+        const res = await fetch('/api/delivery-notes');
+        deliveryNotes = await res.json();
+        renderDeliveryNotes();
+    } catch(e) {
+        showError('Erreur lors du chargement des bons de livraison');
+    }
 }
 
 function renderDeliveryNotes() {
-    var tbody = document.getElementById('deliveryNotesTable');
+    const tbody = document.getElementById('deliveryNotesTable');
     if (!tbody) return;
     if (deliveryNotes.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6">Aucun bon</td></tr>';
         return;
     }
-    var html = '';
-    for (var i = 0; i < deliveryNotes.length; i++) {
-        var d = deliveryNotes[i];
+    let html = '';
+    for (let i = 0; i < deliveryNotes.length; i++) {
+        const d = deliveryNotes[i];
         html += '<tr><td>' + (d.note_number || '-') + '</td><td>' + (d.product_name || '-') + '</td><td>' + d.quantity + '</td><td>' + d.type + '</td><td>' + (d.created_at ? d.created_at.substring(0, 10) : '-') + '</td><td>' + (d.status === 'draft' ? '<button class="btn btn-sm">→ Facture</button>' : '-') + '</td></tr>';
     }
     tbody.innerHTML = html;
 }
 
 async function convertDeliveryNote(noteId) {
-    await fetch('/api/delivery-notes/' + noteId + '/convert', { method: 'POST' });
-    loadDeliveryNotes();
+    try {
+        await fetch('/api/delivery-notes/' + noteId + '/convert', { method: 'POST' });
+        loadDeliveryNotes();
+    } catch(e) {
+        showError('Erreur lors de la conversion du bon');
+    }
 }
 
-// ============= REPORTS FUNCTIONS =============
-var currentReport = 'overview';
-var reportData = {};
+let currentReport = 'overview';
+let reportData = {};

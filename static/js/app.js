@@ -1,20 +1,20 @@
-var currentWarehouse = null;
-var products = [];
-var warehouses = [];
-var locations = [];
-var suppliers = [];
-var orders = [];
-var customers = [];
-var deliveryNotes = [];
-var invoices = [];
+let currentWarehouse = null;
+let products = [];
+let warehouses = [];
+let locations = [];
+let suppliers = [];
+let orders = [];
+let customers = [];
+let deliveryNotes = [];
+let invoices = [];
 
 function initTheme() {
-    var savedTheme = localStorage.getItem('stockpro-theme');
+    const savedTheme = localStorage.getItem('stockpro-theme');
     if (savedTheme) {
         document.documentElement.setAttribute('data-theme', savedTheme);
         updateThemeIcon(savedTheme);
     } else {
-        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         if (prefersDark) {
             document.documentElement.setAttribute('data-theme', 'dark');
             updateThemeIcon('dark');
@@ -23,15 +23,15 @@ function initTheme() {
 }
 
 function toggleTheme() {
-    var currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('stockpro-theme', newTheme);
     updateThemeIcon(newTheme);
 }
 
 function updateThemeIcon(theme) {
-    var icon = document.getElementById('themeIcon');
+    const icon = document.getElementById('themeIcon');
     if (icon) {
         icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     }
@@ -39,35 +39,37 @@ function updateThemeIcon(theme) {
 
 initTheme();
 
-document.addEventListener('DOMContentLoaded', initApp);
+document.addEventListener('DOMContentLoaded', () => {
+    initApp();
+});
 
-function initApp() {
-    fetch('/api/warehouses').then(function(res) {
-        return res.json();
-    }).then(function(data) {
+async function initApp() {
+    try {
+        const res = await fetch('/api/warehouses');
+        const data = await res.json();
         warehouses = data;
         if (warehouses.length > 0) {
             currentWarehouse = warehouses[0].id;
         }
         loadDashboard();
         loadSuppliers();
-    }).catch(function(e) {
+    } catch(e) {
         console.error('Init error:', e);
         loadDashboard();
-    });
+    }
 }
 
 function showError(msg) {
-    var el = document.getElementById('errorMsg');
+    const el = document.getElementById('errorMsg');
     if (el) {
         el.textContent = msg;
         el.style.display = msg ? 'block' : 'none';
-        if (msg) setTimeout(function() { el.style.display = 'none'; }, 5000);
+        if (msg) setTimeout(() => { el.style.display = 'none'; }, 5000);
     }
 }
 
 function closeModal(modalId) {
-    var el = document.getElementById(modalId);
+    const el = document.getElementById(modalId);
     if (el) {
         el.classList.remove('active');
         el.style.display = 'none';
@@ -75,13 +77,13 @@ function closeModal(modalId) {
 }
 
 function showTab(tab) {
-    var contents = document.querySelectorAll('.tab-content');
-    var navItems = document.querySelectorAll('.nav-item');
-    for (var i = 0; i < contents.length; i++) { contents[i].classList.remove('active'); }
-    for (var i = 0; i < navItems.length; i++) { navItems[i].classList.remove('active'); }
-    var tabEl = document.getElementById(tab + 'Tab');
-    var titleEl = document.getElementById('pageTitle');
-    var breadcrumbEl = document.getElementById('breadcrumbNav');
+    const contents = document.querySelectorAll('.tab-content');
+    const navItems = document.querySelectorAll('.nav-item');
+    for (let i = 0; i < contents.length; i++) { contents[i].classList.remove('active'); }
+    for (let i = 0; i < navItems.length; i++) { navItems[i].classList.remove('active'); }
+    const tabEl = document.getElementById(tab + 'Tab');
+    const titleEl = document.getElementById('pageTitle');
+    const breadcrumbEl = document.getElementById('breadcrumbNav');
     if (tabEl) tabEl.classList.add('active');
     if (titleEl) titleEl.textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
     if (breadcrumbEl) breadcrumbEl.textContent = tab;
@@ -101,7 +103,7 @@ function showTab(tab) {
 }
 
 function toggleSidebar() {
-    var sidebar = document.getElementById('sidebar');
+    const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.toggle('open');
 }
 
@@ -109,20 +111,20 @@ function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-var charts = {};
-var chartsInitialized = false;
+let charts = {};
+let chartsInitialized = false;
 
 function renderSalesDailyChart(data) {
     try {
-        var chartEl = document.querySelector("#chartSalesDaily");
+        const chartEl = document.querySelector("#chartSalesDaily");
         if (!chartEl || !data || data.length === 0) { console.log('No data for sales daily chart'); return; }
         if (typeof ApexCharts === 'undefined') { console.warn('ApexCharts not loaded yet'); return; }
-        
-        var dates = data.map(d => d.date.substring(5));
-        var values = data.map(d => d.ca);
-        
+
+        const dates = data.map(d => d.date.substring(5));
+        const values = data.map(d => d.ca);
+
         if (charts.salesDaily) { charts.salesDaily.destroy(); charts.salesDaily = null; }
-        
+
         charts.salesDaily = new ApexCharts(chartEl, {
             chart: { type: 'area', height: 250, toolbar: { show: false }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
             series: [{ name: 'CA', data: values }],
@@ -140,16 +142,16 @@ function renderSalesDailyChart(data) {
 
 function renderCategoriesChart(data) {
     try {
-        var chartEl = document.querySelector("#chartCategories");
+        const chartEl = document.querySelector("#chartCategories");
         if (!chartEl || !data || data.length === 0) { console.log('No data for categories chart'); return; }
         if (typeof ApexCharts === 'undefined') { console.warn('ApexCharts not loaded yet'); return; }
-        
-        var labels = data.map(d => d.category);
-        var values = data.map(d => d.qty_vendue);
-        var colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
-        
+
+        const labels = data.map(d => d.category);
+        const values = data.map(d => d.qty_vendue);
+        const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+
         if (charts.categories) { charts.categories.destroy(); charts.categories = null; }
-        
+
         charts.categories = new ApexCharts(chartEl, {
             chart: { type: 'donut', height: 250, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
             series: values,
@@ -166,16 +168,16 @@ function renderCategoriesChart(data) {
 
 function renderTopProductsChart(data) {
     try {
-        var chartEl = document.querySelector("#chartTopProducts");
+        const chartEl = document.querySelector("#chartTopProducts");
         if (!chartEl || !data || data.length === 0) { console.log('No data for top products chart'); return; }
         if (typeof ApexCharts === 'undefined') { console.warn('ApexCharts not loaded yet'); return; }
-        
-        var topProducts = data.slice(0, 10).reverse();
-        var names = topProducts.map(p => p.name.substring(0, 20) + (p.name.length > 20 ? '...' : ''));
-        var values = topProducts.map(p => p.qty_vendue);
-        
+
+        const topProducts = data.slice(0, 10).reverse();
+        const names = topProducts.map(p => p.name.substring(0, 20) + (p.name.length > 20 ? '...' : ''));
+        const values = topProducts.map(p => p.qty_vendue);
+
         if (charts.topProducts) { charts.topProducts.destroy(); charts.topProducts = null; }
-        
+
         charts.topProducts = new ApexCharts(chartEl, {
             chart: { type: 'bar', height: 250, toolbar: { show: false }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
             series: [{ name: 'Qte', data: values }],
@@ -192,12 +194,12 @@ function renderTopProductsChart(data) {
 
 function renderInvoicesStatusChart(data) {
     try {
-        var chartEl = document.querySelector("#chartInvoicesStatus");
+        const chartEl = document.querySelector("#chartInvoicesStatus");
         if (!chartEl || !data) { console.log('No data for invoices status chart'); return; }
         if (typeof ApexCharts === 'undefined') { console.warn('ApexCharts not loaded yet'); return; }
-        
+
         if (charts.invoicesStatus) { charts.invoicesStatus.destroy(); charts.invoicesStatus = null; }
-        
+
         charts.invoicesStatus = new ApexCharts(chartEl, {
             chart: { type: 'donut', height: 250, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
             series: [data.payee || 0, data.envoyee || 0, data.brouillon || 0, data.annulee || 0],
@@ -213,16 +215,16 @@ function renderInvoicesStatusChart(data) {
 
 function renderMovementsChart(data) {
     try {
-        var chartEl = document.querySelector("#chartMovements");
+        const chartEl = document.querySelector("#chartMovements");
         if (!chartEl || !data || data.length === 0) { console.log('No data for movements chart'); return; }
         if (typeof ApexCharts === 'undefined') { console.warn('ApexCharts not loaded yet'); return; }
-        
-        var dates = data.slice(-14).map(d => d.date.substring(5));
-        var entries = data.slice(-14).map(d => d.entries);
-        var exits = data.slice(-14).map(d => d.exits);
-        
+
+        const dates = data.slice(-14).map(d => d.date.substring(5));
+        const entries = data.slice(-14).map(d => d.entries);
+        const exits = data.slice(-14).map(d => d.exits);
+
         if (charts.movements) { charts.movements.destroy(); charts.movements = null; }
-        
+
         charts.movements = new ApexCharts(chartEl, {
             chart: { type: 'area', height: 250, stacked: false, toolbar: { show: false }, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
             series: [{ name: 'Entrees', data: entries }, { name: 'Sorties', data: exits }],
@@ -239,24 +241,24 @@ function renderMovementsChart(data) {
 }
 
 function renderMarginsChart(data) {
-    var categoryColors = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#0891b2', '#4f46e5', '#0d9488', '#65a30d', '#dc2626', '#f59e0b'];
+    const categoryColors = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#0891b2', '#4f46e5', '#0d9488', '#65a30d', '#dc2626', '#f59e0b'];
     try {
-        var chartEl = document.querySelector("#chartMargins");
+        const chartEl = document.querySelector("#chartMargins");
         if (!chartEl || !data || data.length === 0) { console.log('No data for margins chart'); return; }
         if (typeof ApexCharts === 'undefined') { console.warn('ApexCharts not loaded yet'); return; }
-        
-        var filteredData = data.filter(d => Math.abs(d.marge_pct) > 0.01);
-        if (filteredData.length === 0) { 
+
+        const filteredData = data.filter(d => Math.abs(d.marge_pct) > 0.01);
+        if (filteredData.length === 0) {
             chartEl.innerHTML = '<div style="text-align:center;padding:80px 0;color:var(--text-light);"><i class="fas fa-chart-pie" style="font-size:3rem;opacity:0.3;"></i><p style="margin-top:1rem;">Aucune donnee de marge</p></div>';
-            return; 
+            return;
         }
-        
+
         if (charts.margins) { charts.margins.destroy(); charts.margins = null; }
-        
-        var labels = filteredData.map(d => d.category);
-        var values = filteredData.map(d => Math.abs(d.marge_pct));
-        var colors = filteredData.map((d, i) => categoryColors[i % categoryColors.length]);
-        
+
+        const labels = filteredData.map(d => d.category);
+        const values = filteredData.map(d => Math.abs(d.marge_pct));
+        const colors = filteredData.map((d, i) => categoryColors[i % categoryColors.length]);
+
         charts.margins = new ApexCharts(chartEl, {
             chart: { type: 'donut', height: 250, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
             series: values,
@@ -264,20 +266,20 @@ function renderMarginsChart(data) {
             colors: colors,
             legend: { position: 'right', fontSize: '12px' },
             plotOptions: { pie: { donut: { size: '65%' } } },
-            dataLabels: { enabled: true, formatter: function(val, opts) { return val.toFixed(1) + '%'; } },
-            tooltip: { y: { formatter: function(val, opts) { var original = filteredData[opts.seriesIndex]; return (original.marge_pct >= 0 ? '+' : '') + original.marge_pct + '%'; } } }
+            dataLabels: { enabled: true, formatter: (val, opts) => val.toFixed(1) + '%' },
+            tooltip: { y: { formatter: (val, opts) => { const original = filteredData[opts.seriesIndex]; return (original.marge_pct >= 0 ? '+' : '') + original.marge_pct + '%'; } } }
         });
         charts.margins.render();
     } catch(e) { console.error('Margins chart error:', e); }
 }
 
 // === EVENT DELEGATION ===
-document.addEventListener('click', function(e) {
-    var el = e.target.closest('[data-click]');
+document.addEventListener('click', e => {
+    const el = e.target.closest('[data-click]');
     if (!el) return;
-    var action = el.getAttribute('data-click');
-    var arg = el.getAttribute('data-arg');
-    var arg2 = el.getAttribute('data-arg2');
+    const action = el.getAttribute('data-click');
+    const arg = el.getAttribute('data-arg');
+    const arg2 = el.getAttribute('data-arg2');
     switch (action) {
         case 'show-tab': showTab(arg); break;
         case 'close-modal': closeModal(arg); break;
@@ -346,10 +348,10 @@ document.addEventListener('click', function(e) {
     }
 });
 
-document.addEventListener('change', function(e) {
-    var el = e.target.closest('[data-change]');
+document.addEventListener('change', e => {
+    const el = e.target.closest('[data-change]');
     if (!el) return;
-    var action = el.getAttribute('data-change');
+    const action = el.getAttribute('data-change');
     switch (action) {
         case 'load-dashboard': loadDashboard(); break;
         case 'load-products': loadProducts(); break;
@@ -363,10 +365,10 @@ document.addEventListener('change', function(e) {
     }
 });
 
-document.addEventListener('input', function(e) {
-    var el = e.target.closest('[data-input]');
+document.addEventListener('input', e => {
+    const el = e.target.closest('[data-input]');
     if (!el) return;
-    var action = el.getAttribute('data-input');
+    const action = el.getAttribute('data-input');
     switch (action) {
         case 'filter-products': renderProducts(el.value); break;
         case 'search-pos': searchPosProducts(); break;
@@ -374,10 +376,10 @@ document.addEventListener('input', function(e) {
     }
 });
 
-document.addEventListener('keypress', function(e) {
-    var el = e.target.closest('[data-keypress]');
+document.addEventListener('keypress', e => {
+    const el = e.target.closest('[data-keypress]');
     if (!el) return;
-    var action = el.getAttribute('data-keypress');
+    const action = el.getAttribute('data-keypress');
     if (e.key !== 'Enter') return;
     switch (action) {
         case 'search-barcode': searchByBarcode(); break;
@@ -385,10 +387,10 @@ document.addEventListener('keypress', function(e) {
     }
 });
 
-document.addEventListener('submit', function(e) {
-    var form = e.target.closest('[data-submit]');
+document.addEventListener('submit', e => {
+    const form = e.target.closest('[data-submit]');
     if (!form) return;
-    var action = form.getAttribute('data-submit');
+    const action = form.getAttribute('data-submit');
     switch (action) {
         case 'save-product': saveProduct(e); break;
         case 'save-warehouse': saveWarehouse(e); break;
