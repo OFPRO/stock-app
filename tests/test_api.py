@@ -13,7 +13,10 @@ def test_api_products(client):
     assert 'price' in data[0]
 
 def test_api_product_detail(client):
-    rv = client.get('/api/products/1')
+    products = client.get('/api/products').get_json()
+    assert len(products) > 0
+    first_id = products[0]['id']
+    rv = client.get(f'/api/products/{first_id}')
     assert rv.status_code == 200
     data = rv.get_json()
     assert 'product' in data

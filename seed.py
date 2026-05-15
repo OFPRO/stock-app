@@ -310,7 +310,9 @@ def main():
         for _ in range(random.randint(2, 6)):
             product_id = random.choice(prod_ids)
             qty = random.randint(5, 50)
-            unit_price = round(random.uniform(2, 80), 2)
+            prod_price = conn.execute('SELECT price_base FROM products WHERE id = ?', (product_id,)).fetchone()
+            base = prod_price[0] if prod_price else 10
+            unit_price = round(base * random.uniform(0.85, 1.15), 2)
             line_total = round(qty * unit_price, 2)
             conn.execute('''
                 INSERT INTO purchase_order_items (order_id, product_id, quantity, unit_price)

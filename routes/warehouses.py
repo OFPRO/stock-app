@@ -62,8 +62,9 @@ def stock_movement(product_id):
                 new_qty = max(0, existing['quantity'] - quantity)
                 conn.execute('UPDATE stock SET quantity = ? WHERE id=?', (new_qty, existing['id']))
 
-    conn.execute('''
-        INSERT INTO stock_movements (product_id, type, quantity, dest_location_id, lot_number, serial_number, note)
+    loc_col = 'source_location_id' if movement_type == 'out' else 'dest_location_id'
+    conn.execute(f'''
+        INSERT INTO stock_movements (product_id, type, quantity, {loc_col}, lot_number, serial_number, note)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', (product_id, movement_type, quantity, location_id, lot_number, serial_number, note))
     conn.commit()
@@ -188,7 +189,14 @@ def get_all_movements():
 def get_movements(product_id):
     conn = get_db()
     movements = conn.execute('''
-        SELECT * FROM stock_movements WHERE product_id = ? ORDER BY created_at DESC
+        SELECT m.*, p.name as product_name,
+               sl.name as source_location, dl.name as dest_location
+        FROM stock_movements m
+        JOIN products p ON m.product_id = p.id
+        LEFT JOIN locations sl ON m.source_location_id = sl.id
+        LEFT JOIN locations dl ON m.dest_location_id = dl.id
+        WHERE m.product_id = ?
+        ORDER BY m.created_at DESC
     ''', (product_id,)).fetchall()
     conn.close()
     return jsonify([dict(m) for m in movements])

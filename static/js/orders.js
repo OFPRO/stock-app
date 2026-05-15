@@ -1,22 +1,22 @@
 async function saveOrder(e) {
     e.preventDefault();
-    var supplierId = document.getElementById('orderSupplier').value;
-    var notes = document.getElementById('orderNotes').value;
-    var orderId = document.getElementById('orderId').value;
-    
+    const supplierId = document.getElementById('orderSupplier').value;
+    const notes = document.getElementById('orderNotes').value;
+    const orderId = document.getElementById('orderId').value;
+
     if (!supplierId) {
         showError('Selectionnez un fournisseur');
         return;
     }
-    
-    var items = [];
-    var rows = document.querySelectorAll('#orderItemsBody .order-item-row');
-    rows.forEach(function(row) {
-        var hiddenId = row.querySelector('.order-product-id');
-        var productInput = row.querySelector('.product-search-input');
-        var qtyInput = row.querySelector('.order-qty');
-        var priceInput = row.querySelector('.order-price');
-        var productId = hiddenId ? hiddenId.value : (productInput ? productInput.value : null);
+
+    const items = [];
+    const rows = document.querySelectorAll('#orderItemsBody .order-item-row');
+    rows.forEach(row => {
+        const hiddenId = row.querySelector('.order-product-id');
+        const productInput = row.querySelector('.product-search-input');
+        const qtyInput = row.querySelector('.order-qty');
+        const priceInput = row.querySelector('.order-price');
+        const productId = hiddenId ? hiddenId.value : (productInput ? productInput.value : null);
         if (productId && productInput && productInput.value) {
             items.push({
                 product_id: parseInt(productId),
@@ -25,9 +25,9 @@ async function saveOrder(e) {
             });
         }
     });
-    
+
     try {
-        var res, data;
+        let res, data;
         if (orderId) {
             res = await fetch('/api/orders/' + orderId, {
                 method: 'PUT',
@@ -57,8 +57,8 @@ async function saveOrder(e) {
 }
 
 function addOrderItem() {
-    var container = document.getElementById('orderItemsBody');
-    var row = document.createElement('div');
+    const container = document.getElementById('orderItemsBody');
+    const row = document.createElement('div');
     row.className = 'order-item-row';
     row.style = 'display:grid;grid-template-columns:2fr 80px 100px 100px 40px;gap:0.5rem;padding:0.5rem;border-bottom:1px solid var(--border);align-items:center;';
     row.innerHTML = '<div class="product-search-wrapper" style="position:relative;"><input type="text" class="form-input product-search-input" placeholder="Rechercher..." oninput="filterProductSuggestions(this)" onfocus="filterProductSuggestions(this)" autocomplete="off" style="width:100%;"><div class="product-suggestions"></div><input type="hidden" class="order-product-id"></div>' +
@@ -70,7 +70,7 @@ function addOrderItem() {
 }
 
 function removeOrderItem(btn) {
-    var container = document.getElementById('orderItemsBody');
+    const container = document.getElementById('orderItemsBody');
     if (container.querySelectorAll('.order-item-row').length > 1) {
         btn.closest('.order-item-row').remove();
         calculateOrderTotal();
@@ -78,19 +78,19 @@ function removeOrderItem(btn) {
 }
 
 function updateOrderItemTotal(el) {
-    var row = el.closest('.order-item-row');
-    var qty = parseFloat(row.querySelector('.order-qty').value) || 0;
-    var price = parseFloat(row.querySelector('.order-price').value) || 0;
-    var total = qty * price;
+    const row = el.closest('.order-item-row');
+    const qty = parseFloat(row.querySelector('.order-qty').value) || 0;
+    const price = parseFloat(row.querySelector('.order-price').value) || 0;
+    const total = qty * price;
     row.querySelector('.order-item-total').textContent = total.toFixed(2) + ' DH';
     calculateOrderTotal();
 }
 
 function calculateOrderTotal() {
-    var total = 0;
-    document.querySelectorAll('#orderItemsBody .order-item-row').forEach(function(row) {
-        var qty = parseFloat(row.querySelector('.order-qty').value) || 0;
-        var price = parseFloat(row.querySelector('.order-price').value) || 0;
+    let total = 0;
+    document.querySelectorAll('#orderItemsBody .order-item-row').forEach(row => {
+        const qty = parseFloat(row.querySelector('.order-qty').value) || 0;
+        const price = parseFloat(row.querySelector('.order-price').value) || 0;
         total += qty * price;
     });
     document.getElementById('orderTotalFinal').textContent = total.toFixed(2) + ' DH';
@@ -101,42 +101,42 @@ function populateProductSelects() {}
 async function ensureProductsLoaded() {
     if (!products || products.length === 0) {
         console.log('ensureProductsLoaded: loading products...');
-        var res = await fetch('/api/products');
+        const res = await fetch('/api/products');
         products = await res.json();
         console.log('ensureProductsLoaded: products loaded =', products.length);
     }
 }
 
 function populateRuptureTags() {
-    var container = document.getElementById('ruptureTags');
+    const container = document.getElementById('ruptureTags');
     if (!container) return;
     console.log('populateRuptureTags: products.length =', products ? products.length : 'undefined');
     if (!products || products.length === 0) {
         container.innerHTML = '<span style="font-size:0.75rem;color:var(--text-light);">Chargement...</span>';
         return;
     }
-    var outOfStock = products.filter(function(p) { return p.quantity <= p.min_quantity || p.quantity < 0; }).slice(0, 5);
+    const outOfStock = products.filter(p => { return p.quantity <= p.min_quantity || p.quantity < 0; }).slice(0, 5);
     if (outOfStock.length === 0) {
         container.innerHTML = '<span style="font-size:0.75rem;color:var(--success);"><i class="fas fa-check-circle"></i> Stock OK</span>';
         return;
     }
     container.innerHTML = '<span style="font-size:0.7rem;font-weight:600;color:var(--danger);margin-right:0.5rem;">🚨 RUPTURE:</span>' +
-        outOfStock.map(function(p) {
+        outOfStock.map(p => {
             return '<span class="rupture-tag" onclick="addRuptureProduct(' + p.id + ')">' + p.name + '<span class="rupture-qty">' + (p.quantity || 0) + '</span></span>';
         }).join('');
 }
 
 function addRuptureProduct(productId) {
-    var product = products.find(function(p) { return p.id === productId; });
+    const product = products.find(p => p.id === productId);
     if (!product) return;
     addOrderItem();
-    var lastRow = document.querySelector('#orderItemsBody .order-item-row:last-child');
+    const lastRow = document.querySelector('#orderItemsBody .order-item-row:last-child');
     if (!lastRow) return;
-    var wrapper = lastRow.querySelector('.product-search-wrapper');
+    const wrapper = lastRow.querySelector('.product-search-wrapper');
     if (!wrapper) return;
-    var input = wrapper.querySelector('.product-search-input');
-    var hiddenId = wrapper.querySelector('.order-product-id');
-    var priceInput = lastRow.querySelector('.order-price');
+    const input = wrapper.querySelector('.product-search-input');
+    const hiddenId = wrapper.querySelector('.order-product-id');
+    const priceInput = lastRow.querySelector('.order-price');
     input.value = product.name;
     hiddenId.value = product.id;
     priceInput.value = product.purchase_price_avg || product.price || 0;
@@ -144,60 +144,60 @@ function addRuptureProduct(productId) {
 }
 
 function filterProductSuggestions(input) {
-    var wrapper = input.closest('.product-search-wrapper');
-    var suggestionsEl = wrapper.querySelector('.product-suggestions');
-    var hiddenId = wrapper.querySelector('.order-product-id');
-    var filter = input.value.toLowerCase().trim();
-    
+    const wrapper = input.closest('.product-search-wrapper');
+    const suggestionsEl = wrapper.querySelector('.product-suggestions');
+    const hiddenId = wrapper.querySelector('.order-product-id');
+    const filter = input.value.toLowerCase().trim();
+
     console.log('filterProductSuggestions: filter =', filter, 'products.length =', products ? products.length : 'undefined');
-    
+
     if (!products || products.length === 0) {
         suggestionsEl.innerHTML = '<div class="product-suggestion-item" style="color:var(--text-light);font-style:italic;">Aucun produit charge</div>';
         suggestionsEl.classList.add('show');
         return;
     }
-    
+
     if (!filter) {
         suggestionsEl.classList.remove('show');
         return;
     }
-    
-    var outOfStock = products.filter(function(p) { return p.quantity <= p.min_quantity || p.quantity < 0; });
-    var inStock = products.filter(function(p) { return p.quantity > p.min_quantity && p.quantity >= 0; });
-    
+
+    const outOfStock = products.filter(p => p.quantity <= p.min_quantity || p.quantity < 0);
+    const inStock = products.filter(p => p.quantity > p.min_quantity && p.quantity >= 0);
+
     console.log('outOfStock.length =', outOfStock.length, 'inStock.length =', inStock.length);
-    
-    var filteredOutOfStock = outOfStock.filter(function(p) {
+
+    const filteredOutOfStock = outOfStock.filter(p => {
         return p.name.toLowerCase().indexOf(filter) !== -1 || (p.sku && p.sku.toLowerCase().indexOf(filter) !== -1);
     }).slice(0, 5);
-    
-    var filteredInStock = inStock.filter(function(p) {
+
+    const filteredInStock = inStock.filter(p => {
         return p.name.toLowerCase().indexOf(filter) !== -1 || (p.sku && p.sku.toLowerCase().indexOf(filter) !== -1);
     }).slice(0, 5);
-    
-    var topRupture = outOfStock.slice(0, 5);
-    var allResults = filteredOutOfStock.concat(filteredInStock).slice(0, 5);
-    
+
+    const topRupture = outOfStock.slice(0, 5);
+    const allResults = filteredOutOfStock.concat(filteredInStock).slice(0, 5);
+
     if (allResults.length === 0 && topRupture.length === 0) {
         suggestionsEl.innerHTML = '<div class="product-suggestion-item" style="color:var(--text-light);font-style:italic;">Aucun produit trouve</div>';
         suggestionsEl.classList.add('show');
         return;
     }
-    
-    var html = allResults.map(function(p) {
-        var stockClass = p.quantity <= 0 ? 'danger' : (p.quantity <= p.min_quantity ? 'warning' : 'success');
-        var stockLabel = p.quantity <= 0 ? 'Rupture' : (p.quantity <= p.min_quantity ? 'Restant: ' + p.quantity : 'Stock: ' + p.quantity);
-        var outOfStockClass = p.quantity <= p.min_quantity ? 'out-of-stock' : '';
+
+    let html = allResults.map(p => {
+        const stockClass = p.quantity <= 0 ? 'danger' : (p.quantity <= p.min_quantity ? 'warning' : 'success');
+        const stockLabel = p.quantity <= 0 ? 'Rupture' : (p.quantity <= p.min_quantity ? 'Restant: ' + p.quantity : 'Stock: ' + p.quantity);
+        const outOfStockClass = p.quantity <= p.min_quantity ? 'out-of-stock' : '';
         return '<div class="product-suggestion-item ' + outOfStockClass + '" data-id="' + p.id + '" data-price="' + (p.purchase_price_avg || p.price || 0) + '">' +
             '<span class="product-name">' + p.name + '</span>' +
             '<span class="product-sku">' + (p.sku || '-') + '</span>' +
             '<span class="stock-badge ' + stockClass + '">' + stockLabel + '</span>' +
         '</div>';
     }).join('');
-    
+
     if (topRupture.length > 0) {
         html += '<div style="padding:0.5rem 0.75rem;font-size:0.7rem;color:var(--danger);font-weight:600;border-top:1px solid var(--border);margin-top:0.5rem;">🚨 Also in rupture (click to add):</div>' +
-            topRupture.map(function(p) {
+            topRupture.map(p => {
                 return '<div class="product-suggestion-item out-of-stock" data-id="' + p.id + '" data-price="' + (p.purchase_price_avg || p.price || 0) + '">' +
                     '<span class="product-name">' + p.name + '</span>' +
                     '<span class="product-sku">' + (p.sku || '-') + '</span>' +
@@ -205,21 +205,21 @@ function filterProductSuggestions(input) {
                 '</div>';
             }).join('');
     }
-    
+
     suggestionsEl.innerHTML = html;
     suggestionsEl.classList.add('show');
     attachSuggestionListeners(suggestionsEl, input, hiddenId);
 }
 
 function attachSuggestionListeners(suggestionsEl, input, hiddenId) {
-    suggestionsEl.querySelectorAll('.product-suggestion-item').forEach(function(item) {
+    suggestionsEl.querySelectorAll('.product-suggestion-item').forEach(item => {
         item.onclick = function() {
-            var productId = this.dataset.id;
-            var productPrice = parseFloat(this.dataset.price) || 0;
-            var productName = this.querySelector('.product-name').textContent;
+            const productId = this.dataset.id;
+            const productPrice = parseFloat(this.dataset.price) || 0;
+            const productName = this.querySelector('.product-name').textContent;
             input.value = productName;
             hiddenId.value = productId;
-            var row = input.closest('.order-item-row');
+            const row = input.closest('.order-item-row');
             row.querySelector('.order-price').value = productPrice;
             suggestionsEl.classList.remove('show');
             updateOrderItemTotal(input);
@@ -232,9 +232,9 @@ async function openOrderModal(orderId) {
     document.getElementById('orderNumber').value = '';
     document.getElementById('orderNotes').value = '';
     document.getElementById('orderSupplier').value = '';
-    
+
     if (orderId) {
-        var order = orders.find(function(o) { return o.id === orderId; });
+        const order = orders.find(o => o.id === orderId);
         if (order) {
             document.getElementById('orderNumber').value = order.order_number || '';
             document.getElementById('orderSupplier').value = order.supplier_id || '';
@@ -244,11 +244,11 @@ async function openOrderModal(orderId) {
         }
     } else {
         enableOrderForm();
-        var container = document.getElementById('orderItemsBody');
+        const container = document.getElementById('orderItemsBody');
         container.innerHTML = '';
         addOrderItem();
     }
-    
+
     document.getElementById('orderDate').valueAsDate = new Date();
     await ensureProductsLoaded();
     populateRuptureTags();
@@ -256,11 +256,11 @@ async function openOrderModal(orderId) {
 }
 
 function disableOrderFormForPaidOrder() {
-    var modal = document.getElementById('orderModal');
-    modal.querySelectorAll('.form-input:not([readonly]), .form-select').forEach(function(el) {
+    const modal = document.getElementById('orderModal');
+    modal.querySelectorAll('.form-input:not([readonly]), .form-select').forEach(el => {
         el.disabled = true;
     });
-    modal.querySelectorAll('.order-item-row .btn').forEach(function(btn) {
+    modal.querySelectorAll('.order-item-row .btn').forEach(btn => {
         btn.disabled = true;
     });
     document.querySelector('#orderModal .btn-success[onclick="sendOrder()"]').style.display = 'none';
@@ -269,11 +269,11 @@ function disableOrderFormForPaidOrder() {
 }
 
 function enableOrderForm() {
-    var modal = document.getElementById('orderModal');
-    modal.querySelectorAll('.form-input:not([readonly]), .form-select').forEach(function(el) {
+    const modal = document.getElementById('orderModal');
+    modal.querySelectorAll('.form-input:not([readonly]), .form-select').forEach(el => {
         el.disabled = false;
     });
-    modal.querySelectorAll('.order-item-row .btn').forEach(function(btn) {
+    modal.querySelectorAll('.order-item-row .btn').forEach(btn => {
         btn.disabled = false;
     });
     document.querySelector('#orderModal .btn-success[onclick="sendOrder()"]').style.display = 'inline-block';
@@ -282,18 +282,18 @@ function enableOrderForm() {
 }
 
 async function cancelOrder() {
-    var orderId = document.getElementById('orderId').value;
+    const orderId = document.getElementById('orderId').value;
     if (!orderId) return;
-    
+
     if (!confirm('Confirmer l\'annulation de la commande ? Le stock sera ajusté et le montant remboursé au compte principal.')) return;
-    
+
     try {
-        var res = await fetch('/api/orders/' + orderId, {
+        const res = await fetch('/api/orders/' + orderId, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'annulee' })
         });
-        var data = await res.json();
+        const data = await res.json();
         if (data.success) {
             showSuccess('Commande annulée - Stock ajusté et compte remboursé');
             closeModal('orderModal');
@@ -308,13 +308,13 @@ async function cancelOrder() {
 
 async function loadOrderItems(orderId) {
     try {
-        var res = await fetch('/api/orders/' + orderId + '/items');
-        var items = await res.json();
-        var tbody = document.getElementById('orderItemsBody');
+        const res = await fetch('/api/orders/' + orderId + '/items');
+        const items = await res.json();
+        const tbody = document.getElementById('orderItemsBody');
         tbody.innerHTML = '';
-        
-        items.forEach(function(item) {
-            var row = document.createElement('tr');
+
+        items.forEach(item => {
+            const row = document.createElement('tr');
             row.className = 'order-item-row';
             row.innerHTML = '<td><div class="product-search-wrapper"><input type="text" class="form-input product-search-input" placeholder="Rechercher un produit..." oninput="filterProductSuggestions(this)" onfocus="filterProductSuggestions(this)" autocomplete="off"><div class="product-suggestions"></div><input type="hidden" class="order-product-id"></div></td>' +
                 '<td><input type="number" class="form-input order-qty" value="' + item.quantity + '" min="1" onchange="updateOrderItemTotal(this)"></td>' +
@@ -323,17 +323,17 @@ async function loadOrderItems(orderId) {
                 '<td><button type="button" class="btn btn-sm btn-danger" onclick="removeOrderItem(this)"><i class="fas fa-trash"></i></button></td>';
             tbody.appendChild(row);
         });
-        
+
         if (items.length === 0) {
             addOrderItem();
         }
-        
+
         populateProductSelects();
-        items.forEach(function(item, idx) {
-            var selects = document.querySelectorAll('.order-product-select');
+        items.forEach((item, idx) => {
+            const selects = document.querySelectorAll('.order-product-select');
             if (selects[idx]) selects[idx].value = item.product_id;
         });
-        
+
         calculateOrderTotal();
     } catch(e) {
         console.error(e);
@@ -343,7 +343,7 @@ async function loadOrderItems(orderId) {
 
 async function loadOrderItemsAndDisableIfPaid(orderId) {
     await loadOrderItems(orderId);
-    var order = orders.find(function(o) { return o.id === orderId; });
+    const order = orders.find(o => o.id === orderId);
     if (order && order.status === 'paye') {
         disableOrderFormForPaidOrder();
     }
@@ -357,11 +357,11 @@ function editOrder(orderId) {
 function openOrderForProduct(productId, suggestedQty) {
     showTab('orders');
     openOrderModal(null);
-    setTimeout(function() {
-        var selects = document.querySelectorAll('.order-product-select');
+    setTimeout(() => {
+        const selects = document.querySelectorAll('.order-product-select');
         if (selects.length > 0) {
             selects[0].value = productId;
-            var qtyInputs = document.querySelectorAll('.order-qty');
+            const qtyInputs = document.querySelectorAll('.order-qty');
             if (qtyInputs.length > 0 && suggestedQty) {
                 qtyInputs[0].value = suggestedQty;
                 updateOrderItemTotal(qtyInputs[0]);
@@ -378,7 +378,7 @@ async function sendOrder(orderId) {
     showSuccess('Cliquez sur "Receptionner" pour recevoir les produits et mettre a jour le stock');
 }
 
-var orderToConvert = null;
+let orderToConvert = null;
 function openConvertToInvoice(orderId) {
     orderToConvert = orderId;
     loadCustomersForSelect();
@@ -388,38 +388,38 @@ function openConvertToInvoice(orderId) {
 
 async function loadCustomersForSelect() {
     try {
-        var res = await fetch('/api/customers');
-        var customers = await res.json();
-        var select = document.getElementById('invoiceCustomer');
+        const res = await fetch('/api/customers');
+        const customersData = await res.json();
+        const select = document.getElementById('invoiceCustomer');
         if (select) {
             select.innerHTML = '<option value="">Selectionnez un client</option>' +
-                customers.map(function(c) { return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('');
+                customersData.map(c => '<option value="' + c.id + '">' + c.name + '</option>').join('');
         }
     } catch(e) { console.error(e); }
 }
 
 async function confirmConvertToInvoice() {
     if (!orderToConvert) return;
-    var customerId = document.getElementById('invoiceCustomer').value;
+    const customerId = document.getElementById('invoiceCustomer').value;
     if (!customerId) {
         showError('Selectionnez un client');
         return;
     }
     try {
-        var orderRes = await fetch('/api/orders/' + orderToConvert);
-        var order = await orderRes.json();
-        var itemsRes = await fetch('/api/orders/' + orderToConvert + '/items');
-        var items = await itemsRes.json();
-        
-        var invoiceItems = items.map(function(item) {
+        const orderRes = await fetch('/api/orders/' + orderToConvert);
+        const order = await orderRes.json();
+        const itemsRes = await fetch('/api/orders/' + orderToConvert + '/items');
+        const items = await itemsRes.json();
+
+        const invoiceItems = items.map(item => {
             return {
                 product_id: item.product_id,
                 quantity: item.quantity,
                 unit_price: item.unit_price
             };
         });
-        
-        var res = await fetch('/api/invoices', {
+
+        const res = await fetch('/api/invoices', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -429,7 +429,7 @@ async function confirmConvertToInvoice() {
                 due_date: document.getElementById('invoiceDueDate').value
             })
         });
-        var data = await res.json();
+        const data = await res.json();
         if (data.success) {
             closeModal('convertToInvoiceModal');
             showTab('invoices');
@@ -443,24 +443,29 @@ async function confirmConvertToInvoice() {
     }
     orderToConvert = null;
 }
+
 async function loadOrders() {
-    var res = await fetch('/api/orders');
-    orders = await res.json();
-    renderOrders();
+    try {
+        const res = await fetch('/api/orders');
+        orders = await res.json();
+        renderOrders();
+    } catch(e) {
+        showError('Erreur lors du chargement des commandes');
+    }
 }
 
 function renderOrders() {
-    var tbody = document.getElementById('ordersTable');
+    const tbody = document.getElementById('ordersTable');
     if (!tbody) return;
     if (orders.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7">Aucune commande</td></tr>';
         return;
     }
-    var html = '';
-    var statusLabels = { 'brouillon': 'Brouillon', 'recue': 'Recu', 'paye': 'Paye' };
-    for (var i = 0; i < orders.length; i++) {
-        var o = orders[i];
-        var statusClass = o.status === 'paye' ? 'primary' : (o.status === 'recue' ? 'success' : 'warning');
+    let html = '';
+    const statusLabels = { 'brouillon': 'Brouillon', 'recue': 'Recu', 'paye': 'Paye' };
+    for (let i = 0; i < orders.length; i++) {
+        const o = orders[i];
+        const statusClass = o.status === 'paye' ? 'primary' : (o.status === 'recue' ? 'success' : 'warning');
         html += '<tr>';
         html += '<td>' + (o.order_number || '-') + '</td>';
         html += '<td>' + (o.created_at ? o.created_at.substring(0, 10) : '-') + '</td>';
@@ -487,12 +492,12 @@ function renderOrders() {
 async function receiveOrder(orderId) {
     if (!confirm('Confirmer la reception de la commande? Le stock sera mis a jour.')) return;
     try {
-        var res = await fetch('/api/orders/' + orderId, {
+        const res = await fetch('/api/orders/' + orderId, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'recue' })
         });
-        var data = await res.json();
+        const data = await res.json();
         if (data.success) {
             showSuccess('Commande recue et stock mis a jour');
             loadOrders();
@@ -506,12 +511,12 @@ async function receiveOrder(orderId) {
 async function payOrder(orderId) {
     if (!confirm('Confirmer le paiement de la commande? Une sortie de caisse sera enregistree.')) return;
     try {
-        var res = await fetch('/api/orders/' + orderId, {
+        const res = await fetch('/api/orders/' + orderId, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'paye' })
         });
-var data = await res.json();
+        const data = await res.json();
         if (data.success) {
             showSuccess('Paiement enregistre - Facture Fournisseur creee');
             loadOrders();
@@ -524,32 +529,32 @@ var data = await res.json();
 
 async function loadMainAccount() {
     try {
-        var res = await fetch('/api/main-account');
-        var data = await res.json();
+        const res = await fetch('/api/main-account');
+        const data = await res.json();
         if (!data.account) return;
-        
+
         document.getElementById('mainAccountBalance').textContent = (data.account.current_balance || 0).toFixed(2);
-        
-        var totalIn = 0;
-        var totalOut = 0;
+
+        let totalIn = 0;
+        let totalOut = 0;
         if (data.transactions) {
-            data.transactions.forEach(function(t) {
+            data.transactions.forEach(t => {
                 if (t.type === 'in') totalIn += t.amount;
                 else totalOut += t.amount;
             });
         }
         document.getElementById('mainAccountTotalIn').textContent = totalIn.toFixed(2);
         document.getElementById('mainAccountTotalOut').textContent = totalOut.toFixed(2);
-        
-        var tbody = document.getElementById('mainAccountTransactions');
+
+        const tbody = document.getElementById('mainAccountTransactions');
         if (!tbody) return;
-        
+
         if (!data.transactions || data.transactions.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5">Aucune transaction</td></tr>';
             return;
         }
-        
-        var reasonLabels = {
+
+        const reasonLabels = {
             'initial': 'Solde initial',
             'session_close': 'Fermeture Session',
             'supplier_order': 'Achat Fournisseur',
@@ -558,12 +563,12 @@ async function loadMainAccount() {
             'withdraw': 'Retrait',
             'card_payment': 'Paiement Carte'
         };
-        
-        tbody.innerHTML = data.transactions.map(function(t) {
-            var date = t.created_at ? t.created_at.substring(0, 16) : '-';
-            var typeClass = t.type === 'in' ? 'success' : 'danger';
-            var typeLabel = t.type === 'in' ? 'Entrée' : 'Sortie';
-            var reasonIcon = '';
+
+        tbody.innerHTML = data.transactions.map(t => {
+            const date = t.created_at ? t.created_at.substring(0, 16) : '-';
+            const typeClass = t.type === 'in' ? 'success' : 'danger';
+            const typeLabel = t.type === 'in' ? 'Entrée' : 'Sortie';
+            let reasonIcon = '';
             if (t.reason === 'card_payment') {
                 reasonIcon = '<i class="fas fa-credit-card" style="color: var(--color-info); margin-right: 5px;"></i>';
             } else if (t.reason === 'session_close') {
@@ -590,15 +595,15 @@ async function loadMainAccount() {
 }
 
 async function openTransferToPosModal() {
-    var amount = prompt('Montant à transférer vers la caisse:');
+    const amount = prompt('Montant à transférer vers la caisse:');
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) return;
     try {
-        var res = await fetch('/api/main-account/transfer-to-pos', {
+        const res = await fetch('/api/main-account/transfer-to-pos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ amount: parseFloat(amount), note: 'Transfert manuel' })
         });
-        var data = await res.json();
+        const data = await res.json();
         if (data.success) {
             showSuccess('Transfert effectué vers la caisse');
             loadMainAccount();
@@ -612,7 +617,7 @@ async function openTransferToPosModal() {
 }
 
 function viewSupplierInvoice(orderId) {
-    var order = orders.find(function(o) { return o.id === orderId; });
+    const order = orders.find(o => o.id === orderId);
     if (!order) return;
     alert('Facture Fournisseur: ' + order.order_number + '\nTotal: ' + (order.total || 0).toFixed(2) + ' DH\nDate paiement: ' + (order.paid_at || '-'));
 }

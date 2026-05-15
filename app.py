@@ -10,6 +10,7 @@ from routes.kpis import kpis_bp
 from routes.customers import customers_bp
 from routes.suppliers import suppliers_bp
 from routes.warehouses import warehouses_bp
+from routes.locations import locations_bp
 
 app = Flask(__name__)
 app.register_blueprint(products_bp)
@@ -17,6 +18,7 @@ app.register_blueprint(kpis_bp)
 app.register_blueprint(customers_bp)
 app.register_blueprint(suppliers_bp)
 app.register_blueprint(warehouses_bp)
+app.register_blueprint(locations_bp)
 DB_NAME = 'stock.db'
 
 def get_db():
@@ -1017,205 +1019,6 @@ def mark_all_notifications_read():
     conn.close()
     return jsonify({'success': True})
 
-
-
-@app.route('/api/kpis/trends', methods=['GET'])
-def get_kpis_trends():
-    from datetime import datetime, timedelta
-    warehouse_id = request.args.get('warehouse_id')
-    period = _safe_int(request.args.get('period', 30), 30)
-    conn = get_db()
-    
-    trends = []
-    today = datetime.now()
-    
-    for i in range(period - 1, -1, -1):
-        target_date = (today - timedelta(days=i)).strftime('%Y-%m-%d')
-        
-        entry = conn.execute('''
-            SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
-            WHERE type = 'in' AND date(created_at) = ?
-        ''', (target_date,)).fetchone()[0]
-        
-        exit_qty = conn.execute('''
-            SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
-            WHERE type = 'out' AND date(created_at) = ?
-        ''', (target_date,)).fetchone()[0]
-        
-        trends.append({
-            'date': target_date,
-            'entries': entry,
-            'exits': exit_qty,
-            'net': entry - exit_qty
-        })
-    
-    conn.close()
-    return jsonify(trends)
-
-@app.route('/api/kpis/top-products', methods=['GET'])
-def get_top_products():
-    warehouse_id = request.args.get('warehouse_id')
-    period = _safe_int(request.args.get('period', 30), 30)
-    limit = _safe_int(request.args.get('limit', 10), 10)
-    conn = get_db()
-    
-    pd = str(-period) + ' days'
-    if warehouse_id and warehouse_id.isdigit():
-        wid = int(warehouse_id)
-        products = conn.execute('''
-            SELECT p.id, p.name, p.sku, p.quantity, p.price,
-                   (SELECT COUNT(*) FROM stock_movements m WHERE m.product_id = p.id AND m.created_at >= date('now', ?)) as movement_count,
-                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'in' AND m.created_at >= date('now', ?)) as total_in,
-                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'out' AND m.created_at >= date('now', ?)) as total_out
-            FROM products p
-            WHERE p.warehouse_id = ?
-            ORDER BY movement_count DESC
-            LIMIT ?
-        ''', (pd, pd, pd, wid, limit)).fetchall()
-    else:
-        products = conn.execute('''
-            SELECT p.id, p.name, p.sku, p.quantity, p.price,
-                   (SELECT COUNT(*) FROM stock_movements m WHERE m.product_id = p.id AND m.created_at >= date('now', ?)) as movement_count,
-                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'in' AND m.created_at >= date('now', ?)) as total_in,
-                   (SELECT COALESCE(SUM(quantity), 0) FROM stock_movements m WHERE m.product_id = p.id AND m.type = 'out' AND m.created_at >= date('now', ?)) as total_out
-            FROM products p
-            ORDER BY movement_count DESC
-            LIMIT ?
-        ''', (pd, pd, pd, limit)).fetchall()
-    
-    conn.close()
-    return jsonify([dict(p) for p in products])
-
-@app.route('/api/kpis/by-location', methods=['GET'])
-def get_kpis_by_location():
-    warehouse_id = request.args.get('warehouse_id')
-    conn = get_db()
-    
-    if warehouse_id and warehouse_id.isdigit():
-        locations = conn.execute('''
-            SELECT l.id, l.name, l.type, w.name as warehouse_name,
-                   COALESCE(SUM(s.quantity), 0) as total_qty,
-                   COALESCE(SUM(s.quantity * p.price), 0) as total_value
-            FROM locations l
-            JOIN warehouses w ON l.warehouse_id = w.id
-            LEFT JOIN stock s ON s.location_id = l.id
-            LEFT JOIN products p ON s.product_id = p.id
-            WHERE l.warehouse_id = ?
-            GROUP BY l.id
-            ORDER BY total_value DESC
-        ''', (int(warehouse_id),)).fetchall()
-    else:
-        locations = conn.execute('''
-            SELECT l.id, l.name, l.type, w.name as warehouse_name,
-                   COALESCE(SUM(s.quantity), 0) as total_qty,
-                   COALESCE(SUM(s.quantity * p.price), 0) as total_value
-            FROM locations l
-            JOIN warehouses w ON l.warehouse_id = w.id
-            LEFT JOIN stock s ON s.location_id = l.id
-            LEFT JOIN products p ON s.product_id = p.id
-            GROUP BY l.id
-            ORDER BY total_value DESC
-        ''').fetchall()
-    
-    conn.close()
-    return jsonify([dict(l) for l in locations])
-
-@app.route('/api/kpis/warehouse-overview', methods=['GET'])
-def get_warehouse_overview():
-    conn = get_db()
-    
-    warehouses_data = conn.execute('''
-        SELECT w.id, w.name, w.address,
-               COUNT(DISTINCT p.id) as product_count,
-               COALESCE(SUM(p.quantity), 0) as total_quantity,
-               COALESCE(SUM(p.quantity * p.price), 0) as total_value,
-               COUNT(DISTINCT l.id) as location_count
-        FROM warehouses w
-        LEFT JOIN products p ON w.id = p.warehouse_id
-        LEFT JOIN locations l ON w.id = l.warehouse_id
-        GROUP BY w.id
-        ORDER BY w.name
-    ''').fetchall()
-    
-    conn.close()
-    return jsonify([dict(w) for w in warehouses_data])
-
-
-
-@app.route('/api/kpis/orders-summary', methods=['GET'])
-def get_orders_summary():
-    warehouse_id = request.args.get('warehouse_id')
-    period = _safe_int(request.args.get('period', 30), 30)
-    conn = get_db()
-    
-    brouillon = conn.execute("SELECT COUNT(*) FROM purchase_orders WHERE status='brouillon'").fetchone()[0]
-    recu = conn.execute("SELECT COUNT(*) FROM purchase_orders WHERE status='recue'").fetchone()[0]
-    paye = conn.execute("SELECT COUNT(*) FROM purchase_orders WHERE status='paye'").fetchone()[0]
-    total_value = conn.execute("SELECT COALESCE(SUM(total), 0) FROM purchase_orders WHERE status='paye'").fetchone()[0]
-    
-    conn.close()
-    return jsonify({'brouillon': brouillon, 'recu': recu, 'paye': paye, 'total_value': total_value})
-
-@app.route('/api/kpis/invoices-summary', methods=['GET'])
-def get_invoices_summary():
-    warehouse_id = request.args.get('warehouse_id')
-    period = _safe_int(request.args.get('period', 30), 30)
-    conn = get_db()
-    
-    unpaid = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='envoyee'").fetchone()[0]
-    sent = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='envoyee'").fetchone()[0]
-    paid = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='payee'").fetchone()[0]
-    unpaid_amount = conn.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status='envoyee'").fetchone()[0]
-    
-    conn.close()
-    return jsonify({'unpaid': unpaid, 'sent': sent, 'paid': paid, 'unpaid_amount': unpaid_amount})
-
-@app.route('/api/kpis/customers-summary', methods=['GET'])
-def get_customers_summary():
-    warehouse_id = request.args.get('warehouse_id')
-    period = _safe_int(request.args.get('period', 30), 30)
-    conn = get_db()
-    
-    total = conn.execute('SELECT COUNT(*) FROM customers').fetchone()[0]
-    loyal = conn.execute("SELECT COUNT(*) FROM customers WHERE is_loyal=1").fetchone()[0]
-    
-    conn.close()
-    return jsonify({'total': total, 'loyal': loyal})
-
-@app.route('/api/kpis/evolution', methods=['GET'])
-def get_evolution():
-    warehouse_id = request.args.get('warehouse_id')
-    period = _safe_int(request.args.get('period', 30), 30)
-    conn = get_db()
-    
-    evolution = []
-    today = datetime.now()
-    
-    for i in range(period - 1, -1, -1):
-        target_date = (today - timedelta(days=i)).strftime('%Y-%m-%d')
-        
-        entry = conn.execute('''
-            SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
-            WHERE type = 'in' AND date(created_at) = ?
-        ''', (target_date,)).fetchone()[0]
-        
-        exit_qty = conn.execute('''
-            SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_movements 
-            WHERE type = 'out' AND date(created_at) = ?
-        ''', (target_date,)).fetchone()[0]
-        
-        evolution.append({
-            'date': target_date,
-            'entries': entry,
-            'exits': exit_qty,
-            'net': entry - exit_qty
-        })
-    
-    conn.close()
-    return jsonify(evolution)
-
-
-
 @app.route('/api/seed-data', methods=['POST'])
 def seed_data():
     if not app.debug:
@@ -1259,9 +1062,10 @@ def seed_data():
         c.execute('''
             INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price, price_base, price_loyal, price_school, price_student, category, warehouse_id, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (name, desc, sku, barcode, qty, min_qty, qty * 2, price, price, price * 0.9, price * 0.85, price * 0.8, category, wh[0], datetime.now().isoformat()))
+        ''', (name, desc, sku, barcode, qty, min_qty, qty * 2, price, price * 0.6, price * 0.9, price * 0.85, price * 0.8, category, wh[0], datetime.now().isoformat()))
         product_ids.append(c.lastrowid)
     
+    c.execute('UPDATE products SET purchase_price_avg = price_base WHERE purchase_price_avg IS NULL OR purchase_price_avg = 0')
     conn.commit()
     
     movement_types = ['in', 'out', 'in', 'in', 'out', 'in', 'in', 'out']
@@ -1319,13 +1123,13 @@ def get_invoices():
     
     # Also get POS tickets (client comptoir transactions)
     tickets_query = '''
-        SELECT t.id, t.ticket_number as invoice_number, NULL as customer_id, 
+        SELECT t.id, t.transaction_number as invoice_number, NULL as customer_id, 
                'Client Comptoir' as customer_name, NULL as client_code,
                t.total, t.status, t.created_at, t.payment_method,
                t.subtotal as subtotal, t.discount_total, t.tax_amount,
                t.tendered_amount, t.change_given
         FROM pos_transactions t
-        WHERE t.ticket_number LIKE 'Ticket-%'
+        WHERE t.transaction_number LIKE 'Ticket-%'
     '''
     if status != 'all':
         tickets_query += ' AND t.status = ?'
@@ -1640,9 +1444,9 @@ def generate_invoice_pdf(invoice_id):
     company_tax = _n(invoice_data.get('warehouse_tax_number'), '3456789012')
     company_phone = _n(invoice_data.get('warehouse_phone'), '0524441234')
     
-    # Colors from app
-    primary_color = '#2563eb'
-    primary_dark = '#1d4ed8'
+    # Colors from app (neutral palette matching shadcn/ui)
+    primary_color = '#343434'
+    primary_dark = '#252525'
     
     # Build HTML with modern design
     pdf_html = f"""<!DOCTYPE html>
@@ -1652,38 +1456,40 @@ def generate_invoice_pdf(invoice_id):
     <title>Facture {invoice_data['invoice_number']}</title>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 11px; padding: 30px; color: #1f2937; background: #f9fafb; }}
-        .page {{ max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); overflow: hidden; }}
-        .header {{ display: flex; justify-content: space-between; align-items: flex-start; padding: 30px; background: linear-gradient(135deg, {primary_color}, {primary_dark}); color: white; }}
+        body {{ font-family: 'Geist Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; padding: 30px; color: #252525; background: #f7f7f7; }}
+        .page {{ max-width: 800px; margin: 0 auto; background: white; border-radius: 14px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.06); overflow: hidden; }}
+        .header {{ display: flex; justify-content: space-between; align-items: flex-start; padding: 28px 32px; border-bottom: 1px solid #ebebeb; background: white; }}
         .company-info {{ flex: 1; }}
-        .company-name {{ font-size: 24px; font-weight: 700; margin-bottom: 8px; }}
-        .company-address {{ font-size: 11px; opacity: 0.9; line-height: 1.5; }}
+        .company-name {{ font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #252525; }}
+        .company-address {{ font-size: 11px; color: #8e8e8e; line-height: 1.5; }}
         .invoice-info {{ text-align: right; }}
-        .invoice-title {{ font-size: 32px; font-weight: 700; margin-bottom: 8px; }}
-        .invoice-number {{ background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; }}
-        .meta-info {{ margin-top: 15px; font-size: 11px; }}
-        .content {{ padding: 30px; }}
-        .parties {{ display: flex; justify-content: space-between; margin-bottom: 30px; gap: 30px; }}
-        .party-box {{ flex: 1; background: #f8fafc; padding: 20px; border-radius: 10px; border-left: 4px solid {primary_color}; }}
-        .party-title {{ font-size: 12px; font-weight: 600; color: {primary_color}; text-transform: uppercase; margin-bottom: 12px; }}
-        .party-name {{ font-size: 16px; font-weight: 700; margin-bottom: 8px; }}
-        .party-detail {{ font-size: 11px; color: #4b5563; margin: 4px 0; }}
-        .party-detail strong {{ color: #1f2937; }}
-        .table-wrapper {{ margin: 25px 0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
+        .invoice-title {{ font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #252525; }}
+        .invoice-number {{ display: inline-block; background: #f7f7f7; padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; color: #252525; }}
+        .meta-info {{ margin-top: 12px; font-size: 11px; color: #8e8e8e; }}
+        .meta-info div {{ margin: 2px 0; }}
+        .content {{ padding: 28px 32px; }}
+        .parties {{ display: flex; gap: 20px; margin-bottom: 28px; }}
+        .party-box {{ flex: 1; background: #f7f7f7; padding: 18px 20px; border-radius: 10px; border-left: 4px solid {primary_color}; }}
+        .party-title {{ font-size: 10px; font-weight: 600; color: {primary_color}; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 10px; }}
+        .party-name {{ font-size: 15px; font-weight: 700; margin-bottom: 6px; color: #252525; }}
+        .party-detail {{ font-size: 11px; color: #8e8e8e; margin: 3px 0; }}
+        .party-detail strong {{ color: #252525; font-weight: 600; }}
+        .table-wrapper {{ margin: 24px 0; border-radius: 10px; overflow: hidden; border: 1px solid #ebebeb; }}
         table {{ width: 100%; border-collapse: collapse; }}
-        th {{ background: {primary_color}; color: white; padding: 12px 10px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; }}
-        td {{ padding: 12px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; }}
+        th {{ background: {primary_color}; color: white; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }}
+        td {{ padding: 10px 12px; border-bottom: 1px solid #ebebeb; font-size: 11px; }}
         tr:last-child td {{ border-bottom: none; }}
-        tr:hover {{ background: #f9fafb; }}
+        tr:nth-child(even) {{ background: #fafafa; }}
         .totals-section {{ display: flex; justify-content: flex-end; margin-top: 20px; }}
-        .totals-box {{ width: 280px; background: #f8fafc; padding: 20px; border-radius: 10px; }}
-        .totals-row {{ display: flex; justify-content: space-between; padding: 8px 0; font-size: 12px; }}
-        .totals-row.grand {{ border-top: 2px solid {primary_color}; margin-top: 10px; padding-top: 12px; font-size: 16px; font-weight: 700; color: {primary_color}; }}
-        .footer {{ background: #f8fafc; padding: 20px 30px; border-top: 1px solid #e5e7eb; }}
-        .footer-company {{ display: flex; justify-content: center; gap: 30px; font-size: 10px; color: #6b7280; margin-bottom: 15px; text-align: center; flex-wrap: wrap; }}
-        .footer-info {{ text-align: center; font-size: 11px; color: #4b5563; }}
-        .footer-signature {{ text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px dashed #d1d5db; }}
-        .btn {{ display: block; width: 200px; margin: 25px auto; background: {primary_color}; color: white; border: none; padding: 14px 24px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; }}
+        .totals-box {{ width: 280px; background: #f7f7f7; padding: 18px 20px; border-radius: 10px; }}
+        .totals-row {{ display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; color: #252525; }}
+        .totals-row.grand {{ border-top: 2px solid {primary_color}; margin-top: 8px; padding-top: 10px; font-size: 15px; font-weight: 700; }}
+        .footer {{ padding: 20px 32px; border-top: 1px solid #ebebeb; background: #fafafa; }}
+        .footer-company {{ display: flex; justify-content: center; gap: 24px; font-size: 10px; color: #8e8e8e; margin-bottom: 12px; text-align: center; flex-wrap: wrap; }}
+        .footer-info {{ text-align: center; font-size: 11px; color: #8e8e8e; }}
+        .footer-info strong {{ color: #252525; font-weight: 600; }}
+        .footer-signature {{ text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px dashed #d1d5db; font-size: 11px; color: #8e8e8e; }}
+        .btn {{ display: block; width: 200px; margin: 24px auto; background: {primary_color}; color: white; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600; text-align: center; }}
         .btn:hover {{ background: {primary_dark}; }}
         @media print {{ .btn {{ display: none; }} body {{ background: white; }} .page {{ box-shadow: none; }} }}
     </style>
@@ -1709,8 +1515,8 @@ def generate_invoice_pdf(invoice_id):
             <div class="parties">
                 {party_html}
             </div>
-<div class="party-box" style="border-left-color: #10b981;">
-                    <div class="party-title" style="color: #10b981;">Informations</div>
+            <div class="party-box" style="border-left-color: #8e8e8e;">
+                    <div class="party-title" style="color: #8e8e8e;">Informations</div>
                     <div class="party-detail"><strong>Statut:</strong> {status_labels.get(_n(invoice_data.get('status'), 'payee'), 'Payee').upper()}</div>
                     <div class="party-detail"><strong>Paiement:</strong> {_n(invoice_data.get('payment_method'), 'cash').title()}</div>
                     <div class="party-detail"><strong>Date:</strong> {invoice_data.get('created_at', '')[:10] if invoice_data.get('created_at') else '-'}</div>
@@ -1750,7 +1556,7 @@ def generate_invoice_pdf(invoice_id):
             <div class="totals-section">
                 <div class="totals-box">
                     <div class="totals-row"><span>Sous-total HT:</span><span>{_n(invoice_data.get('subtotal'), 0):.2f} DH</span></div>
-                    <div class="totals-row"><span>Remises:</span><span style="color: #dc2626;">-{_n(invoice_data.get('discount_total'), 0):.2f} DH</span></div>
+                    <div class="totals-row"><span>Remises:</span><span style="color: #dc2626;">{_n(invoice_data.get('discount_total'), 0):.2f} DH</span></div>
                     <div class="totals-row"><span>TVA (20%):</span><span>{_n(invoice_data.get('tax_amount'), 0):.2f} DH</span></div>
                     <div class="totals-row grand"><span>TOTAL TTC:</span><span>{_n(invoice_data.get('total'), 0):.2f} DH</span></div>
                 </div>
@@ -1800,496 +1606,6 @@ def get_invoice_stats():
 @app.route('/manifest.json')
 def serve_manifest():
     return send_from_directory('.', 'manifest.json')
-
-# ========== NEW DASHBOARD ENDPOINTS ==========
-
-@app.route('/api/kpis/sales', methods=['GET'])
-def get_kpis_sales():
-    """KPI Ventes: CA du jour, nombre de ventes, ticket moyen
-    Supports: period=30 (default), date_start, date_end
-    Inclut les ventes POS et les factures payees
-    """
-    conn = get_db()
-    
-    date_start = request.args.get('date_start')
-    date_end = request.args.get('date_end')
-    period = _safe_int(request.args.get('period', 30), 30)
-    
-    pos_date_filter = ""
-    inv_date_filter = ""
-    date_params = []
-    if date_start and date_end:
-        pos_date_filter = "AND date(created_at) BETWEEN ? AND ?"
-        inv_date_filter = "AND date(paid_at) BETWEEN ? AND ?"
-        date_params = [date_start, date_end]
-    elif date_start:
-        pos_date_filter = "AND date(created_at) >= ?"
-        inv_date_filter = "AND date(paid_at) >= ?"
-        date_params = [date_start]
-    elif date_end:
-        pos_date_filter = "AND date(created_at) <= ?"
-        inv_date_filter = "AND date(paid_at) <= ?"
-        date_params = [date_end]
-    else:
-        pos_date_filter = "AND created_at >= date('now', ?)"
-        inv_date_filter = "AND paid_at >= date('now', ?)"
-        date_params = ['-' + str(period) + ' days']
-    
-    ca_periode = conn.execute(
-        "SELECT COALESCE(SUM(total), 0) as total FROM pos_transactions WHERE status = 'completed' " + pos_date_filter,
-        tuple(date_params)
-    ).fetchone()[0] + conn.execute(
-        "SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE status = 'payee' " + inv_date_filter,
-        tuple(date_params)
-    ).fetchone()[0]
-    
-    nb_ventes_periode = conn.execute(
-        "SELECT COUNT(*) as count FROM pos_transactions WHERE status = 'completed' " + pos_date_filter,
-        tuple(date_params)
-    ).fetchone()[0] + conn.execute(
-        "SELECT COUNT(*) as count FROM invoices WHERE status = 'payee' " + inv_date_filter,
-        tuple(date_params)
-    ).fetchone()[0]
-    
-    # Si pas de dates personnalisées, calculer trend
-    ca_trend = 0
-    if not date_start and not date_end:
-        ca_prev_pos = conn.execute("""
-            SELECT COALESCE(SUM(total), 0) as total 
-            FROM pos_transactions 
-            WHERE status = 'completed' AND created_at >= date('now', '-60 days') AND created_at < date('now', '-30 days')
-        """).fetchone()[0]
-        ca_prev_inv = conn.execute("""
-            SELECT COALESCE(SUM(total), 0) as total 
-            FROM invoices 
-            WHERE status = 'payee' AND paid_at >= date('now', '-60 days') AND paid_at < date('now', '-30 days')
-        """).fetchone()[0]
-        ca_prev = ca_prev_pos + ca_prev_inv
-        ca_trend = ((ca_periode - ca_prev) / ca_prev * 100) if ca_prev > 0 else 0
-    
-    # CA today (always)
-    ca_jour = conn.execute("""
-        SELECT COALESCE(SUM(total), 0) as total 
-        FROM pos_transactions 
-        WHERE status = 'completed' AND date(created_at) = date('now')
-    """).fetchone()[0] + conn.execute("""
-        SELECT COALESCE(SUM(total), 0) as total 
-        FROM invoices 
-        WHERE status = 'payee' AND date(paid_at) = date('now')
-    """).fetchone()[0]
-    
-    nb_ventes_jour = conn.execute("""
-        SELECT COUNT(*) as count 
-        FROM pos_transactions 
-        WHERE status = 'completed' AND date(created_at) = date('now')
-    """).fetchone()[0] + conn.execute("""
-        SELECT COUNT(*) as count 
-        FROM invoices 
-        WHERE status = 'payee' AND date(paid_at) = date('now')
-    """).fetchone()[0]
-    
-    ticket_moyen = ca_periode / nb_ventes_periode if nb_ventes_periode > 0 else 0
-    
-    conn.close()
-    return jsonify({
-        'ca_jour': round(ca_jour, 2),
-        'nb_ventes_jour': nb_ventes_jour,
-        'ticket_moyen': round(ticket_moyen, 2),
-        'ca_periode': round(ca_periode, 2),
-        'nb_ventes_periode': nb_ventes_periode,
-        'ca_trend': round(ca_trend, 1),
-        'date_filter': {'start': date_start, 'end': date_end, 'period': period}
-    })
-
-@app.route('/api/kpis/margins', methods=['GET'])
-def get_kpis_margins():
-    """KPI Marge: Marge brute basée sur les ventes réelles (prix vente vs prix achat moyen)"""
-    conn = get_db()
-    
-    # Prix d'achat moyen par produit depuis les réceptions (seed: 'recue')
-    purchase_avg = conn.execute("""
-        SELECT poi.product_id, 
-               COALESCE(AVG(poi.unit_price), 0) as avg_purchase_price
-        FROM purchase_order_items poi
-        JOIN purchase_orders po ON poi.order_id = po.id
-        WHERE po.status IN ('received', 'recue')
-        GROUP BY poi.product_id
-    """).fetchall()
-    purchase_prices = {p['product_id']: p['avg_purchase_price'] for p in purchase_avg}
-    
-    # Ventes via factures
-    invoice_sales = conn.execute("""
-        SELECT ii.product_id, p.category,
-               SUM(ii.quantity * ii.unit_price) as total_selling,
-               SUM(ii.quantity) as total_qty_sold
-        FROM invoice_items ii
-        JOIN invoices i ON ii.invoice_id = i.id
-        JOIN products p ON ii.product_id = p.id
-        WHERE i.status != 'annulee'
-        GROUP BY ii.product_id, p.category
-    """).fetchall()
-    
-    # Ventes via POS (caisse)
-    pos_sales = conn.execute("""
-        SELECT pti.product_id, p.category,
-               SUM(pti.quantity * pti.unit_price) as total_selling,
-               SUM(pti.quantity) as total_qty_sold
-        FROM pos_transaction_items pti
-        JOIN pos_transactions t ON pti.transaction_id = t.id
-        JOIN products p ON pti.product_id = p.id
-        WHERE t.status = 'completed'
-        GROUP BY pti.product_id, p.category
-    """).fetchall()
-    
-    # Combiner les deux sources
-    sales_by_product = list(invoice_sales) + list(pos_sales)
-    
-    # Calcul marge par catégorie
-    cat_data = {}
-    for s in sales_by_product:
-        cat = s['category'] or 'Sans categorie'
-        purchase_price = purchase_prices.get(s['product_id'], 0)
-        if purchase_price == 0:
-            purchase_price = conn.execute('SELECT COALESCE(purchase_price_avg, price_base, 0) FROM products WHERE id = ?', (s['product_id'],)).fetchone()[0]
-        
-        vente = s['total_selling']
-        achat = s['total_qty_sold'] * purchase_price
-        marge = ((vente - achat) / vente * 100) if vente > 0 else 0
-        
-        if cat not in cat_data:
-            cat_data[cat] = {'vente': 0, 'achat': 0}
-        cat_data[cat]['vente'] += vente
-        cat_data[cat]['achat'] += achat
-    
-    categories = []
-    total_vente = 0
-    total_achat = 0
-    for cat, data in cat_data.items():
-        vente = data['vente']
-        achat = data['achat']
-        marge = ((vente - achat) / vente * 100) if vente > 0 else 0
-        categories.append({
-            'category': cat,
-            'vente': round(vente, 2),
-            'achat': round(achat, 2),
-            'marge_pct': round(marge, 1)
-        })
-        total_vente += vente
-        total_achat += achat
-    
-    marge_globale = ((total_vente - total_achat) / total_vente * 100) if total_vente > 0 else 0
-    
-    conn.close()
-    return jsonify({
-        'marge_globale': round(marge_globale, 1),
-        'categories': categories
-    })
-
-@app.route('/api/kpis/receivables', methods=['GET'])
-def get_kpis_receivables():
-    """KPI Créances: Total créances et breakdown par client"""
-    conn = get_db()
-    
-    # Total créances (factures envoyées non payées)
-    total_creances = conn.execute("""
-        SELECT COALESCE(SUM(total), 0) as total 
-        FROM invoices 
-        WHERE status = 'envoyee'
-    """).fetchone()[0]
-    
-    # Nombre de factures impayées
-    nb_impayees = conn.execute("""
-        SELECT COUNT(*) as count 
-        FROM invoices 
-        WHERE status = 'envoyee'
-    """).fetchone()[0]
-    
-    # Créances par client
-    creances_par_client = conn.execute("""
-        SELECT c.id, c.name, c.client_code,
-               COALESCE(SUM(i.total), 0) as montant,
-               COUNT(i.id) as nb_factures,
-               MIN(i.due_date) as premiere_echeance
-        FROM customers c
-        JOIN invoices i ON c.id = i.customer_id AND i.status = 'envoyee'
-        GROUP BY c.id
-        ORDER BY montant DESC
-        LIMIT 10
-    """).fetchall()
-    
-    clients = [dict(c) for c in creances_par_client]
-    
-    # Taux d'encaissement
-    total_factures = conn.execute("""
-        SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != 'annulee'
-    """).fetchone()[0]
-    paye = conn.execute("""
-        SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'payee'
-    """).fetchone()[0]
-    taux_encaissement = (paye / total_factures * 100) if total_factures > 0 else 0
-    
-    conn.close()
-    return jsonify({
-        'total_creances': round(total_creances, 2),
-        'nb_impayees': nb_impayees,
-        'taux_encaissement': round(taux_encaissement, 1),
-        'clients': clients
-    })
-
-@app.route('/api/kpis/invoices-status', methods=['GET'])
-def get_kpis_invoices_status():
-    """KPI État des factures: Count par status"""
-    conn = get_db()
-    
-    brouillon = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'brouillon'").fetchone()[0]
-    envoyee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'envoyee'").fetchone()[0]
-    payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'payee'").fetchone()[0]
-    annulee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'annulee'").fetchone()[0]
-    
-    conn.close()
-    return jsonify({
-        'brouillon': brouillon,
-        'envoyee': envoyee,
-        'payee': payee,
-        'annulee': annulee
-    })
-
-@app.route('/api/kpis/sales-daily', methods=['GET'])
-def get_kpis_sales_daily():
-    """KPI Ventes quotidiennes sur période (pour graphique Area)"""
-    conn = get_db()
-    period = _safe_int(request.args.get('period', 30), 30)
-    
-    from datetime import datetime, timedelta
-    today = datetime.now()
-    
-    daily_sales = []
-    for i in range(period - 1, -1, -1):
-        target_date = (today - timedelta(days=i)).strftime('%Y-%m-%d')
-        
-        ca_pos = conn.execute("""
-            SELECT COALESCE(SUM(total), 0) as total 
-            FROM pos_transactions 
-            WHERE status = 'completed' AND date(created_at) = ?
-        """, (target_date,)).fetchone()[0]
-        
-        ca_inv = conn.execute("""
-            SELECT COALESCE(SUM(total), 0) as total 
-            FROM invoices 
-            WHERE status = 'payee' AND date(paid_at) = ?
-        """, (target_date,)).fetchone()[0]
-        
-        nb_pos = conn.execute("""
-            SELECT COUNT(*) as count 
-            FROM pos_transactions 
-            WHERE status = 'completed' AND date(created_at) = ?
-        """, (target_date,)).fetchone()[0]
-        
-        nb_inv = conn.execute("""
-            SELECT COUNT(*) as count 
-            FROM invoices 
-            WHERE status = 'payee' AND date(paid_at) = ?
-        """, (target_date,)).fetchone()[0]
-        
-        daily_sales.append({
-            'date': target_date,
-            'ca': round(ca_pos + ca_inv, 2),
-            'nb_ventes': nb_pos + nb_inv
-        })
-    
-    conn.close()
-    return jsonify(daily_sales)
-
-@app.route('/api/kpis/categories-distribution', methods=['GET'])
-def get_kpis_categories_distribution():
-    """KPI Répartition des ventes par catégorie (pour Donut)"""
-    conn = get_db()
-    
-    # Ventes via factures
-    inv_cat = conn.execute("""
-        SELECT p.category,
-               COALESCE(SUM(ii.quantity), 0) as qty_vendue,
-               COALESCE(SUM(ii.line_total), 0) as ca
-        FROM products p
-        LEFT JOIN invoice_items ii ON p.id = ii.product_id
-        LEFT JOIN invoices i ON ii.invoice_id = i.id AND i.status = 'payee'
-        WHERE p.category IS NOT NULL AND p.category != ''
-        GROUP BY p.category
-    """).fetchall()
-    
-    # Ventes via POS (caisse)
-    pos_cat = conn.execute("""
-        SELECT p.category,
-               COALESCE(SUM(pti.quantity), 0) as qty_vendue,
-               COALESCE(SUM(pti.line_total), 0) as ca
-        FROM products p
-        LEFT JOIN pos_transaction_items pti ON p.id = pti.product_id
-        LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed'
-        WHERE p.category IS NOT NULL AND p.category != ''
-        GROUP BY p.category
-    """).fetchall()
-    
-    # Fusionner les deux sources
-    merged = {}
-    for row in list(inv_cat) + list(pos_cat):
-        cat = row['category']
-        if cat not in merged:
-            merged[cat] = {'category': cat, 'qty_vendue': 0, 'ca': 0}
-        merged[cat]['qty_vendue'] += row['qty_vendue']
-        merged[cat]['ca'] += row['ca']
-    
-    result = list(merged.values())
-    conn.close()
-    return jsonify(result)
-
-@app.route('/api/kpis/top-selling-products', methods=['GET'])
-def get_kpis_top_selling():
-    """KPI Top 10 produits vendus (pour graphique Barres)
-    Supports: period=30 (default), date_start, date_end
-    Priority: date_start/date_end > period
-    """
-    conn = get_db()
-    limit = _safe_int(request.args.get('limit', 10), 10)
-    period = _safe_int(request.args.get('period', 30), 30)
-    date_start = request.args.get('date_start')
-    date_end = request.args.get('date_end')
-    
-    # Build date filter: dates provided > period
-    if date_start and date_end:
-        date_filter = "AND date(t.created_at) BETWEEN ? AND ?"
-        date_params = (date_start, date_end)
-    elif date_start:
-        date_filter = "AND date(t.created_at) >= ?"
-        date_params = (date_start,)
-    elif date_end:
-        date_filter = "AND date(t.created_at) <= ?"
-        date_params = (date_end,)
-    else:
-        # Handle period=1 as "today only" (not yesterday)
-        if period == 1:
-            date_filter = "AND date(t.created_at) = date('now')"
-        else:
-            date_filter = "AND t.created_at >= date('now', '-' || ? || ' days')"
-        date_params = (str(period),)
-    
-    # Ventes via POS
-    pos_products = conn.execute("""
-        SELECT p.id, p.name, p.sku, p.category,
-               COALESCE(SUM(pti.quantity), 0) as qty_vendue,
-               COALESCE(SUM(pti.line_total), 0) as ca
-        FROM products p
-        LEFT JOIN pos_transaction_items pti ON p.id = pti.product_id
-        LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed' """ + date_filter + """
-        GROUP BY p.id
-    """, date_params).fetchall()
-    
-    # Ventes via factures
-    inv_products = conn.execute("""
-        SELECT p.id, p.name, p.sku, p.category,
-               COALESCE(SUM(ii.quantity), 0) as qty_vendue,
-               COALESCE(SUM(ii.line_total), 0) as ca
-        FROM products p
-        LEFT JOIN invoice_items ii ON p.id = ii.product_id
-        LEFT JOIN invoices i ON ii.invoice_id = i.id AND i.status = 'payee'
-        GROUP BY p.id
-    """).fetchall()
-    
-    # Fusionner par produit
-    merged = {}
-    for row in list(pos_products) + list(inv_products):
-        pid = row['id']
-        if pid not in merged:
-            merged[pid] = dict(row)
-            merged[pid]['qty_vendue'] = 0
-            merged[pid]['ca'] = 0
-        merged[pid]['qty_vendue'] += row['qty_vendue']
-        merged[pid]['ca'] += row['ca']
-    
-    result = sorted(merged.values(), key=lambda x: x['qty_vendue'], reverse=True)[:limit]
-    conn.close()
-    return jsonify(result)
-
-@app.route('/api/kpis/sessions-history', methods=['GET'])
-def get_kpis_sessions_history():
-    """KPI Historique des sessions de caisse fermées"""
-    conn = get_db()
-    limit = _safe_int(request.args.get('limit', 20), 20)
-    status = request.args.get('status', 'closed')
-    
-    sessions = conn.execute("""
-        SELECT s.*,
-               (SELECT COALESCE(SUM(total), 0) FROM pos_transactions 
-                WHERE session_id = s.id AND status = 'completed') as total_sales,
-               (SELECT COUNT(*) FROM pos_transactions 
-                WHERE session_id = s.id AND status = 'completed') as nb_transactions,
-               (SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements 
-                WHERE session_id = s.id AND type = 'in') as total_cash_in,
-               (SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements 
-                WHERE session_id = s.id AND type = 'out') as total_cash_out
-        FROM pos_sessions s
-        WHERE s.status = ?
-        ORDER BY s.closed_at DESC
-        LIMIT ?
-    """, (status, limit)).fetchall()
-    
-    result = [dict(s) for s in sessions]
-    conn.close()
-    return jsonify(result)
-
-@app.route('/api/kpis/sessions-summary', methods=['GET'])
-def get_kpis_sessions_summary():
-    """KPI Résumé des sessions sur période"""
-    conn = get_db()
-    period = _safe_int(request.args.get('period', 30), 30)
-    
-    summary = conn.execute("""
-        SELECT 
-            COUNT(*) as total_sessions,
-            SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_sessions,
-            SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_sessions,
-            SUM(closing_cash) as total_closing_cash,
-            SUM(expected_cash) as total_expected_cash,
-            (SELECT COALESCE(SUM(total), 0) FROM pos_transactions 
-             WHERE created_at >= date('now', '-' || ? || ' days') AND status = 'completed') as total_sales_period,
-            (SELECT COUNT(*) FROM pos_transactions 
-             WHERE created_at >= date('now', '-' || ? || ' days') AND status = 'completed') as nb_transactions_period
-        FROM pos_sessions
-        WHERE opened_at >= date('now', '-' || ? || ' days')
-    """, (period, period, period)).fetchone()
-    
-    result = dict(summary)
-    conn.close()
-    return jsonify(result)
-
-@app.route('/api/kpis/sessions/<int:session_id>/details', methods=['GET'])
-def get_kpis_session_details(session_id):
-    """KPI Détails d'une session spécifique"""
-    conn = get_db()
-    
-    session = conn.execute("SELECT * FROM pos_sessions WHERE id = ?", (session_id,)).fetchone()
-    if not session:
-        conn.close()
-        return jsonify({'error': 'Session non trouvée'}), 404
-    
-    transactions = conn.execute("""
-        SELECT * FROM pos_transactions 
-        WHERE session_id = ? AND status = 'completed'
-        ORDER BY created_at DESC
-    """, (session_id,)).fetchall()
-    
-    cash_movements = conn.execute("""
-        SELECT * FROM pos_cash_movements 
-        WHERE session_id = ?
-        ORDER BY created_at DESC
-    """, (session_id,)).fetchall()
-    
-    result = {
-        'session': dict(session),
-        'transactions': [dict(t) for t in transactions],
-        'cash_movements': [dict(m) for m in cash_movements]
-    }
-    conn.close()
-    return jsonify(result)
 
 @app.route('/api/receivables', methods=['GET'])
 def get_receivables():
@@ -2447,8 +1763,8 @@ def create_pos_transaction():
     if is_client_comptoir:
         # CLIENT COMPTOIR - Generate TICKET only
         last_ticket = conn.execute('''
-            SELECT ticket_number FROM pos_transactions 
-            WHERE ticket_number LIKE ? 
+            SELECT transaction_number FROM pos_transactions 
+            WHERE transaction_number LIKE ? 
             ORDER BY id DESC LIMIT 1
         ''', (f'Ticket-{today}-%',)).fetchone()
         
@@ -2491,7 +1807,7 @@ def create_pos_transaction():
     # Insert transaction
     conn.execute('''
         INSERT INTO pos_transactions (
-            ticket_number, session_id, customer_id, payment_method,
+            transaction_number, session_id, customer_id, payment_method,
             subtotal, discount_total, tax_amount, total,
             tendered_amount, change_given, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
@@ -2642,7 +1958,7 @@ def get_pos_customers():
     """Get customers for POS (with discount info)"""
     conn = get_db()
     customers = conn.execute('''
-        SELECT id, name, client_code, discount_percent
+        SELECT id, name, client_code, discount_rate
         FROM customers 
         WHERE is_active = 1
         ORDER BY name
@@ -2838,7 +2154,7 @@ def generate_pos_ticket_pdf(ticket_number):
         SELECT t.*, s.session_number, s.opened_at
         FROM pos_transactions t
         LEFT JOIN pos_sessions s ON t.session_id = s.id
-        WHERE t.ticket_number = ?
+        WHERE t.transaction_number = ?
     ''', (ticket_number,)).fetchone()
     
     if not transaction:
@@ -2939,7 +2255,7 @@ def generate_pos_ticket_pdf(ticket_number):
     
     <div class="totals">
         <div class="totals-row"><span>Sous-total:</span><span>{_n(transaction.get('subtotal'), 0):.2f} DH</span></div>
-        <div class="totals-row"><span>Remise:</span><span>-{_n(transaction.get('discount_total'), 0):.2f} DH</span></div>
+        <div class="totals-row"><span>Remise:</span><span>{_n(transaction.get('discount_total'), 0):.2f} DH</span></div>
         <div class="totals-row"><span>TVA (20%):</span><span>{_n(transaction.get('tax_amount'), 0):.2f} DH</span></div>
         <div class="totals-row grand-total"><span>TOTAL:</span><span>{_n(transaction.get('total'), 0):.2f} DH</span></div>
     </div>
@@ -2974,7 +2290,7 @@ def get_pos_transaction_by_invoice(invoice_number):
         SELECT t.*, s.session_number
         FROM pos_transactions t
         LEFT JOIN pos_sessions s ON t.session_id = s.id
-        WHERE t.ticket_number = ? OR t.invoice_id IN (
+        WHERE t.transaction_number = ? OR t.invoice_id IN (
             SELECT id FROM invoices WHERE invoice_number = ?
         )
     ''', (invoice_number, invoice_number)).fetchone()
@@ -2988,4 +2304,4 @@ def get_pos_transaction_by_invoice(invoice_number):
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, port=5001)
+    app.run(debug=False, port=5001)
