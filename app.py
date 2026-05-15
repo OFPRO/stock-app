@@ -28,7 +28,13 @@ def _safe_int(value, default):
         return default
 
 def get_price_for_customer(product, customer_type, is_loyal):
-    normal_price = product['price_base'] if product.get('price_base', 0) > 0 else product.get('price', 0)
+    if isinstance(product, dict):
+        base_price = product.get('price_base', 0)
+        price = product.get('price', 0)
+    else:
+        base_price = product['price_base'] if 'price_base' in product.keys() else 0
+        price = product['price'] if 'price' in product.keys() else 0
+    normal_price = base_price if base_price > 0 else price
     if customer_type == 'ecole':
         return round(normal_price * 0.80, 2)
     if is_loyal:
@@ -48,6 +54,11 @@ def init_db():
             name TEXT NOT NULL,
             address TEXT,
             manager TEXT,
+            phone TEXT,
+            ice TEXT,
+            patente TEXT,
+            rc TEXT,
+            taxe_number TEXT,
             is_default INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -88,6 +99,7 @@ def init_db():
             category TEXT DEFAULT 'Général',
             warehouse_id INTEGER DEFAULT 1,
             location_id INTEGER,
+            is_deleted INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -136,6 +148,18 @@ def init_db():
         c.execute('ALTER TABLE products ADD COLUMN margin_percent REAL DEFAULT 15.0')
     except Exception:
         pass
+    for col_def in [
+        'ALTER TABLE warehouses ADD COLUMN phone TEXT',
+        'ALTER TABLE warehouses ADD COLUMN ice TEXT',
+        'ALTER TABLE warehouses ADD COLUMN patente TEXT',
+        'ALTER TABLE warehouses ADD COLUMN rc TEXT',
+        'ALTER TABLE warehouses ADD COLUMN taxe_number TEXT',
+        'ALTER TABLE customers ADD COLUMN ice TEXT',
+    ]:
+        try:
+            c.execute(col_def)
+        except Exception:
+            pass
     c.execute('''
         CREATE TABLE IF NOT EXISTS stock (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -267,6 +291,8 @@ def init_db():
             client_code TEXT UNIQUE,
             discount_rate REAL DEFAULT 0,
             is_loyal INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            ice TEXT,
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -294,6 +320,27 @@ def init_db():
         )
     ''')
     
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN supplier_id INTEGER')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN type TEXT DEFAULT \'facture\'')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN payment_method TEXT')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN tendered_amount REAL DEFAULT 0')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN change_given REAL DEFAULT 0')
+    except Exception:
+        pass
+
     c.execute('''
         CREATE TABLE IF NOT EXISTS invoice_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1112,18 +1159,19 @@ def create_invoice():
         customer = conn.execute('SELECT * FROM customers WHERE id=?', (customer_id,)).fetchone() if customer_id else None
         
         for item in items:
-            product = conn.execute('SELECT * FROM products WHERE id=?', (item['product_id'])).fetchone()
+            product = conn.execute('SELECT * FROM products WHERE id=?', (item['product_id'],)).fetchone()
             if not product:
                 continue
             
+            p = dict(product)
             if customer:
-                unit_price = get_price_for_customer(dict(product), customer['type'], customer['is_loyal'])
+                unit_price = get_price_for_customer(p, customer['type'], customer['is_loyal'])
             else:
-                unit_price = item.get('unit_price', product['price_base'] if product['price_base'] > 0 else product['price'])
+                unit_price = item.get('unit_price', p['price_base'] if p['price_base'] > 0 else p['price'])
             
             discount_percent = item.get('discount_percent', 0)
             qty = item.get('quantity', 1)
-            tax_rate = float(item.get('tax_rate', product.get('tax_category', '20') or '20'))
+            tax_rate = float(item.get('tax_rate', p.get('tax_category', '20') or '20'))
             
             line_subtotal = qty * unit_price
             discount_amount = line_subtotal * (discount_percent / 100)
@@ -1240,17 +1288,26 @@ def add_invoice_item(invoice_id):
     conn = get_db()
     
     try:
-        product = conn.execute('SELECT * FROM products WHERE id=?', (data['product_id'])).fetchone()
+        product_id = data.get('product_id')
+        if not product_id:
+            return jsonify({'error': 'product_id requis'}), 400
+        product_row = conn.execute('SELECT * FROM products WHERE id=?', (product_id,)).fetchone()
+        if not product_row:
+            return jsonify({'error': 'Produit non trouvé'}), 404
+        p = dict(product_row)
+        
         invoice = conn.execute('SELECT * FROM invoices WHERE id=?', (invoice_id,)).fetchone()
-        customer = conn.execute('SELECT * FROM customers WHERE id=?', (invoice['customer_id'])).fetchone() if invoice['customer_id'] else None
+        if not invoice:
+            return jsonify({'error': 'Facture non trouvée'}), 404
+        customer = conn.execute('SELECT * FROM customers WHERE id=?', (invoice['customer_id'],)).fetchone() if invoice['customer_id'] else None
         
         if customer:
-            unit_price = get_price_for_customer(dict(product), customer['type'], customer['is_loyal'])
+            unit_price = get_price_for_customer(p, customer['type'], customer['is_loyal'])
         else:
-            unit_price = data.get('unit_price', product['price_base'] if product['price_base'] > 0 else product['price'])
+            unit_price = data.get('unit_price', p['price_base'] if p['price_base'] > 0 else p['price'])
         
         qty = data.get('quantity', 1)
-        tax_rate = float(data.get('tax_rate', product.get('tax_category', '20') or '20'))
+        tax_rate = float(data.get('tax_rate', p.get('tax_category', '20') or '20'))
         discount_percent = data.get('discount_percent', 0)
         
         line_total = qty * unit_price * (1 - discount_percent / 100)
@@ -1258,13 +1315,13 @@ def add_invoice_item(invoice_id):
         conn.execute('''
             INSERT INTO invoice_items (invoice_id, product_id, product_name, product_sku, quantity, unit_price, discount_percent, tax_rate, line_total)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (invoice_id, product['id'], product['name'], product['sku'], qty, unit_price, discount_percent, tax_rate, line_total))
+        ''', (invoice_id, product_id, p['name'], p['sku'], qty, unit_price, discount_percent, tax_rate, line_total))
         
-        conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (qty, product['id'], qty))
+        conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (qty, product_id, qty))
         conn.execute('''
             INSERT INTO stock_movements (product_id, type, quantity, note)
             VALUES (?, 'out', ?, ?)
-        ''', (product['id'], qty, f'Vente facture {invoice["invoice_number"]}'))
+        ''', (product_id, qty, f'Vente facture {invoice["invoice_number"]}'))
         
         recalculate_invoice(invoice_id, conn)
         conn.commit()
