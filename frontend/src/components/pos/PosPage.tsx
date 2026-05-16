@@ -150,7 +150,7 @@ export function PosPage() {
         if (res.document_number) {
           const url = res.document_type === "ticket"
             ? `/api/pos/tickets/${res.document_number}`
-            : `/api/invoices/${res.document_number}/pdf`
+            : `/api/invoices/${res.document_id}/pdf`
           window.open(url, "_blank")
         }
       } else {

@@ -43,6 +43,11 @@ def get_price_for_customer(product, customer_type, is_loyal):
         return round(normal_price * 0.85, 2)
     return round(normal_price, 2)
 
+def next_sequence(conn, name):
+    conn.execute('INSERT OR IGNORE INTO sequences (name, current_value) VALUES (?, 0)', (name,))
+    conn.execute('UPDATE sequences SET current_value = current_value + 1 WHERE name = ?', (name,))
+    return conn.execute('SELECT current_value FROM sequences WHERE name = ?', (name,)).fetchone()[0]
+
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -407,6 +412,10 @@ def init_db():
         c.execute("ALTER TABLE pos_transactions ADD COLUMN transaction_number TEXT")
     except Exception:
         pass
+    try:
+        c.execute("ALTER TABLE pos_transactions ADD COLUMN invoice_id INTEGER REFERENCES invoices(id)")
+    except Exception:
+        pass
     
     c.execute('''
         CREATE TABLE IF NOT EXISTS pos_transaction_items (
@@ -438,6 +447,10 @@ def init_db():
             FOREIGN KEY (session_id) REFERENCES pos_sessions(id)
         )
     ''')
+    try:
+        c.execute("ALTER TABLE pos_cash_movements ADD COLUMN source TEXT DEFAULT 'pos'")
+    except Exception:
+        pass
     
     c.execute('''
         CREATE TABLE IF NOT EXISTS main_account (
@@ -448,6 +461,19 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS sequences (
+            name TEXT PRIMARY KEY,
+            current_value INTEGER DEFAULT 0
+        )
+    ''')
+    max_fac = c.execute("SELECT MAX(CAST(SUBSTR(invoice_number, -4) AS INTEGER)) FROM invoices WHERE invoice_number LIKE 'FAC-%'").fetchone()[0]
+    if max_fac:
+        c.execute('INSERT OR IGNORE INTO sequences (name, current_value) VALUES (?, ?)', ('fac_counter', max_fac))
+    max_ticket = c.execute("SELECT MAX(CAST(SUBSTR(transaction_number, -4) AS INTEGER)) FROM pos_transactions WHERE transaction_number LIKE 'Ticket-%'").fetchone()[0]
+    if max_ticket:
+        c.execute('INSERT OR IGNORE INTO sequences (name, current_value) VALUES (?, ?)', ('ticket_counter', max_ticket))
     
     c.execute('''
         CREATE TABLE IF NOT EXISTS main_account_transactions (
@@ -1138,8 +1164,8 @@ def create_invoice():
     conn = get_db()
     
     try:
-        invoice_count = conn.execute('SELECT COUNT(*) FROM invoices').fetchone()[0]
-        invoice_number = f"FAC-{datetime.now().strftime('%Y%m%d')}-{invoice_count + 1:04d}"
+        seq = next_sequence(conn, 'fac_counter')
+        invoice_number = f"FAC-{datetime.now().strftime('%Y%m%d')}-{seq:04d}"
         
         warehouse_id = data.get('warehouse_id', 1)
         customer_id = data.get('customer_id')
@@ -1334,9 +1360,18 @@ def add_invoice_item(invoice_id):
 def recalculate_invoice(invoice_id, conn):
     items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
     
-    subtotal = sum(item['line_total'] for item in items)
-    discount_total = sum(item['quantity'] * item['unit_price'] * item['discount_percent'] / 100 for item in items)
-    tax_amount = sum(item['line_total'] * item['tax_rate'] / 100 for item in items)
+    subtotal = 0
+    discount_total = 0
+    tax_amount = 0
+    for item in items:
+        qty = item['quantity'] or 0
+        uprice = item['unit_price'] or 0
+        dpct = (item['discount_percent'] or 0) / 100
+        trate = (item['tax_rate'] or 0) / 100
+        subtotal += qty * uprice
+        discount_total += qty * uprice * dpct
+        after_discount = qty * uprice * (1 - dpct)
+        tax_amount += after_discount * trate
     total = subtotal - discount_total + tax_amount
     
     conn.execute('''
@@ -1762,40 +1797,33 @@ def create_pos_transaction():
     is_client_comptoir = customer_id is None or customer_id == '' or customer_id == 'null'
     
     if is_client_comptoir:
-        # CLIENT COMPTOIR - Generate TICKET only
-        last_ticket = conn.execute('''
-            SELECT transaction_number FROM pos_transactions 
-            WHERE transaction_number LIKE ? 
-            ORDER BY id DESC LIMIT 1
-        ''', (f'Ticket-{today}-%',)).fetchone()
-        
-        if last_ticket:
-            seq = int(last_ticket[0].split('-')[-1]) + 1
-        else:
-            seq = 1
+        seq = next_sequence(conn, 'ticket_counter')
         doc_number = f'Ticket-{today}-{seq:04d}'
         doc_type = 'ticket'
     else:
-        # CLIENT DEFINI - Generate FACTURE (FAC-) only
-        last_facture = conn.execute('''
-            SELECT invoice_number FROM invoices 
-            WHERE invoice_number LIKE ? 
-            ORDER BY id DESC LIMIT 1
-        ''', (f'FAC-{today}-%',)).fetchone()
-        
-        if last_facture:
-            seq = int(last_facture[0].split('-')[-1]) + 1
-        else:
-            seq = 1
+        seq = next_sequence(conn, 'fac_counter')
         doc_number = f'FAC-{today}-{seq:04d}'
         doc_type = 'facture'
+    
+    # Load customer for pricing
+    customer_row = None
+    if customer_id and not is_client_comptoir:
+        cid = _safe_int(customer_id, None)
+        if cid:
+            customer_row = conn.execute('SELECT * FROM customers WHERE id = ?', (cid,)).fetchone()
     
     # Calculate totals
     subtotal = 0
     tax = 0
     discount = 0
     for item in items:
-        line_ht = item['quantity'] * item['unit_price']
+        if customer_row:
+            product = conn.execute('SELECT * FROM products WHERE id = ?', (item['product_id'],)).fetchone()
+            if product:
+                item['unit_price'] = get_price_for_customer(dict(product), customer_row['type'], customer_row['is_loyal'])
+        unit_price = item.get('unit_price', 0) or 0
+        item['unit_price'] = unit_price
+        line_ht = item['quantity'] * unit_price
         line_tax = line_ht * 0.20
         subtotal += line_ht
         tax += line_tax
@@ -1817,10 +1845,10 @@ def create_pos_transaction():
     
     # Insert items and decrement stock
     for item in items:
-        product_id = item['product_id']
-        qty = item['quantity']
-        unit_price = item['unit_price']
-        discount_pct = item.get('discount_percent', 0)
+        product_id = item.get('product_id') or item.get('id')
+        qty = item.get('quantity', 1)
+        unit_price = item.get('unit_price', 0) or 0
+        discount_pct = item.get('discount_percent', 0) or 0
         line_ht = qty * unit_price * (1 - discount_pct / 100)
         line_total = line_ht * 1.20
         
@@ -1888,16 +1916,21 @@ def create_pos_transaction():
           payment_method, tendered_amount, change_amount))
     inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
     
+    conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
+    
     for item in items:
-        line_ht = item['quantity'] * item['unit_price'] * (1 - item.get('discount_percent', 0) / 100)
+        qty = item.get('quantity', 1)
+        uprice = item.get('unit_price', 0) or 0
+        dpct = item.get('discount_percent', 0) or 0
+        line_ht = qty * uprice * (1 - dpct / 100)
         line_total = line_ht * 1.20
         conn.execute('''
             INSERT INTO invoice_items (
                 invoice_id, product_id, product_name, product_sku,
                 quantity, unit_price, discount_percent, tax_rate, line_total
             ) VALUES (?, ?, ?, ?, ?, ?, ?, 20, ?)
-        ''', (inv_id, item['product_id'], item.get('product_name', ''), item.get('product_sku', ''),
-              item['quantity'], item['unit_price'], item.get('discount_percent', 0), line_total))
+        ''', (inv_id, item.get('product_id') or item.get('id'), item.get('product_name', ''), item.get('product_sku', ''),
+              qty, uprice, dpct, line_total))
     
     conn.commit()
     conn.close()
@@ -1905,6 +1938,7 @@ def create_pos_transaction():
     return jsonify({
         'success': True,
         'document_number': doc_number,
+        'document_id': inv_id,
         'document_type': doc_type,
         'total': total,
         'change_amount': change_amount,
