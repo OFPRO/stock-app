@@ -1158,39 +1158,10 @@ def get_invoices():
     inv_query += ' ORDER BY i.created_at DESC'
     
     invoices = conn.execute(inv_query, inv_params).fetchall()
-    invoices_list = [dict(i) for i in invoices]
-    
-    # Also get POS tickets (client comptoir transactions)
-    tickets_query = '''
-        SELECT t.id, t.transaction_number as invoice_number, NULL as customer_id, 
-               'Client Comptoir' as customer_name, NULL as client_code,
-               t.total, t.status, t.created_at, t.payment_method,
-               t.subtotal as subtotal, t.discount_total, t.tax_amount,
-               t.tendered_amount, t.change_given
-        FROM pos_transactions t
-        WHERE t.transaction_number LIKE 'Ticket-%'
-    '''
-    ticket_params = []
-    if date_start:
-        tickets_query += ' AND date(t.created_at) >= ?'
-        ticket_params.append(date_start)
-    if date_end:
-        tickets_query += ' AND date(t.created_at) <= ?'
-        ticket_params.append(date_end)
-    if status != 'all':
-        tickets_query += ' AND t.status = ?'
-        ticket_params.append(status)
-    tickets_query += ' ORDER BY t.created_at DESC'
-    
-    tickets = conn.execute(tickets_query, ticket_params).fetchall()
     
     conn.close()
     
-    # Combine invoices and tickets
-    all_docs = invoices_list + [dict(t) for t in tickets]
-    all_docs.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    
-    return jsonify(all_docs)
+    return jsonify([dict(i) for i in invoices])
 
 @app.route('/api/invoices', methods=['POST'])
 def create_invoice():
@@ -1814,6 +1785,7 @@ def create_pos_transaction():
     payment_method = data.get('payment_method', 'cash')
     tendered_amount = data.get('tendered_amount', 0)
     notes = data.get('notes', '')
+    is_credit = data.get('is_credit', False)
     
     if not session_id or not items:
         return jsonify({'error': 'Données invalides'}), 400
@@ -1938,33 +1910,47 @@ def create_pos_transaction():
         if cust:
             customer_name = cust['name']
     
-    # Create invoice record for every POS sale
-    inv_type = 'ticket' if is_client_comptoir else 'facture'
-    conn.execute('''
-        INSERT INTO invoices (
-            invoice_number, customer_id, warehouse_id, status, type,
-            subtotal, discount_total, tax_amount, total, 
-            paid_at, payment_method, tendered_amount, change_given
-        ) VALUES (?, ?, 1, 'payee', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
-    ''', (doc_number, customer_id, inv_type, subtotal, discount, tax, total, 
-          payment_method, tendered_amount, change_amount))
-    inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-    
-    conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
-    
-    for item in items:
-        qty = item.get('quantity', 1)
-        uprice = item.get('unit_price', 0) or 0
-        dpct = item.get('discount_percent', 0) or 0
-        line_ht = qty * uprice * (1 - dpct / 100)
-        line_total = line_ht * 1.20
-        conn.execute('''
-            INSERT INTO invoice_items (
-                invoice_id, product_id, product_name, product_sku,
-                quantity, unit_price, discount_percent, tax_rate, line_total
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 20, ?)
-        ''', (inv_id, item.get('product_id') or item.get('id'), item.get('product_name', ''), item.get('product_sku', ''),
-              qty, uprice, dpct, line_total))
+    # Create invoice only for client sales (not for comptoir tickets)
+    inv_id = None
+    inv_status = None
+    if not is_client_comptoir:
+        inv_type = 'facture'
+        inv_status = 'envoyee' if is_credit else 'payee'
+        if inv_status == 'payee':
+            conn.execute('''
+                INSERT INTO invoices (
+                    invoice_number, customer_id, warehouse_id, status, type,
+                    subtotal, discount_total, tax_amount, total, 
+                    paid_at, payment_method, tendered_amount, change_given
+                ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
+            ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
+                  payment_method, tendered_amount, change_amount))
+        else:
+            conn.execute('''
+                INSERT INTO invoices (
+                    invoice_number, customer_id, warehouse_id, status, type,
+                    subtotal, discount_total, tax_amount, total, 
+                    payment_method, tendered_amount, change_given
+                ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
+                  payment_method, tendered_amount, change_amount))
+        inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
+        
+        for item in items:
+            qty = item.get('quantity', 1)
+            uprice = item.get('unit_price', 0) or 0
+            dpct = item.get('discount_percent', 0) or 0
+            line_ht = qty * uprice * (1 - dpct / 100)
+            line_total = line_ht * 1.20
+            conn.execute('''
+                INSERT INTO invoice_items (
+                    invoice_id, product_id, product_name, product_sku,
+                    quantity, unit_price, discount_percent, tax_rate, line_total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 20, ?)
+            ''', (inv_id, item.get('product_id') or item.get('id'), item.get('product_name', ''), item.get('product_sku', ''),
+                  qty, uprice, dpct, line_total))
     
     conn.commit()
     conn.close()
@@ -1974,6 +1960,7 @@ def create_pos_transaction():
         'document_number': doc_number,
         'document_id': inv_id,
         'document_type': doc_type,
+        'document_status': inv_status,
         'total': total,
         'change_amount': change_amount,
         'customer_name': customer_name
@@ -2064,33 +2051,9 @@ def get_pos_recent_transactions():
             LIMIT ?
         ''', (limit,)).fetchall()
     
-    inv = conn.execute('''
-        SELECT i.id, i.invoice_number as transaction_number, NULL as ticket_number,
-               i.customer_id, COALESCE(c.name, 'Client') as customer_name,
-               i.total, COALESCE(i.payment_method, 'card') as payment_method,
-               i.paid_at as created_at, i.subtotal, i.discount_total, i.tax_amount,
-               i.tendered_amount, i.change_given, 'invoice' as source,
-               NULL as session_id, NULL as discount_amount, 0 as change_amount, 'completed' as status
-        FROM invoices i
-        LEFT JOIN customers c ON i.customer_id = c.id
-        WHERE i.status = 'payee'
-          AND NOT EXISTS (
-              SELECT 1 FROM pos_transactions pt
-              WHERE pt.total = i.total
-                AND pt.payment_method = i.payment_method
-                AND DATE(pt.created_at) = DATE(i.paid_at)
-          )
-        ORDER BY i.paid_at DESC
-        LIMIT ?
-    ''', (limit,)).fetchall()
-    
     conn.close()
     
-    all_items = [dict(t) for t in transactions] + [dict(i) for i in inv]
-    all_items.sort(key=lambda x: x.get('created_at') or '', reverse=True)
-    all_items = all_items[:limit]
-    
-    return jsonify(all_items)
+    return jsonify([dict(t) for t in transactions])
 
 @app.route('/api/pos/best-sellers', methods=['GET'])
 def get_pos_best_sellers():

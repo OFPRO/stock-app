@@ -316,6 +316,8 @@ async function processPosPayment() {
     }
     try {
         const customerId = document.getElementById('posCustomer').value;
+        const creditCheckbox = document.getElementById('posCreditCheckbox');
+        const isCredit = creditCheckbox ? creditCheckbox.checked : false;
         const res = await fetch('/api/pos/transactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -325,7 +327,8 @@ async function processPosPayment() {
                 items: posCart,
                 payment_method: posPaymentMethod,
                 tendered_amount: posTenderedAmount,
-                notes: ''
+                notes: '',
+                is_credit: isCredit
             })
         });
         const data = await res.json();
@@ -333,8 +336,9 @@ async function processPosPayment() {
         if (data.success) {
             const docType = data.document_type;
             const docNum = data.document_number;
-            const msg = (docType === 'facture')
-                ? 'Facture generee: ' + docNum
+            const docStatus = data.document_status;
+            let msg = (docType === 'facture')
+                ? (docStatus === 'envoyee' ? 'Facture credit generee (en attente): ' : 'Facture generee: ') + docNum
                 : 'Ticket generee: ' + docNum;
             showError(msg);
             if (data.change_amount > 0) {
@@ -343,6 +347,7 @@ async function processPosPayment() {
             clearPosCart();
             posTenderedAmount = 0;
             document.getElementById('posTendered').value = '';
+            if (creditCheckbox) creditCheckbox.checked = false;
             loadInvoices();
             loadProducts();
             loadPosCashMovements();
@@ -385,6 +390,8 @@ function onCustomerChange() {
     const discountSelect = document.getElementById('posDiscountType');
     const customerSelect = document.getElementById('posCustomer');
     const customerId = customerSelect ? parseInt(customerSelect.value) : null;
+    const creditSection = document.getElementById('posCreditSection');
+    const creditCheckbox = document.getElementById('posCreditCheckbox');
 
     if (!customerId) {
         if (discountSelect) {
@@ -392,12 +399,15 @@ function onCustomerChange() {
             if (autoOption) autoOption.disabled = true;
             discountSelect.value = 'normal';
         }
+        if (creditSection) creditSection.style.display = 'none';
+        if (creditCheckbox) creditCheckbox.checked = false;
     } else {
         if (discountSelect) {
             const autoOption = discountSelect.querySelector('option[value="auto"]');
             if (autoOption) autoOption.disabled = false;
             discountSelect.value = 'auto';
         }
+        if (creditSection) creditSection.style.display = '';
     }
     applyPosDiscount();
 }
