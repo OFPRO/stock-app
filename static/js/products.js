@@ -109,19 +109,21 @@ async function openProductDetail(productId) {
         document.getElementById('detail-expiry').textContent = p.expiry_date || '-';
         document.getElementById('detail-lot').textContent = p.lot_number || '-';
 
-        document.getElementById('detail-selling-price').textContent = (p.price || 0).toFixed(2) + ' DH';
-        document.getElementById('detail-purchase-price').textContent = (p.purchase_price_avg || 0).toFixed(2) + ' DH';
-        document.getElementById('detail-margin').textContent = (p.margin_percent || 0) + '%';
-        document.getElementById('detail-discount').textContent = (p.discount_rate || 0) + '%';
-        document.getElementById('detail-discount-category').textContent = p.discount_category || '-';
-        document.getElementById('detail-discount-rate').textContent = (p.discount_rate || 0) + '%';
-        document.getElementById('detail-calculated-price').textContent = (p.calculated_price || 0).toFixed(2) + ' DH';
-        document.getElementById('detail-tax').textContent = p.tax_category || '-';
+        const purchasePrice = p.purchase_price_avg || 0;
+        const sellingPrice = p.price || 0;
+        const margin = sellingPrice > 0 ? ((sellingPrice - purchasePrice) / sellingPrice * 100).toFixed(1) : 0;
+        document.getElementById('detail-selling-price').textContent = sellingPrice.toFixed(2) + ' DH';
+        document.getElementById('detail-purchase-price').textContent = purchasePrice.toFixed(2) + ' DH';
+        document.getElementById('detail-margin').textContent = margin + '%';
 
+        const priceBase = p.price_base || 0;
         document.getElementById('detail-price-student').value = (p.price_student || 0).toFixed(2);
         document.getElementById('detail-price-school').value = (p.price_school || 0).toFixed(2);
         document.getElementById('detail-price-loyal').value = (p.price_loyal || 0).toFixed(2);
-        document.getElementById('detail-price-base').value = (p.price_base || 0).toFixed(2);
+        document.getElementById('detail-price-base').value = priceBase.toFixed(2);
+
+        renderCustomPriceTiers(p.extra_prices || []);
+        hidePriceSaveButton();
 
         document.getElementById('detail-supplier-name').textContent = p.supplier_name || '-';
         document.getElementById('detail-supplier-email').textContent = p.supplier_email || '-';
@@ -148,7 +150,7 @@ async function openProductDetail(productId) {
         loadProductMovementsList(data.movements);
 
         switchProductTab('overview');
-        document.getElementById('productDetailModal').classList.add('active');
+        openModal('productDetailModal');
 
     } catch(e) {
         console.error('Error loading product:', e);
@@ -184,51 +186,166 @@ function switchProductTab(tab) {
     document.getElementById('tab-' + tab).classList.add('active');
 }
 
-async function calculateProductPrices() {
-    if (!currentProductDetail) return;
-    try {
-        const res = await fetch('/api/products/calculate-prices', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({product_id: currentProductDetail.id})
-        });
-        const data = await res.json();
-        if (data.success && data.prices) {
-            document.getElementById('detail-price-student').value = data.prices.price_student.toFixed(2);
-            document.getElementById('detail-price-school').value = data.prices.price_school.toFixed(2);
-            document.getElementById('detail-price-loyal').value = data.prices.price_loyal.toFixed(2);
-            document.getElementById('detail-price-base').value = data.prices.price_base.toFixed(2);
-            currentProductDetail.price_student = data.prices.price_student;
-            currentProductDetail.price_school = data.prices.price_school;
-            currentProductDetail.price_loyal = data.prices.price_loyal;
-            currentProductDetail.price_base = data.prices.price_base;
-            showSuccess('Prix calculés et enregistrés');
-        } else if (data.error) {
-            showError(data.error);
-        }
-    } catch(e) {
-        showError('Erreur lors du calcul des prix');
-    }
+function updatePriceDisplay() {
+    const basePrice = parseFloat(document.getElementById('detail-price-base').value) || 0;
+    const purchasePrice = currentProductDetail ? (currentProductDetail.purchase_price_avg || 0) : 0;
+    const margin = basePrice > 0 ? ((basePrice - purchasePrice) / basePrice * 100).toFixed(1) : 0;
+    document.getElementById('detail-selling-price').textContent = basePrice.toFixed(2) + ' DH';
+    document.getElementById('detail-margin').textContent = margin + '%';
 }
 
-async function updateProductPrice(field, value) {
+function showPriceSaveButton() {
+    document.getElementById('btn-save-prices').style.display = 'inline-flex';
+    document.getElementById('price-save-status').style.display = 'none';
+}
+
+function hidePriceSaveButton() {
+    document.getElementById('btn-save-prices').style.display = 'none';
+    document.getElementById('price-save-status').style.display = 'none';
+}
+
+function showPriceSaved() {
+    document.getElementById('btn-save-prices').style.display = 'none';
+    document.getElementById('price-save-status').style.display = 'inline';
+    setTimeout(() => { document.getElementById('price-save-status').style.display = 'none'; }, 3000);
+}
+
+async function saveProductPrices() {
     if (!currentProductDetail) return;
-    const priceValue = parseFloat(value) || 0;
-    currentProductDetail[field] = priceValue;
+    const priceBase = parseFloat(document.getElementById('detail-price-base').value) || 0;
+    const priceLoyal = parseFloat(document.getElementById('detail-price-loyal').value) || 0;
+    const priceStudent = parseFloat(document.getElementById('detail-price-student').value) || 0;
+    const priceSchool = parseFloat(document.getElementById('detail-price-school').value) || 0;
+
+    const customPriceEls = document.querySelectorAll('#custom-price-tiers .custom-tier-row');
+    const extraPrices = [];
+    customPriceEls.forEach(row => {
+        const label = row.querySelector('.custom-tier-label').value.trim();
+        const val = parseFloat(row.querySelector('.custom-tier-value').value) || 0;
+        if (label) extraPrices.push({label, price: val});
+    });
+
     try {
         const res = await fetch('/api/products/' + currentProductDetail.id, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(currentProductDetail)
+            body: JSON.stringify({
+                name: currentProductDetail.name,
+                description: currentProductDetail.description || '',
+                sku: currentProductDetail.sku || '',
+                barcode: currentProductDetail.barcode || '',
+                quantity: currentProductDetail.quantity,
+                min_quantity: currentProductDetail.min_quantity,
+                max_quantity: currentProductDetail.max_quantity,
+                price: priceBase,
+                price_base: priceBase,
+                price_loyal: priceLoyal,
+                price_student: priceStudent,
+                price_school: priceSchool,
+                tax_category: currentProductDetail.tax_category || '20',
+                lot_number: currentProductDetail.lot_number || '',
+                serial_number: currentProductDetail.serial_number || '',
+                expiry_date: currentProductDetail.expiry_date || '',
+                supplier_id: currentProductDetail.supplier_id,
+                category: currentProductDetail.category || 'Général',
+                warehouse_id: currentProductDetail.warehouse_id || 1,
+                location_id: currentProductDetail.location_id,
+                extra_prices: extraPrices
+            })
         });
         const data = await res.json();
         if (data.success) {
-            currentProductDetail[field] = priceValue;
+            currentProductDetail.price_base = priceBase;
+            currentProductDetail.price_loyal = priceLoyal;
+            currentProductDetail.price_student = priceStudent;
+            currentProductDetail.price_school = priceSchool;
+            currentProductDetail.price = data.price;
+            showPriceSaved();
+            loadProducts();
+        } else {
+            showError('Erreur lors de l\'enregistrement');
         }
     } catch(e) {
-        console.error('Error saving price:', e);
+        showError('Erreur lors de l\'enregistrement des prix');
     }
 }
+
+function renderCustomPriceTiers(extraPrices) {
+    const container = document.getElementById('custom-price-tiers');
+    if (!container) return;
+    if (!extraPrices || extraPrices.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    let html = '<div class="discount-table">';
+    for (let i = 0; i < extraPrices.length; i++) {
+        const ep = extraPrices[i];
+        html += '<div class="detail-row custom-tier-row">' +
+            '<span class="detail-label"><input type="text" class="form-input custom-tier-label" value="' + escapeHtml(ep.label) + '" style="width:140px;" placeholder="Libellé"></span>' +
+            '<span class="detail-value">' +
+            '<input type="number" class="form-input custom-tier-value" step="0.01" value="' + (ep.price || 0).toFixed(2) + '" style="width:100px;">' +
+            ' <button class="btn btn-sm btn-danger" onclick="removeCustomPriceTier(this)" title="Supprimer"><i class="fas fa-times"></i></button>' +
+            '</span></div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachPriceInputListeners);
+} else {
+    attachPriceInputListeners();
+}
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function addCustomPriceTier() {
+    const container = document.getElementById('custom-price-tiers');
+    const inner = container.querySelector('.discount-table') || container;
+    if (!inner.querySelector('.discount-table')) {
+        const table = document.createElement('div');
+        table.className = 'discount-table';
+        container.innerHTML = '';
+        container.appendChild(table);
+    }
+    const table = container.querySelector('.discount-table') || inner;
+    const row = document.createElement('div');
+    row.className = 'detail-row custom-tier-row';
+    row.innerHTML = '<span class="detail-label"><input type="text" class="form-input custom-tier-label" style="width:140px;" placeholder="Libellé"></span>' +
+        '<span class="detail-value"><input type="number" class="form-input custom-tier-value" step="0.01" value="0.00" style="width:100px;">' +
+        ' <button class="btn btn-sm btn-danger" onclick="removeCustomPriceTier(this)" title="Supprimer"><i class="fas fa-times"></i></button></span>';
+    table.appendChild(row);
+    showPriceSaveButton();
+}
+
+function removeCustomPriceTier(btn) {
+    const row = btn.closest('.custom-tier-row');
+    if (row) {
+        row.remove();
+        const table = document.getElementById('custom-price-tiers').querySelector('.discount-table');
+        if (table && table.children.length === 0) {
+            document.getElementById('custom-price-tiers').innerHTML = '';
+        }
+        showPriceSaveButton();
+    }
+}
+
+function attachPriceInputListeners() {
+    document.querySelectorAll('.price-tier-input, .custom-tier-value, .custom-tier-label').forEach(el => {
+        el.removeEventListener('input', onPriceInputChange);
+        el.addEventListener('input', onPriceInputChange);
+    });
+}
+
+function onPriceInputChange() {
+    updatePriceDisplay();
+    showPriceSaveButton();
+}
+
+attachPriceInputListeners();
 
 function openProductEditFromDetail() {
     if (currentProductDetail) {
@@ -299,7 +416,7 @@ function openStockModal(productId, type) {
     document.getElementById('stockType').value = type;
     const titleEl = document.getElementById('stockTitle');
     if (titleEl) titleEl.textContent = type === 'in' ? 'Entree Stock' : 'Sortie Stock';
-    document.getElementById('stockModal').classList.add('active');
+    openModal('stockModal');
 }
 
 async function saveStock(e) {
@@ -394,7 +511,7 @@ function openProductModal() {
     document.getElementById('productId').value = '';
     document.getElementById('productForm').reset();
     document.getElementById('productModalTitle').textContent = 'Nouveau Produit';
-    document.getElementById('productModal').classList.add('active');
+    openModal('productModal');
 }
 
 function editProductModal(product) {
@@ -409,7 +526,7 @@ function editProductModal(product) {
     document.getElementById('productMinQty').value = product.min_quantity || 5;
     document.getElementById('productMaxQty').value = product.max_quantity || 100;
     document.getElementById('productModalTitle').textContent = 'Modifier Produit';
-    document.getElementById('productModal').classList.add('active');
+    openModal('productModal');
 }
 
 async function saveProduct(e) {

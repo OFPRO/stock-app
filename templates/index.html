@@ -120,13 +120,22 @@
                         </div>
                         <div class="dashboard-filters">
                             <div class="filter-group">
-                                <label>Période</label>
-                                <select id="kpiPeriod" class="form-select" data-change="load-dashboard">
-                                    <option value="7">7 jours</option>
-                                    <option value="30" selected>30 jours</option>
-                                    <option value="90">90 jours</option>
-                                </select>
+                                <label>Du</label>
+                                <input type="date" id="kpiDateStart" class="form-input" data-change="load-dashboard" style="min-width:130px;">
                             </div>
+                            <div class="filter-group">
+                                <label>Au</label>
+                                <input type="date" id="kpiDateEnd" class="form-input" data-change="load-dashboard" style="min-width:130px;">
+                            </div>
+                            <div class="filter-group presets">
+                                <label>Raccourcis</label>
+                                <div class="preset-buttons">
+                                    <button class="btn btn-sm btn-outline preset-btn" data-click="preset-period" data-arg="7">7j</button>
+                                    <button class="btn btn-sm btn-outline preset-btn active" data-click="preset-period" data-arg="30">30j</button>
+                                    <button class="btn btn-sm btn-outline preset-btn" data-click="preset-period" data-arg="90">90j</button>
+                                </div>
+                            </div>
+                            <input type="hidden" id="kpiPeriod" value="30">
                             <div class="filter-group">
                                 <label>Entrepôt</label>
                                 <select id="warehouseFilter" class="form-select" data-change="load-dashboard">
@@ -222,6 +231,37 @@
                                 <div class="kpi-card-label">Compte Principal</div>
                                 <div class="kpi-card-value primary" id="mainAccountKpi">0</div>
                                 <div class="kpi-card-sub">DH</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- KPI CARDS - ROW 3: POS Encaissements -->
+                    <div class="kpi-section">
+                        <div class="kpi-section-title">Encaissements POS</div>
+                        <div class="kpi-cards">
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon success"><i class="fas fa-cash-register"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Total Encaissé</div>
+                                <div class="kpi-card-value primary" id="posTotalEncaissement">0</div>
+                                <div class="kpi-card-sub">DH (période)</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="50">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon success"><i class="fas fa-money-bill-wave"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Dont Espèces</div>
+                                <div class="kpi-card-value success" id="posCashTotal">0</div>
+                                <div class="kpi-card-sub">DH (caisses + factures)</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon info"><i class="fas fa-credit-card"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Dont Carte Bancaire</div>
+                                <div class="kpi-card-value info" id="posCardTotal">0</div>
+                                <div class="kpi-card-sub">DH (caisses + factures)</div>
                             </div>
                         </div>
                     </div>
@@ -478,12 +518,33 @@
                         <div class="card-header">
                             <div class="card-title">Factures</div>
                         </div>
+                        <div style="display:flex;gap:1rem;align-items:flex-end;padding:0 1rem 1rem;flex-wrap:wrap;">
+                            <div class="filter-group">
+                                <label>Du</label>
+                                <input type="date" id="invoiceDateStart" class="form-input" data-change="load-invoices" style="min-width:130px;">
+                            </div>
+                            <div class="filter-group">
+                                <label>Au</label>
+                                <input type="date" id="invoiceDateEnd" class="form-input" data-change="load-invoices" style="min-width:130px;">
+                            </div>
+                            <div class="filter-group">
+                                <label>Statut</label>
+                                <select id="invoiceStatusFilter" class="form-select" data-change="load-invoices" style="min-width:120px;">
+                                    <option value="all">Tous</option>
+                                    <option value="brouillon">Brouillon</option>
+                                    <option value="envoyee">Envoyée</option>
+                                    <option value="payee">Payée</option>
+                                    <option value="annulee">Annulée</option>
+                                </select>
+                            </div>
+                        </div>
                         <table class="table">
                             <thead>
                                 <tr>
                                     <th>N° Facture</th>
                                     <th>Client</th>
-                                    <th>Date</th>
+                                    <th>Créée le</th>
+                                    <th>Payée le</th>
                                     <th>Total</th>
                                     <th>Statut</th>
                                     <th>Actions</th>
@@ -1034,53 +1095,36 @@
                             <span class="pricing-label">Marge (%)</span>
                             <span class="pricing-value" id="detail-margin">0%</span>
                         </div>
-                        <div class="pricing-card warning">
-                            <span class="pricing-label">Remise Catégorie</span>
-                            <span class="pricing-value" id="detail-discount">0%</span>
+                    </div>
+
+                    <h4><i class="fas fa-tags"></i> Tarifs</h4>
+                    <div class="discount-table" id="price-tiers-container">
+                        <div class="detail-row">
+                            <span class="detail-label">Prix Normal</span>
+                            <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-base" step="0.01" style="width:120px;" data-price-field="price_base"></span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Prix Client Fidèle</span>
+                            <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-loyal" step="0.01" style="width:120px;" data-price-field="price_loyal"></span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Prix Étudiant</span>
+                            <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-student" step="0.01" style="width:120px;" data-price-field="price_student"></span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Prix École</span>
+                            <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-school" step="0.01" style="width:120px;" data-price-field="price_school"></span>
                         </div>
                     </div>
-                    
-                    <h4><i class="fas fa-tags"></i> Tarifs par Catégorie</h4>
-                    <div class="discount-table">
-                        <div class="detail-row">
-                            <span class="detail-label">Étudiant (+15%)</span>
-                            <span class="detail-value"><input type="number" class="form-input" id="detail-price-student" step="0.01" style="width:120px;" data-change="update-product-price" data-arg="price_student"></span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">École (+10%)</span>
-                            <span class="detail-value"><input type="number" class="form-input" id="detail-price-school" step="0.01" style="width:120px;" data-change="update-product-price" data-arg="price_school"></span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Client Fidèle (+18%)</span>
-                            <span class="detail-value"><input type="number" class="form-input" id="detail-price-loyal" step="0.01" style="width:120px;" data-change="update-product-price" data-arg="price_loyal"></span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Normal (+20%)</span>
-                            <span class="detail-value"><input type="number" class="form-input" id="detail-price-base" step="0.01" style="width:120px;" data-change="update-product-price" data-arg="price_base"></span>
-                        </div>
-                    </div>
-                    <button class="btn btn-sm btn-primary" data-click="calculate-prices">
-                        <i class="fas fa-calculator"></i> Calculer automatiquement
-                    </button>
-                    
-                    <h4><i class="fas fa-percentage"></i> Détails Remises</h4>
-                    <div class="discount-table">
-                        <div class="detail-row">
-                            <span class="detail-label">Catégorie Remise</span>
-                            <span class="detail-value" id="detail-discount-category">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Taux Remise</span>
-                            <span class="detail-value" id="detail-discount-rate">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Prix Calculé</span>
-                            <span class="detail-value" id="detail-calculated-price">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Catégorie TVA</span>
-                            <span class="detail-value" id="detail-tax">-</span>
-                        </div>
+                    <div id="custom-price-tiers"></div>
+                    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-sm btn-outline" data-click="add-custom-price-tier">
+                            <i class="fas fa-plus"></i> Ajouter un tarif
+                        </button>
+                        <button class="btn btn-sm btn-primary" id="btn-save-prices" data-click="save-product-prices" style="display:none;">
+                            <i class="fas fa-save"></i> Enregistrer les prix
+                        </button>
+                        <span id="price-save-status" style="color:var(--success);font-size:13px;display:none;">Enregistré</span>
                     </div>
                 </div>
                 

@@ -383,7 +383,7 @@ function openConvertToInvoice(orderId) {
     orderToConvert = orderId;
     loadCustomersForSelect();
     document.getElementById('invoiceDueDate').valueAsDate = new Date(Date.now() + 30 * 86400000);
-    document.getElementById('convertToInvoiceModal').classList.add('active');
+    openModal('convertToInvoiceModal');
 }
 
 async function loadCustomersForSelect() {

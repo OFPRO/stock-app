@@ -585,6 +585,27 @@
             color: white;
             border-color: var(--primary);
         }
+        .presets {
+            min-width: 180px;
+        }
+        .preset-buttons {
+            display: flex;
+            gap: 0.25rem;
+        }
+        .preset-btn {
+            padding: 0.35rem 0.6rem !important;
+            font-size: 0.75rem !important;
+        }
+        .preset-btn.active {
+            background: var(--color-primary) !important;
+            color: var(--color-text-on-primary) !important;
+            border-color: var(--color-primary) !important;
+        }
+        .filter-group .form-input {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            min-width: 120px;
+        }
         
         /* KPI Section */
         .kpi-section {

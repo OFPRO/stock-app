@@ -1,6 +1,16 @@
 async function loadInvoices() {
     try {
-        const res = await fetch('/api/invoices');
+        const dateStart = document.getElementById('invoiceDateStart')?.value || '';
+        const dateEnd = document.getElementById('invoiceDateEnd')?.value || '';
+        const status = document.getElementById('invoiceStatusFilter')?.value || 'all';
+
+        const params = new URLSearchParams();
+        if (dateStart) params.set('date_start', dateStart);
+        if (dateEnd) params.set('date_end', dateEnd);
+        if (status !== 'all') params.set('status', status);
+
+        const url = '/api/invoices' + (params.toString() ? '?' + params.toString() : '');
+        const res = await fetch(url);
         invoices = await res.json();
         renderInvoices();
     } catch(e) {
@@ -12,7 +22,7 @@ function renderInvoices() {
     const tbody = document.getElementById('invoicesTable');
     if (!tbody) return;
     if (invoices.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5">Aucune facture</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-light);">Aucune facture pour cette période</td></tr>';
         return;
     }
     let html = '';
@@ -25,7 +35,18 @@ function renderInvoices() {
         const label = isTicket ? 'Ticket' : (isFournisseur ? 'Fact-Fourn' : 'Facture');
         const btnLabel = isTicket ? 'Ticket' : 'Voir';
         const partyName = isFournisseur ? (inv.supplier_name || 'Fournisseur') : (inv.customer_name || 'Client Comptoir');
-        html += '<tr><td><span class="' + badgeClass + '">' + label + '</span> ' + inv.invoice_number + '</td><td>' + partyName + '</td><td>' + (inv.created_at ? inv.created_at.substring(0, 10) : '-') + '</td><td>' + (inv.total || 0).toFixed(2) + ' DH</td><td><span class="badge badge-' + (inv.status === 'payee' ? 'success' : 'warning') + '">' + (inv.status || 'brouillon') + '</span></td><td><button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + inv.invoice_number + '\')">' + btnLabel + '</button></td></tr>';
+        const createdDate = inv.created_at ? inv.created_at.substring(0, 10) : '-';
+        const paidDate = inv.paid_at ? inv.paid_at.substring(0, 10) : '-';
+        const statusBadge = 'badge badge-' + (inv.status === 'payee' ? 'success' : inv.status === 'envoyee' ? 'warning' : inv.status === 'annulee' ? 'danger' : 'secondary');
+        html += '<tr>' +
+            '<td><span class="' + badgeClass + '">' + label + '</span> ' + inv.invoice_number + '</td>' +
+            '<td>' + partyName + '</td>' +
+            '<td>' + createdDate + '</td>' +
+            '<td>' + paidDate + '</td>' +
+            '<td>' + (inv.total || 0).toFixed(2) + ' DH</td>' +
+            '<td><span class="' + statusBadge + '">' + (inv.status || 'brouillon') + '</span></td>' +
+            '<td><button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + inv.invoice_number + '\')">' + btnLabel + '</button></td>' +
+            '</tr>';
     }
     tbody.innerHTML = html;
 }
