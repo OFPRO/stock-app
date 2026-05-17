@@ -41,7 +41,7 @@ Name: "service"; Description: "Installer comme service Windows (démarrage autom
 Name: "desktopicon"; Description: "Icône sur le bureau"; Types: custom
 
 [Files]
-Source: "dist\stock-app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\stock-app.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "postinstall.cmd"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
