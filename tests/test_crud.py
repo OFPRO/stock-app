@@ -36,14 +36,17 @@ class TestProducts:
                         str(seed_data['customer_id']))
         assert rv.status_code == 200
 
-    def test_calculate_prices(self, client, seed_data):
-        rv = client.post('/api/products/calculate-prices', json={
-            'product_id': seed_data['product_id'],
+    def test_update_product_prices(self, client, seed_data):
+        rv = client.put(f'/api/products/{seed_data["product_id"]}', json={
+            'name': 'Test Product', 'sku': 'TST001',
+            'price': 15, 'price_base': 15,
+            'price_loyal': 12.75, 'price_student': 12.00, 'price_school': 11.25,
         })
         assert rv.status_code == 200
         data = rv.get_json()
         assert data['success'] is True
-        assert 'prices' in data
+        assert data['price'] == 15
+        assert data['margin'] is not None
 
 
 class TestCustomers:

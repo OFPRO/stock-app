@@ -1,7 +1,8 @@
 from contextlib import contextmanager
+import os
 import sqlite3
 
-DB_NAME = 'stock.db'
+DB_NAME = os.environ.get('STOCKPRO_DB_PATH', 'stock.db')
 
 def validate_id(value):
     if value is None:

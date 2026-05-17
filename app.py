@@ -2,6 +2,10 @@ import sqlite3
 import csv
 import random
 import html
+import os
+import sys
+import argparse
+import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, Response, send_from_directory
@@ -151,6 +155,10 @@ def init_db():
         pass
     try:
         c.execute('ALTER TABLE products ADD COLUMN margin_percent REAL DEFAULT 15.0')
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE products ADD COLUMN extra_prices TEXT DEFAULT '[]'")
     except Exception:
         pass
     for col_def in [
@@ -507,6 +515,16 @@ def init_db():
         c.execute('''
             INSERT INTO locations (warehouse_id, name, type) VALUES (?, 'Zone principale', 'zone')
         ''', (warehouse_id,))
+    
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS _schema_version (
+            version INTEGER PRIMARY KEY,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    current = c.execute('SELECT MAX(version) FROM _schema_version').fetchone()[0]
+    if not current:
+        c.execute('INSERT INTO _schema_version (version) VALUES (1)')
     
     conn.commit()
     conn.close()
@@ -1109,9 +1127,11 @@ def seed_data():
 def get_invoices():
     warehouse_id = request.args.get('warehouse_id')
     status = request.args.get('status', 'all')
+    date_start = request.args.get('date_start')
+    date_end = request.args.get('date_end')
     conn = get_db()
     
-    query = '''
+    inv_query = '''
         SELECT i.*, 
                c.name as customer_name, c.client_code,
                s.name as supplier_name,
@@ -1122,16 +1142,22 @@ def get_invoices():
         LEFT JOIN warehouses w ON i.warehouse_id = w.id
         WHERE 1=1
     '''
-    params = []
+    inv_params = []
     if warehouse_id and warehouse_id.isdigit():
-        query += ' AND i.warehouse_id = ?'
-        params.append(int(warehouse_id))
+        inv_query += ' AND i.warehouse_id = ?'
+        inv_params.append(int(warehouse_id))
+    if date_start:
+        inv_query += ' AND date(COALESCE(i.paid_at, i.created_at)) >= ?'
+        inv_params.append(date_start)
+    if date_end:
+        inv_query += ' AND date(COALESCE(i.paid_at, i.created_at)) <= ?'
+        inv_params.append(date_end)
     if status != 'all':
-        query += ' AND i.status = ?'
-        params.append(status)
-    query += ' ORDER BY i.created_at DESC'
+        inv_query += ' AND i.status = ?'
+        inv_params.append(status)
+    inv_query += ' ORDER BY i.created_at DESC'
     
-    invoices = conn.execute(query, params).fetchall()
+    invoices = conn.execute(inv_query, inv_params).fetchall()
     invoices_list = [dict(i) for i in invoices]
     
     # Also get POS tickets (client comptoir transactions)
@@ -1144,11 +1170,19 @@ def get_invoices():
         FROM pos_transactions t
         WHERE t.transaction_number LIKE 'Ticket-%'
     '''
+    ticket_params = []
+    if date_start:
+        tickets_query += ' AND date(t.created_at) >= ?'
+        ticket_params.append(date_start)
+    if date_end:
+        tickets_query += ' AND date(t.created_at) <= ?'
+        ticket_params.append(date_end)
     if status != 'all':
         tickets_query += ' AND t.status = ?'
+        ticket_params.append(status)
     tickets_query += ' ORDER BY t.created_at DESC'
     
-    tickets = conn.execute(tickets_query, params if status != 'all' else []).fetchall()
+    tickets = conn.execute(tickets_query, ticket_params).fetchall()
     
     conn.close()
     
@@ -2007,14 +2041,14 @@ def get_pos_customers():
 
 @app.route('/api/pos/transactions/recent', methods=['GET'])
 def get_pos_recent_transactions():
-    """Get recent POS transactions"""
+    """Get recent transactions: POS tickets + paid invoices"""
     conn = get_db()
     limit = _safe_int(request.args.get('limit', 20), 20)
     session_id = request.args.get('session_id')
     
     if session_id:
         transactions = conn.execute('''
-            SELECT t.*, c.name as customer_name
+            SELECT t.*, c.name as customer_name, 'ticket' as source
             FROM pos_transactions t
             LEFT JOIN customers c ON t.customer_id = c.id
             WHERE t.session_id = ?
@@ -2023,15 +2057,40 @@ def get_pos_recent_transactions():
         ''', (session_id, limit)).fetchall()
     else:
         transactions = conn.execute('''
-            SELECT t.*, c.name as customer_name
+            SELECT t.*, c.name as customer_name, 'ticket' as source
             FROM pos_transactions t
             LEFT JOIN customers c ON t.customer_id = c.id
             ORDER BY t.created_at DESC
             LIMIT ?
         ''', (limit,)).fetchall()
     
+    inv = conn.execute('''
+        SELECT i.id, i.invoice_number as transaction_number, NULL as ticket_number,
+               i.customer_id, COALESCE(c.name, 'Client') as customer_name,
+               i.total, COALESCE(i.payment_method, 'card') as payment_method,
+               i.paid_at as created_at, i.subtotal, i.discount_total, i.tax_amount,
+               i.tendered_amount, i.change_given, 'invoice' as source,
+               NULL as session_id, NULL as discount_amount, 0 as change_amount, 'completed' as status
+        FROM invoices i
+        LEFT JOIN customers c ON i.customer_id = c.id
+        WHERE i.status = 'payee'
+          AND NOT EXISTS (
+              SELECT 1 FROM pos_transactions pt
+              WHERE pt.total = i.total
+                AND pt.payment_method = i.payment_method
+                AND DATE(pt.created_at) = DATE(i.paid_at)
+          )
+        ORDER BY i.paid_at DESC
+        LIMIT ?
+    ''', (limit,)).fetchall()
+    
     conn.close()
-    return jsonify([dict(t) for t in transactions])
+    
+    all_items = [dict(t) for t in transactions] + [dict(i) for i in inv]
+    all_items.sort(key=lambda x: x.get('created_at') or '', reverse=True)
+    all_items = all_items[:limit]
+    
+    return jsonify(all_items)
 
 @app.route('/api/pos/best-sellers', methods=['GET'])
 def get_pos_best_sellers():
@@ -2341,6 +2400,36 @@ def get_pos_transaction_by_invoice(invoice_number):
     conn.close()
     return jsonify(dict(transaction))
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='StockPro - Gestion de Stock')
+    parser.add_argument('--port', type=int, default=5001, help='Port du serveur')
+    parser.add_argument('--data-dir', type=str, default=None,
+                        help='Dossier de données (DB, logs)')
+    parser.add_argument('--open-browser', action='store_true',
+                        help='Ouvrir le navigateur au démarrage')
+    parser.add_argument('--service', action='store_true',
+                        help='Mode service Windows (pas de console)')
+    return parser.parse_args()
+
 if __name__ == '__main__':
+    args = parse_args()
+
+    if args.data_dir:
+        os.makedirs(args.data_dir, exist_ok=True)
+        db_path = os.path.join(args.data_dir, 'stock.db')
+        os.environ['STOCKPRO_DB_PATH'] = db_path
+
     init_db()
-    app.run(debug=False, port=5001, threaded=True)
+
+    if args.service:
+        pid_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.pid')
+        with open(pid_file, 'w') as f:
+            f.write(str(os.getpid()))
+        log_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.log')
+        sys.stdout = open(log_file, 'a')
+        sys.stderr = open(log_file, 'a')
+
+    if args.open_browser:
+        webbrowser.open(f'http://localhost:{args.port}')
+
+    app.run(debug=False, port=args.port, threaded=True)

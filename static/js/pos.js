@@ -507,16 +507,19 @@ async function loadPosTransactions() {
             const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
             const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
             const customer = t.customer_name || 'Client Comptoir';
+            const isInvoice = t.source === 'invoice';
             const methodIcon = t.payment_method === 'cash' ? '<i class="fas fa-money-bill-wave"></i>' :
                             t.payment_method === 'card' ? '<i class="fas fa-credit-card"></i>' :
                             '<i class="fas fa-wallet"></i>';
             const methodText = t.payment_method === 'cash' ? 'Especes' :
                             t.payment_method === 'card' ? 'Carte' :
                             'Mixed';
+            const icon = isInvoice ? '<i class="fas fa-file-invoice"></i>' : '<i class="fas fa-receipt"></i>';
+            const label = isInvoice ? 'Facture' : (t.ticket_number || t.transaction_number || '-');
 
             return '<div class="pos-transaction-item">' +
                 '<div class="pos-transaction-info">' +
-                '<span class="pos-transaction-number"><i class="fas fa-receipt"></i> ' + (t.ticket_number || t.transaction_number || '-') + '</span>' +
+                '<span class="pos-transaction-number">' + icon + ' ' + label + '</span>' +
                 '<span class="pos-transaction-time"><i class="fas fa-clock"></i> ' + dateStr + ' ' + timeStr + ' | ' + customer + ' | ' + methodIcon + ' ' + methodText + '</span></div>' +
                 '<span class="pos-transaction-total">' + t.total.toFixed(2) + ' DH</span></div>';
         }).join('');

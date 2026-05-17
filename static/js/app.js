@@ -51,7 +51,8 @@ async function initApp() {
         if (warehouses.length > 0) {
             currentWarehouse = warehouses[0].id;
         }
-        loadDashboard();
+        if (typeof initDashboardDates === 'function') initDashboardDates();
+        else loadDashboard();
         loadSuppliers();
     } catch(e) {
         console.error('Init error:', e);
@@ -65,6 +66,14 @@ function showError(msg) {
         el.textContent = msg;
         el.style.display = msg ? 'block' : 'none';
         if (msg) setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+}
+
+function openModal(modalId) {
+    const el = document.getElementById(modalId);
+    if (el) {
+        el.style.display = '';
+        el.classList.add('active');
     }
 }
 
@@ -285,6 +294,9 @@ document.addEventListener('click', e => {
         case 'close-modal': closeModal(arg); break;
         case 'toggle-theme': toggleTheme(); break;
         case 'toggle-sidebar': toggleSidebar(); break;
+        case 'preset-period':
+            if (typeof setPresetPeriod === 'function') setPresetPeriod(parseInt(arg));
+            break;
         case 'load-dashboard': loadDashboard(); break;
         case 'load-products': loadProducts(); break;
         case 'load-movements': loadMovements(); break;
@@ -333,10 +345,11 @@ document.addEventListener('click', e => {
         case 'open-product-detail': openProductDetail(parseInt(arg)); break;
         case 'delete-product': confirmDeleteProduct(parseInt(arg), arg2); break;
         case 'delete-product-from-detail': deleteProductFromDetail(); break;
+        case 'save-product-prices': saveProductPrices(); break;
+        case 'add-custom-price-tier': addCustomPriceTier(); break;
         case 'open-product-edit-from-detail': openProductEditFromDetail(); break;
         case 'open-product-page': openProductPage(); break;
         case 'create-order-from-detail': createOrderFromDetail(); break;
-        case 'calculate-prices': calculateProductPrices(); break;
         case 'load-product-movements-list': loadProductMovementsList(); break;
         case 'open-stock-from-detail':
             if (currentProductDetail) {
@@ -359,7 +372,7 @@ document.addEventListener('change', e => {
         case 'apply-pos-discount': applyPosDiscount(); break;
         case 'handle-pos-cash-in': handlePosCashIn(); break;
         case 'handle-pos-cash-out': handlePosCashOut(); break;
-        case 'update-product-price': updateProductPrice(el.getAttribute('data-arg')); break;
+        case 'load-invoices': loadInvoices(); break;
         case 'report-period': onReportPeriodChange(); break;
         case 'report-date': onReportDateChange(); break;
     }

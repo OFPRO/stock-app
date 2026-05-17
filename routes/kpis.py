@@ -27,25 +27,25 @@ def get_kpis():
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products WHERE warehouse_id=? AND category=?', all_params).fetchone()[0]
             avg_price = conn.execute('SELECT COALESCE(AVG(price), 0) FROM products WHERE warehouse_id=? AND category=?', all_params).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND warehouse_id=? AND category=?', all_params).fetchone()[0]
-            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) AND warehouse_id=? AND category=?', all_params).fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND warehouse_id=? AND category=?', all_params).fetchone()[0]
         elif warehouse_id:
             total_products = conn.execute('SELECT COUNT(*) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             avg_price = conn.execute('SELECT COALESCE(AVG(price), 0) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
-            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
         elif category:
             total_products = conn.execute('SELECT COUNT(*) FROM products WHERE category=?', (category,)).fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products WHERE category=?', (category,)).fetchone()[0]
             avg_price = conn.execute('SELECT COALESCE(AVG(price), 0) FROM products WHERE category=?', (category,)).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND category=?', (category,)).fetchone()[0]
-            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) AND category=?', (category,)).fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND category=?', (category,)).fetchone()[0]
         else:
             total_products = conn.execute('SELECT COUNT(*) FROM products').fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products').fetchone()[0]
             avg_price = conn.execute('SELECT COALESCE(AVG(price), 0) FROM products').fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity').fetchone()[0]
-            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL)').fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL)').fetchone()[0]
         
         if date_start and date_end:
             date_params = (date_start, date_end)
@@ -62,7 +62,8 @@ def get_kpis():
             out_movements = conn.execute("SELECT COALESCE(SUM(quantity), 0) FROM stock_movements WHERE type IN ('out','sale','destruction') AND created_at>=date('now', ?)", (f'-{period} days',)).fetchone()[0]
         
         today_movements = conn.execute("SELECT COUNT(*) FROM stock_movements WHERE date(created_at) = date('now')").fetchone()[0]
-        rotation_rate = (out_movements / total_products * 100) if total_products > 0 else 0
+        total_movements = in_movements + out_movements
+        rotation_rate = (out_movements / total_movements * 100) if total_movements > 0 else 0
         
         return jsonify({
             'total_products': total_products,
@@ -89,13 +90,13 @@ def get_dashboard_kpis():
             total_products = conn.execute('SELECT COUNT(*) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity < min_quantity AND is_deleted = 0 AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
-            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) AND is_deleted = 0 AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND is_deleted = 0 AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
             products_to_order = conn.execute('SELECT id, name, sku, quantity, min_quantity, (min_quantity - quantity) as needed FROM products WHERE quantity < min_quantity AND is_deleted = 0 AND warehouse_id=? ORDER BY needed DESC LIMIT 10', (warehouse_id,)).fetchall()
         else:
             total_products = conn.execute('SELECT COUNT(*) FROM products').fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products').fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity < min_quantity AND is_deleted = 0').fetchone()[0]
-            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity < 0 OR quantity IS NULL) AND is_deleted = 0').fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND is_deleted = 0').fetchone()[0]
             products_to_order = conn.execute('SELECT id, name, sku, quantity, min_quantity, (min_quantity - quantity) as needed FROM products WHERE quantity < min_quantity AND is_deleted = 0 ORDER BY needed DESC LIMIT 10').fetchall()
         
         avg_price = total_value / total_products if total_products > 0 else 0
@@ -109,8 +110,10 @@ def get_dashboard_kpis():
         today_movements = conn.execute("SELECT COUNT(*) FROM stock_movements WHERE date(created_at) = date('now')").fetchone()[0]
         avg_daily_out = out_movements / period if period > 0 else 1
         dio = total_products / avg_daily_out if avg_daily_out > 0 else 0
-        rotation_rate = (out_movements / total_products * 100) if total_products > 0 else 0
-        prev_rotation = (prev_out / total_products * 100) if total_products > 0 else 0
+        total_movements = in_movements + out_movements
+        rotation_rate = (out_movements / total_movements * 100) if total_movements > 0 else 0
+        prev_total = prev_in + prev_out
+        prev_rotation = (prev_out / prev_total * 100) if prev_total > 0 else 0
         in_trend = ((in_movements - prev_in) / prev_in * 100) if prev_in > 0 else 0
         out_trend = ((out_movements - prev_out) / prev_out * 100) if prev_out > 0 else 0
         
@@ -147,12 +150,12 @@ def get_alertes():
     with get_db() as conn:
         if warehouse_id:
             low_stock = conn.execute('SELECT id, name, sku, quantity, min_quantity, price, (min_quantity - quantity) as needed FROM products WHERE quantity < min_quantity AND is_deleted = 0 AND warehouse_id=? ORDER BY needed DESC LIMIT 10', (warehouse_id,)).fetchall()
-            out_of_stock = conn.execute('SELECT id, name, sku, min_quantity, price FROM products WHERE (quantity < 0 OR quantity IS NULL) AND is_deleted = 0 AND warehouse_id=? ORDER BY min_quantity DESC LIMIT 10', (warehouse_id,)).fetchall()
+            out_of_stock = conn.execute('SELECT id, name, sku, min_quantity, price FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND is_deleted = 0 AND warehouse_id=? ORDER BY min_quantity DESC LIMIT 10', (warehouse_id,)).fetchall()
             expiring = conn.execute('SELECT id, name, lot_number, expiry_date, quantity, CAST(julianday(expiry_date) - julianday(\'now\') AS INTEGER) as days_left FROM products WHERE expiry_date IS NOT NULL AND expiry_date <= date(\'now\', \'+30 days\') AND expiry_date >= date(\'now\') AND warehouse_id=? ORDER BY expiry_date LIMIT 10', (warehouse_id,)).fetchall()
             inactive = conn.execute('SELECT p.id, p.name, p.quantity, p.price, MAX(m.created_at) as last_movement FROM products p LEFT JOIN stock_movements m ON p.id = m.product_id WHERE p.warehouse_id=? GROUP BY p.id HAVING MAX(m.created_at) IS NULL OR MAX(m.created_at) < date(\'now\', \'-90 days\') LIMIT 10', (warehouse_id,)).fetchall()
         else:
             low_stock = conn.execute('SELECT id, name, sku, quantity, min_quantity, price, (min_quantity - quantity) as needed FROM products WHERE quantity < min_quantity AND is_deleted = 0 ORDER BY needed DESC LIMIT 10').fetchall()
-            out_of_stock = conn.execute('SELECT id, name, sku, min_quantity, price FROM products WHERE (quantity < 0 OR quantity IS NULL) AND is_deleted = 0 ORDER BY min_quantity DESC LIMIT 10').fetchall()
+            out_of_stock = conn.execute('SELECT id, name, sku, min_quantity, price FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND is_deleted = 0 ORDER BY min_quantity DESC LIMIT 10').fetchall()
             expiring = conn.execute('SELECT id, name, lot_number, expiry_date, quantity, CAST(julianday(expiry_date) - julianday(\'now\') AS INTEGER) as days_left FROM products WHERE expiry_date IS NOT NULL AND expiry_date <= date(\'now\', \'+30 days\') AND expiry_date >= date(\'now\') ORDER BY expiry_date LIMIT 10').fetchall()
             inactive = conn.execute('SELECT p.id, p.name, p.quantity, p.price, MAX(m.created_at) as last_movement FROM products p LEFT JOIN stock_movements m ON p.id = m.product_id GROUP BY p.id HAVING MAX(m.created_at) IS NULL OR MAX(m.created_at) < date(\'now\', \'-90 days\') LIMIT 10').fetchall()
         
@@ -172,12 +175,12 @@ def get_stats():
             total = conn.execute('SELECT COUNT(*) as count FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) as count FROM products WHERE quantity <= min_quantity AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) as total FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
-            out_of_stock = conn.execute('SELECT COUNT(*) as count FROM products WHERE (quantity < 0 OR quantity IS NULL) AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) as count FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
         else:
             total = conn.execute('SELECT COUNT(*) as count FROM products').fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) as count FROM products WHERE quantity <= min_quantity').fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) as total FROM products').fetchone()[0]
-            out_of_stock = conn.execute('SELECT COUNT(*) as count FROM products WHERE (quantity < 0 OR quantity IS NULL)').fetchone()[0]
+            out_of_stock = conn.execute('SELECT COUNT(*) as count FROM products WHERE (quantity <= 0 OR quantity IS NULL)').fetchone()[0]
         
         warehouses_count = conn.execute('SELECT COUNT(*) FROM warehouses').fetchone()[0]
         
@@ -357,39 +360,63 @@ def get_kpis_margins():
 
 @kpis_bp.route('/api/kpis/receivables', methods=['GET'])
 def get_kpis_receivables():
+    period = _safe_int(request.args.get('period', 30), 30)
+    date_start = request.args.get('date_start')
+    date_end = request.args.get('date_end')
+
+    date_filter = ""
+    date_filter_i = ""
+    date_params = []
+    if date_start and date_end:
+        date_filter = "AND date(created_at) BETWEEN ? AND ?"
+        date_filter_i = "AND date(i.created_at) BETWEEN ? AND ?"
+        date_params = [date_start, date_end]
+    elif date_start:
+        date_filter = "AND date(created_at) >= ?"
+        date_filter_i = "AND date(i.created_at) >= ?"
+        date_params = [date_start]
+    elif date_end:
+        date_filter = "AND date(created_at) <= ?"
+        date_filter_i = "AND date(i.created_at) <= ?"
+        date_params = [date_end]
+    else:
+        date_filter = "AND created_at >= date('now', ?)"
+        date_filter_i = "AND i.created_at >= date('now', ?)"
+        date_params = ['-' + str(period) + ' days']
+
     with get_db() as conn:
-        total_creances = conn.execute("""
+        total_creances = conn.execute(f"""
             SELECT COALESCE(SUM(total), 0) as total 
             FROM invoices 
-            WHERE status = 'envoyee'
-        """).fetchone()[0]
+            WHERE status = 'envoyee' {date_filter}
+        """, tuple(date_params)).fetchone()[0]
 
-        nb_impayees = conn.execute("""
+        nb_impayees = conn.execute(f"""
             SELECT COUNT(*) as count 
             FROM invoices 
-            WHERE status = 'envoyee'
-        """).fetchone()[0]
+            WHERE status = 'envoyee' {date_filter}
+        """, tuple(date_params)).fetchone()[0]
 
-        creances_par_client = conn.execute("""
+        creances_par_client = conn.execute(f"""
             SELECT c.id, c.name, c.client_code,
                    COALESCE(SUM(i.total), 0) as montant,
                    COUNT(i.id) as nb_factures,
                    MIN(i.due_date) as premiere_echeance
             FROM customers c
-            JOIN invoices i ON c.id = i.customer_id AND i.status = 'envoyee'
+            JOIN invoices i ON c.id = i.customer_id AND i.status = 'envoyee' {date_filter_i}
             GROUP BY c.id
             ORDER BY montant DESC
             LIMIT 10
-        """).fetchall()
+        """, tuple(date_params)).fetchall()
 
         clients = [dict(c) for c in creances_par_client]
 
-        total_factures = conn.execute("""
-            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != 'annulee'
-        """).fetchone()[0]
-        paye = conn.execute("""
-            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'payee'
-        """).fetchone()[0]
+        total_factures = conn.execute(f"""
+            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != 'annulee' {date_filter}
+        """, tuple(date_params)).fetchone()[0]
+        paye = conn.execute(f"""
+            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'payee' {date_filter}
+        """, tuple(date_params)).fetchone()[0]
         taux_encaissement = (paye / total_factures * 100) if total_factures > 0 else 0
 
         return jsonify({
@@ -401,11 +428,30 @@ def get_kpis_receivables():
 
 @kpis_bp.route('/api/kpis/invoices-status', methods=['GET'])
 def get_kpis_invoices_status():
+    period = _safe_int(request.args.get('period', 30), 30)
+    date_start = request.args.get('date_start')
+    date_end = request.args.get('date_end')
+
+    date_filter = ""
+    date_params = []
+    if date_start and date_end:
+        date_filter = "AND date(created_at) BETWEEN ? AND ?"
+        date_params = [date_start, date_end]
+    elif date_start:
+        date_filter = "AND date(created_at) >= ?"
+        date_params = [date_start]
+    elif date_end:
+        date_filter = "AND date(created_at) <= ?"
+        date_params = [date_end]
+    else:
+        date_filter = "AND created_at >= date('now', ?)"
+        date_params = ['-' + str(period) + ' days']
+
     with get_db() as conn:
-        brouillon = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'brouillon'").fetchone()[0]
-        envoyee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'envoyee'").fetchone()[0]
-        payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'payee'").fetchone()[0]
-        annulee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'annulee'").fetchone()[0]
+        brouillon = conn.execute(f"SELECT COUNT(*) FROM invoices WHERE status = 'brouillon' {date_filter}", tuple(date_params)).fetchone()[0]
+        envoyee = conn.execute(f"SELECT COUNT(*) FROM invoices WHERE status = 'envoyee' {date_filter}", tuple(date_params)).fetchone()[0]
+        payee = conn.execute(f"SELECT COUNT(*) FROM invoices WHERE status = 'payee' {date_filter}", tuple(date_params)).fetchone()[0]
+        annulee = conn.execute(f"SELECT COUNT(*) FROM invoices WHERE status = 'annulee' {date_filter}", tuple(date_params)).fetchone()[0]
         return jsonify({
             'brouillon': brouillon,
             'envoyee': envoyee,
@@ -419,7 +465,7 @@ def get_kpis_sales_daily():
     today = datetime.now()
 
     daily_sales = []
-    for i in range(period - 1, -1, -1):
+    for i in range(period, -1, -1):
         target_date = (today - timedelta(days=i)).strftime('%Y-%m-%d')
 
         with get_db() as conn:
@@ -499,20 +545,25 @@ def get_kpis_top_selling():
     date_end = request.args.get('date_end')
 
     if date_start and date_end:
-        date_filter = "AND date(t.created_at) BETWEEN ? AND ?"
+        date_filter_pos = "AND date(t.created_at) BETWEEN ? AND ?"
         date_params = (date_start, date_end)
+        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND date(paid_at) BETWEEN ? AND ?"
+        inv_params = (date_start, date_end)
     elif date_start:
-        date_filter = "AND date(t.created_at) >= ?"
+        date_filter_pos = "AND date(t.created_at) >= ?"
         date_params = (date_start,)
+        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND date(paid_at) >= ?"
+        inv_params = (date_start,)
     elif date_end:
-        date_filter = "AND date(t.created_at) <= ?"
+        date_filter_pos = "AND date(t.created_at) <= ?"
         date_params = (date_end,)
+        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND date(paid_at) <= ?"
+        inv_params = (date_end,)
     else:
-        if period == 1:
-            date_filter = "AND date(t.created_at) = date('now')"
-        else:
-            date_filter = "AND t.created_at >= date('now', '-' || ? || ' days')"
+        date_filter_pos = "AND t.created_at >= date('now', '-' || ? || ' days')"
+        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND paid_at >= date('now', '-' || ? || ' days')"
         date_params = (str(period),)
+        inv_params = (str(period),)
 
     with get_db() as conn:
         pos_products = conn.execute("""
@@ -521,7 +572,7 @@ def get_kpis_top_selling():
                    COALESCE(SUM(pti.line_total), 0) as ca
             FROM products p
             LEFT JOIN pos_transaction_items pti ON p.id = pti.product_id
-            LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed' """ + date_filter + """
+            LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed' """ + date_filter_pos + """
             GROUP BY p.id
         """, date_params).fetchall()
 
@@ -531,9 +582,9 @@ def get_kpis_top_selling():
                    COALESCE(SUM(ii.line_total), 0) as ca
             FROM products p
             LEFT JOIN invoice_items ii ON p.id = ii.product_id
-            LEFT JOIN invoices i ON ii.invoice_id = i.id AND i.status = 'payee'
+                AND ii.invoice_id IN (""" + inv_id_subquery + """)
             GROUP BY p.id
-        """).fetchall()
+        """, inv_params).fetchall()
 
         merged = {}
         for row in list(pos_products) + list(inv_products):
@@ -789,3 +840,76 @@ def get_evolution():
         })
 
     return jsonify(evolution)
+
+
+@kpis_bp.route('/api/kpis/payment-methods', methods=['GET'])
+def get_kpis_payment_methods():
+    period = _safe_int(request.args.get('period', 30), 30)
+    date_start = request.args.get('date_start')
+    date_end = request.args.get('date_end')
+
+    pos_filter = ""
+    inv_filter = ""
+    params = []
+    if date_start and date_end:
+        pos_filter = "AND date(created_at) BETWEEN ? AND ?"
+        inv_filter = "AND date(paid_at) BETWEEN ? AND ?"
+        params = [date_start, date_end]
+    elif date_start:
+        pos_filter = "AND date(created_at) >= ?"
+        inv_filter = "AND date(paid_at) >= ?"
+        params = [date_start]
+    elif date_end:
+        pos_filter = "AND date(created_at) <= ?"
+        inv_filter = "AND date(paid_at) <= ?"
+        params = [date_end]
+    else:
+        pos_filter = "AND created_at >= date('now', ?)"
+        inv_filter = "AND paid_at >= date('now', ?)"
+        params = ['-' + str(period) + ' days']
+
+    with get_db() as conn:
+        pos = conn.execute(f"""
+            SELECT COALESCE(payment_method, 'carte') as payment_method,
+                   COALESCE(SUM(total), 0) as total, COUNT(*) as nb
+            FROM pos_transactions
+            WHERE status = 'completed' {pos_filter}
+            GROUP BY payment_method
+        """, tuple(params)).fetchall()
+
+        inv = conn.execute(f"""
+            SELECT COALESCE(payment_method, 'card') as payment_method,
+                   COALESCE(SUM(total), 0) as total, COUNT(*) as nb
+            FROM invoices
+            WHERE status = 'payee' {inv_filter}
+            GROUP BY payment_method
+        """, tuple(params)).fetchall()
+
+    pos_dict = {}
+    for r in pos:
+        pm = r['payment_method'] or 'card'
+        pos_dict[pm] = {'total': r['total'], 'nb': r['nb']}
+    inv_dict = {}
+    for r in inv:
+        pm = r['payment_method'] or 'card'
+        inv_dict[pm] = {'total': r['total'], 'nb': r['nb']}
+
+    all_methods = set(list(pos_dict.keys()) + list(inv_dict.keys()))
+    methods = {}
+    total_pos = 0
+    total_inv = 0
+    for m in all_methods:
+        p = pos_dict.get(m, {'total': 0, 'nb': 0})
+        i = inv_dict.get(m, {'total': 0, 'nb': 0})
+        total = p['total'] + i['total']
+        nb = p['nb'] + i['nb']
+        methods[m] = {'total': round(total, 2), 'nb': nb}
+        total_pos += p['total']
+        total_inv += i['total']
+
+    return jsonify({
+        'methods': methods,
+        'total_pos': round(total_pos, 2),
+        'total_inv': round(total_inv, 2),
+        'total': round(total_pos + total_inv, 2)
+    })

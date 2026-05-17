@@ -2,22 +2,36 @@ async function loadDashboard() {
     try {
         document.getElementById('dashboardLoader').classList.add('active');
 
-        const period = document.getElementById('kpiPeriod')?.value || 30;
+        const dateStart = document.getElementById('kpiDateStart')?.value || '';
+        const dateEnd = document.getElementById('kpiDateEnd')?.value || '';
         const warehouse = document.getElementById('warehouseFilter')?.value || '';
 
+        let period = parseInt(document.getElementById('kpiPeriod')?.value) || 30;
+        if (dateStart && dateEnd) {
+            const diff = Math.round((new Date(dateEnd) - new Date(dateStart)) / (1000 * 60 * 60 * 24));
+            period = Math.max(1, diff || 1);
+        }
+
+        const params = new URLSearchParams();
+        if (dateStart) params.set('date_start', dateStart);
+        if (dateEnd) params.set('date_end', dateEnd);
+        if (!dateStart || !dateEnd) params.set('period', period);
+
         const [salesRes, marginsRes, receivablesRes, invoicesRes, dashboardRes,
-             dailySalesRes, categoriesRes, topProductsRes, trendsRes, alertsRes, warehousesRes] = await Promise.all([
-            fetch('/api/kpis/sales'),
+             dailySalesRes, categoriesRes, topProductsRes, trendsRes, alertsRes, warehousesRes,
+             paymentRes] = await Promise.all([
+            fetch('/api/kpis/sales?' + params.toString()),
             fetch('/api/kpis/margins'),
-            fetch('/api/kpis/receivables'),
-            fetch('/api/kpis/invoices-status'),
+            fetch('/api/kpis/receivables?' + params.toString()),
+            fetch('/api/kpis/invoices-status?' + params.toString()),
             fetch('/api/kpis/dashboard?period=' + period + (warehouse ? '&warehouse_id=' + warehouse : '')),
             fetch('/api/kpis/sales-daily?period=' + period),
             fetch('/api/kpis/categories-distribution'),
-            fetch('/api/kpis/top-selling-products?limit=10'),
+            fetch('/api/kpis/top-selling-products?limit=10&' + params.toString()),
             fetch('/api/kpis/trends?period=' + period),
             fetch('/api/kpis/alertes' + (warehouse ? '?warehouse_id=' + warehouse : '')),
-            fetch('/api/warehouses')
+            fetch('/api/warehouses'),
+            fetch('/api/kpis/payment-methods?' + params.toString())
         ]);
 
         const sales = await salesRes.json();
@@ -31,6 +45,7 @@ async function loadDashboard() {
         const trends = await trendsRes.json();
         const alerts = await alertsRes.json();
         const warehousesData = await warehousesRes.json();
+        const paymentMethods = await paymentRes.json();
 
         const whSelect = document.getElementById('warehouseFilter');
         if (whSelect && warehousesData.length > 0) {
@@ -52,6 +67,11 @@ async function loadDashboard() {
         document.getElementById('tauxEncaissement').textContent = receivables.taux_encaissement || 0;
         document.getElementById('valeurStock').textContent = (dashboard.total_value || 0).toLocaleString();
         document.getElementById('rupturesStock').textContent = dashboard.out_of_stock || 0;
+
+        const methods = paymentMethods.methods || {};
+        document.getElementById('posTotalEncaissement').textContent = (paymentMethods.total || 0).toLocaleString();
+        document.getElementById('posCashTotal').textContent = ((methods.cash && methods.cash.total) || 0).toLocaleString();
+        document.getElementById('posCardTotal').textContent = ((methods.card && methods.card.total) || 0).toLocaleString();
 
         try {
             const accRes = await fetch('/api/main-account');
@@ -148,4 +168,24 @@ function updateTableExpiry(products) {
     html += '</tbody></table>';
     document.getElementById('tableExpiry').innerHTML = html;
     document.getElementById('expiryCount').textContent = products.length;
+}
+
+function setPresetPeriod(days) {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    const fmt = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    document.getElementById('kpiDateStart').value = fmt(start);
+    document.getElementById('kpiDateEnd').value = fmt(end);
+    document.getElementById('kpiPeriod').value = days;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector('.preset-btn[data-period="' + days + '"]');
+    if (btn) btn.classList.add('active');
+    loadDashboard();
+}
+
+function initDashboardDates() {
+    const ds = document.getElementById('kpiDateStart');
+    const de = document.getElementById('kpiDateEnd');
+    if (!ds.value && !de.value) setPresetPeriod(30);
 }
