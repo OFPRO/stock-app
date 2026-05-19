@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPro - Scanner Pro (BarcodeDetector)</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { background: var(--bg-page, #f1f5f9); font-family: 'Inter', sans-serif; margin: 0; padding: 1.5rem; }
+        .pro-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+        .pro-header h1 { font-size: 1.25rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+        .pro-badge { display: inline-block; background: var(--color-primary, #2563eb); color: #fff; font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-left: 0.5rem; }
+        .scanner-container { display: grid; grid-template-columns: 1fr 380px; gap: 1rem; max-width: 1200px; margin: 0 auto; }
+        .scanner-video-card .card-header { display: flex; align-items: center; justify-content: space-between; }
+        .back-link { color: var(--text-light, #64748b); text-decoration: none; font-size: 0.85rem; }
+        .back-link:hover { color: var(--color-primary, #2563eb); }
+        .browser-check { font-size: 0.75rem; color: var(--text-light, #64748b); padding: 0.5rem 1rem; }
+        .browser-check.ok { color: var(--color-success, #10b981); }
+        .browser-check.fail { color: var(--color-danger, #ef4444); }
+        @media (max-width: 768px) {
+            .scanner-container { grid-template-columns: 1fr; }
+            body { padding: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="pro-header">
+        <h1><i class="fas fa-microchip"></i> Scanner Pro <span class="pro-badge">BarcodeDetector API</span></h1>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Retour à StockPro</a>
+    </div>
+
+    <div class="browser-check" id="browserCheck">Vérification du navigateur...</div>
+
+    <div class="scanner-container">
+        <div>
+            <div class="card scanner-video-card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-camera"></i> Scan Natif (ML Kit)</div>
+                    <div class="scanner-controls">
+                        <button class="btn btn-sm btn-primary" id="proBtnStart" onclick="startProScanner()">
+                            <i class="fas fa-camera"></i> Démarrer
+                        </button>
+                        <button class="btn btn-sm btn-danger" id="proBtnStop" style="display:none;" onclick="stopProScanner()">
+                            <i class="fas fa-stop"></i> Arrêter
+                        </button>
+                    </div>
+                </div>
+                <div class="scanner-video-wrapper">
+                    <video id="proVideo" class="scanner-video" autoplay muted playsinline></video>
+                    <canvas id="proCanvas" class="scanner-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;"></canvas>
+                    <div class="scanner-placeholder" id="proPlaceholder">
+                        <i class="fas fa-qrcode" style="font-size:2rem;"></i>
+                        <p>Cliquez sur <strong>Démarrer</strong> pour activer la caméra</p>
+                    </div>
+                    <div class="scanner-status" id="proStatus"></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:1rem;">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-info-circle"></i> Infos</div>
+                </div>
+                <div style="padding:1rem;font-size:0.85rem;color:var(--text-light);">
+                    <p><strong>Moteur :</strong> BarcodeDetector API (Google ML Kit) — natif Chrome/Edge</p>
+                    <p><strong>Résolution caméra :</strong> 1280×720 (idéal pour petits codes-barres)</p>
+                    <p><strong>Comparaison :</strong> Testez le même produit sur <a href="/">l'onglet Scanner ZXing</a></p>
+                    <p><strong>Note :</strong> Les codes scannés ici n'affectent pas le panier POS — test uniquement</p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="card" style="margin-bottom:1rem;">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-cube"></i> Résultat</div>
+                </div>
+                <div id="proResult" class="scanner-result">
+                    <div class="scanner-result-empty">
+                        <i class="fas fa-box-open"></i>
+                        <p>Aucun produit scanné</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-history"></i> Historique</div>
+                    <button class="btn btn-sm btn-outline" onclick="clearProHistory()" style="display:none;" id="proClearHistory">
+                        <i class="fas fa-trash"></i> Effacer
+                    </button>
+                </div>
+                <div id="proHistory" class="scanner-history" style="overflow-y:auto;max-height:400px;">
+                    <p class="text-muted text-center" style="padding:1rem;">Aucun scan</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            var el = document.getElementById('browserCheck');
+            if (typeof BarcodeDetector !== 'undefined') {
+                BarcodeDetector.getSupportedFormats().then(function(formats) {
+                    el.innerHTML = '<i class="fas fa-check-circle"></i> BarcodeDetector supporté — Formats disponibles: ' +
+                        formats.join(', ') +
+                        ' <a href="/" style="margin-left:1rem;font-size:0.7rem;">← Comparer avec ZXing</a>';
+                    el.className = 'browser-check ok';
+                });
+            } else {
+                el.innerHTML = '<i class="fas fa-times-circle"></i> BarcodeDetector NON supporté. ' +
+                    'Utilisez <strong>Chrome</strong> ou <strong>Edge</strong> (version 83+). ' +
+                    '<a href="/" style="margin-left:0.5rem;">Revenir au scanner ZXing →</a>';
+                el.className = 'browser-check fail';
+            }
+        })();
+    </script>
+    <script src="/static/js/scanner-pro.js"></script>
+</body>
+</html>
