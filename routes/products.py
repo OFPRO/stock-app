@@ -304,8 +304,8 @@ def get_products_for_sale():
             query = 'SELECT * FROM products WHERE ' + base_where
         
         if search:
-            query += ' AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ? OR serial_number LIKE ?)'
-            params.extend([f'%{search}%', f'%{search}%', f'%{search}%', f'%{search}%'])
+            query += ' AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ?)'
+            params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
         
         query += ' ORDER BY name'
         products = conn.execute(query, params).fetchall()
