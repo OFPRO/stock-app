@@ -462,6 +462,14 @@ def main():
     print(f'  Stock faible: {low_stock}')
     print(f'  Valeur stock: {total_value:,.2f} DH')
     
+    # Fix sequences
+    max_fac = conn.execute("SELECT MAX(CAST(SUBSTR(invoice_number, -4) AS INTEGER)) FROM invoices WHERE invoice_number LIKE 'FAC-%'").fetchone()[0]
+    if max_fac:
+        conn.execute("INSERT OR REPLACE INTO sequences (name, current_value) VALUES ('fac_counter', ?)", (max_fac,))
+    max_ticket = conn.execute("SELECT MAX(CAST(SUBSTR(transaction_number, -4) AS INTEGER)) FROM pos_transactions WHERE transaction_number LIKE 'Ticket-%'").fetchone()[0]
+    if max_ticket:
+        conn.execute("INSERT OR REPLACE INTO sequences (name, current_value) VALUES ('ticket_counter', ?)", (max_ticket,))
+    conn.commit()
     conn.close()
     print('\n✓ ENRICHED SEED COMPLETE!')
 

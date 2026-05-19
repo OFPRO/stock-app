@@ -37,14 +37,15 @@ function renderInvoices() {
         const partyName = isFournisseur ? (inv.supplier_name || 'Fournisseur') : (inv.customer_name || 'Client Comptoir');
         const createdDate = inv.created_at ? inv.created_at.substring(0, 10) : '-';
         const paidDate = inv.paid_at ? inv.paid_at.substring(0, 10) : '-';
-        const statusBadge = 'badge badge-' + (inv.status === 'payee' ? 'success' : inv.status === 'envoyee' ? 'warning' : inv.status === 'annulee' ? 'danger' : 'secondary');
+        const statusBadge = 'badge badge-' + (inv.status === 'ticket' ? 'primary' : inv.status === 'payee' ? 'success' : inv.status === 'envoyee' ? 'warning' : inv.status === 'annulee' ? 'danger' : 'secondary');
+        const statusLabel = inv.status === 'ticket' ? 'Ticket' : inv.status === 'payee' ? 'Payée' : inv.status === 'envoyee' ? 'Envoyée' : inv.status === 'annulee' ? 'Annulée' : inv.status === 'brouillon' ? 'Brouillon' : (inv.status || 'Brouillon');
         html += '<tr>' +
             '<td><span class="' + badgeClass + '">' + label + '</span> ' + inv.invoice_number + '</td>' +
             '<td>' + partyName + '</td>' +
             '<td>' + createdDate + '</td>' +
             '<td>' + paidDate + '</td>' +
             '<td>' + (inv.total || 0).toFixed(2) + ' DH</td>' +
-            '<td><span class="' + statusBadge + '">' + (inv.status || 'brouillon') + '</span></td>' +
+            '<td><span class="' + statusBadge + '">' + statusLabel + '</span></td>' +
             '<td><button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + inv.invoice_number + '\')">' + btnLabel + '</button></td>' +
             '</tr>';
     }

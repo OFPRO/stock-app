@@ -297,6 +297,7 @@ document.addEventListener('click', e => {
         case 'preset-period':
             if (typeof setPresetPeriod === 'function') setPresetPeriod(parseInt(arg));
             break;
+        case 'reset-data': resetAllTransactionalData(); break;
         case 'load-dashboard': loadDashboard(); break;
         case 'load-products': loadProducts(); break;
         case 'load-movements': loadMovements(); break;

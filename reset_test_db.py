@@ -11,6 +11,33 @@ import os
 
 DB_NAME = 'stock.db'
 
+def reset_transactional_data(conn):
+    """Vider toutes les données transactionnelles, garder les références (produits, clients, fournisseurs, etc.)"""
+    conn.execute("PRAGMA foreign_keys = OFF")
+    tables = [
+        'invoice_items',
+        'invoices',
+        'pos_transaction_items',
+        'pos_transactions',
+        'pos_cash_movements',
+        'pos_sessions',
+        'purchase_order_items',
+        'purchase_orders',
+        'stock_movements',
+        'main_account_transactions',
+        'notifications',
+        'reordering_rules',
+    ]
+    for table in tables:
+        conn.execute(f"DELETE FROM {table}")
+    for seq in ['ticket_counter', 'fac_counter', 'purchase_order_counter']:
+        conn.execute("DELETE FROM sequences WHERE name = ?", (seq,))
+    conn.execute("UPDATE main_account SET current_balance = initial_balance WHERE id = 1")
+    conn.execute("UPDATE products SET quantity = 50")
+    conn.execute("UPDATE stock SET quantity = 50")
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.commit()
+
 def main():
     # Kill running Flask first
     os.system("kill $(lsof -ti:5001) 2>/dev/null")

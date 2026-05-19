@@ -1050,6 +1050,15 @@ def mark_all_notifications_read():
     conn.close()
     return jsonify({'success': True})
 
+@app.route('/api/reset-data', methods=['POST'])
+def reset_data():
+    """Vider toutes les données transactionnelles, garder les références"""
+    from reset_test_db import reset_transactional_data
+    conn = get_db()
+    reset_transactional_data(conn)
+    conn.close()
+    return jsonify({'success': True, 'message': 'Données transactionnelles réinitialisées'})
+
 @app.route('/api/seed-data', methods=['POST'])
 def seed_data():
     if not app.debug:
@@ -1880,12 +1889,12 @@ def create_pos_transaction():
             VALUES (?, 'sale', ?, ?)
         ''', (product_id, qty, f'Vente POS: {doc_number}'))
     
-    # Record cash movement if cash payment
+    # Record cash movement if cash payment (tendered amount, not total)
     if payment_method == 'cash' and tendered_amount > 0:
         conn.execute('''
             INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
             VALUES (?, 'in', ?, 'sale', ?)
-        ''', (session_id, total, doc_number))
+        ''', (session_id, tendered_amount, doc_number))
         
         if change_amount > 0:
             conn.execute('''
@@ -1910,10 +1919,36 @@ def create_pos_transaction():
         if cust:
             customer_name = cust['name']
     
-    # Create invoice only for client sales (not for comptoir tickets)
+    # Create invoice for all sales (tickets and factures)
     inv_id = None
     inv_status = None
-    if not is_client_comptoir:
+    if is_client_comptoir:
+        inv_status = 'ticket'
+        conn.execute('''
+            INSERT INTO invoices (
+                invoice_number, customer_id, warehouse_id, status, type,
+                subtotal, discount_total, tax_amount, total, 
+                payment_method, tendered_amount, change_given
+            ) VALUES (?, NULL, 1, 'ticket', 'ticket', ?, ?, ?, ?, ?, ?, ?)
+        ''', (doc_number, subtotal, discount, tax, total,
+              payment_method, tendered_amount, change_amount))
+        inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
+
+        for item in items:
+            qty = item.get('quantity', 1)
+            uprice = item.get('unit_price', 0) or 0
+            dpct = item.get('discount_percent', 0) or 0
+            line_ht = qty * uprice * (1 - dpct / 100)
+            line_total = line_ht * 1.20
+            conn.execute('''
+                INSERT INTO invoice_items (
+                    invoice_id, product_id, product_name, product_sku,
+                    quantity, unit_price, discount_percent, tax_rate, line_total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 20, ?)
+            ''', (inv_id, item.get('product_id') or item.get('id'), item.get('product_name', ''),
+                  item.get('product_sku', ''), qty, uprice, dpct, line_total))
+    else:
         inv_type = 'facture'
         inv_status = 'envoyee' if is_credit else 'payee'
         if inv_status == 'payee':

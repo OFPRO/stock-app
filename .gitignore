@@ -15,3 +15,6 @@ venv/
 TEST_GSTACK_REALITY.txt
 awesome-design-md/
 designs/
+node_modules/
+package.json
+package-lock.json
