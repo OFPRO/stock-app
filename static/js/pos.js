@@ -123,10 +123,32 @@ function addPosProductFromSearch() {
     document.getElementById('posSearchInput').focus();
 }
 
+function posTierPrice(product, tier, customer) {
+    const base = product.price_base > 0 ? product.price_base : (product.price || 0);
+    if (tier === 'auto') {
+        if (customer) {
+            if (customer.is_loyal || customer.type === 'fidele') {
+                return product.price_loyal > 0 ? product.price_loyal : base;
+            }
+            if (customer.type === 'etudiant') {
+                return product.price_student > 0 ? product.price_student : base;
+            }
+            if (customer.type === 'ecole') {
+                return product.price_school > 0 ? product.price_school : base;
+            }
+        }
+        return base;
+    }
+    if (tier === 'price_loyal') return product.price_loyal > 0 ? product.price_loyal : base;
+    if (tier === 'price_student') return product.price_student > 0 ? product.price_student : base;
+    if (tier === 'price_school') return product.price_school > 0 ? product.price_school : base;
+    return base;
+}
+
 function addPosProduct(productId) {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-    const normalPrice = product.price_base > 0 ? product.price_base : product.price;
+    const basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
 
     const discountSelect = document.getElementById('posDiscountType');
     const selectedValue = discountSelect ? discountSelect.value : 'auto';
@@ -138,25 +160,9 @@ function addPosProduct(productId) {
         customer = customers.find(c => c.id === customerId);
     }
 
-    let discountPercent = 0;
+    const unitPrice = posTierPrice(product, selectedValue, customer);
+    const discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
 
-    if (selectedValue === 'auto') {
-        if (customer && (customer.is_loyal || customer.type === 'etudiant')) {
-            discountPercent = 15;
-        } else if (customer && customer.type === 'ecole') {
-            discountPercent = 20;
-        } else {
-            discountPercent = 0;
-        }
-    } else if (selectedValue === 'fidele-comptoir' || selectedValue === 'etudiant-comptoir') {
-        discountPercent = 15;
-    } else if (selectedValue === 'ecole-comptoir') {
-        discountPercent = 20;
-    } else {
-        discountPercent = 0;
-    }
-
-    const unitPrice = normalPrice * (1 - discountPercent / 100);
     const existing = posCart.find(item => item.product_id === productId);
     if (existing) {
         existing.quantity += 1;
@@ -166,13 +172,13 @@ function addPosProduct(productId) {
             product_name: product.name,
             product_sku: product.sku,
             quantity: 1,
-            base_price: normalPrice,
+            base_price: basePrice,
             unit_price: unitPrice,
-            discount_percent: discountPercent
+            discount_percent: discountPct
         });
     }
-     renderPosCart();
- }
+    renderPosCart();
+}
 
  function updatePosCartItemQty(productId, delta) {
     const item = posCart.find(i => i.product_id === productId);
@@ -247,7 +253,7 @@ function renderPosCart() {
 function updatePosTotals(subtotal, tax, discount) {
     document.getElementById('posSubtotal').textContent = subtotal.toFixed(2) + ' DH';
     document.getElementById('posTax').textContent = tax.toFixed(2) + ' DH';
-    document.getElementById('posDiscount').textContent = '-' + discount.toFixed(2) + ' DH';
+    document.getElementById('posDiscount').textContent = (discount > 0 ? '-' : '') + Math.abs(discount).toFixed(2) + ' DH';
     const total = subtotal + tax - discount;
     document.getElementById('posTotal').textContent = total.toFixed(2) + ' DH';
     if (posPaymentMethod === 'cash' && posTenderedAmount > 0) {
@@ -428,28 +434,15 @@ function applyPosDiscount() {
         customer = customers.find(c => c.id === customerId);
     }
 
-    let discountPercent = 0;
-
-    if (selectedValue === 'auto') {
-        if (customer && (customer.is_loyal || customer.type === 'etudiant')) {
-            discountPercent = 15;
-        } else if (customer && customer.type === 'ecole') {
-            discountPercent = 20;
-        } else {
-            discountPercent = 0;
-        }
-    } else if (selectedValue === 'fidele-comptoir' || selectedValue === 'etudiant-comptoir') {
-        discountPercent = 15;
-    } else if (selectedValue === 'ecole-comptoir') {
-        discountPercent = 20;
-    } else {
-        discountPercent = 0;
-    }
-
     posCart.forEach(item => {
-        const basePrice = item.base_price || item.unit_price / (1 - (item.discount_percent || 0) / 100);
-        item.unit_price = basePrice * (1 - discountPercent / 100);
-        item.discount_percent = discountPercent;
+        const product = products.find(p => p.id === item.product_id);
+        if (!product) return;
+        const basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
+        const unitPrice = posTierPrice(product, selectedValue, customer);
+        const discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
+        item.base_price = basePrice;
+        item.unit_price = unitPrice;
+        item.discount_percent = discountPct;
     });
 
     renderPosCart();
