@@ -120,7 +120,7 @@
                 var ox = (canvas.width - vw * scale) / 2;
                 var oy = (canvas.height - vh * scale) / 2;
 
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 var bbox = getBoundingBox(bc.cornerPoints);
