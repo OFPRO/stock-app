@@ -334,6 +334,9 @@ async function processPosPayment() {
         const data = await res.json();
 
         if (data.success) {
+            if (data.document_type === 'ticket') {
+                window.open('/api/pos/tickets/' + data.document_number, 'ticket', 'width=400,height=700,scrollbars=yes');
+            }
             const docType = data.document_type;
             const docNum = data.document_number;
             const docStatus = data.document_status;

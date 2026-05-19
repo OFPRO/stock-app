@@ -145,6 +145,9 @@
                             <button class="btn-refresh" data-click="load-dashboard" title="Rafraichir">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
+                            <button class="btn btn-sm btn-outline" data-click="reset-data" style="color:var(--danger);border-color:var(--danger);margin-left:8px;" title="Réinitialiser toutes les données transactionnelles">
+                                <i class="fas fa-undo"></i> Réinitialiser
+                            </button>
                         </div>
                     </div>
                     
@@ -531,6 +534,7 @@
                                 <label>Statut</label>
                                 <select id="invoiceStatusFilter" class="form-select" data-change="load-invoices" style="min-width:120px;">
                                     <option value="all">Tous</option>
+                                    <option value="ticket">Ticket de caisse</option>
                                     <option value="brouillon">Brouillon</option>
                                     <option value="envoyee">Envoyée</option>
                                     <option value="payee">Payée</option>

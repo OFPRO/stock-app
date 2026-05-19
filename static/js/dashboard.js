@@ -189,3 +189,27 @@ function initDashboardDates() {
     const de = document.getElementById('kpiDateEnd');
     if (!ds.value && !de.value) setPresetPeriod(30);
 }
+
+async function resetAllTransactionalData() {
+    const msg = '⚠️ RÉINITIALISER TOUTES LES DONNÉES TRANSACTIONNELLES ?\n\n' +
+        'Cette action supprime :\n' +
+        '- Factures clients\n' +
+        '- Transactions POS\n' +
+        '- Mouvements de stock\n' +
+        '- Commandes fournisseurs\n' +
+        '- Notifications et règles de réapprovisionnement\n\n' +
+        'Les produits, stocks, clients et fournisseurs sont conservés.';
+    if (!confirm(msg)) return;
+    if (!confirm('⚠️ Confirmation : cette action est IRRÉVERSIBLE. Continuer ?')) return;
+    try {
+        const res = await fetch('/api/reset-data', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erreur : ' + (data.error || data.message));
+        }
+    } catch (err) {
+        alert('Erreur réseau : ' + err.message);
+    }
+}
