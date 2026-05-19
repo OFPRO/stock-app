@@ -6,6 +6,10 @@ let scanHistory = [];
 let scannerAbort = null;
 let scannerAudioCtx = null;
 let scannerCanvasObs = null;
+let lastDetectedCode = '';
+let lastDetectedTime = 0;
+let clearBoxTimer = null;
+const DEDUP_MS = 1500;
 
 function id(el) { return document.getElementById(el); }
 
@@ -176,17 +180,25 @@ function startScanner(videoElementId, resultCallback) {
                     const barcode = result.getText();
                     const format = result.getBarcodeFormat();
                     const points = result.getResultPoints();
+                    const now = Date.now();
 
+                    if (clearBoxTimer) {
+                        clearTimeout(clearBoxTimer);
+                        clearBoxTimer = null;
+                    }
                     drawBoundingBox(points, video);
-                    playScanSound();
+                    clearBoxTimer = setTimeout(function () { clearCanvas(); }, 500);
 
-                    scannerPaused = true;
-                    updatePauseButton();
-                    if (resultCallback) {
-                        try {
-                            resultCallback(barcode, format);
-                        } catch (e) {
-                            console.error('resultCallback error:', e);
+                    if (barcode !== lastDetectedCode || now - lastDetectedTime > DEDUP_MS) {
+                        lastDetectedCode = barcode;
+                        lastDetectedTime = now;
+                        playScanSound();
+                        if (resultCallback) {
+                            try {
+                                resultCallback(barcode, format);
+                            } catch (e) {
+                                console.error('resultCallback error:', e);
+                            }
                         }
                     }
                 }
@@ -247,6 +259,10 @@ function showScannerControls(state) {
 }
 
 function stopScanner() {
+    if (clearBoxTimer) {
+        clearTimeout(clearBoxTimer);
+        clearBoxTimer = null;
+    }
     if (scannerCanvasObs) {
         scannerCanvasObs.disconnect();
         scannerCanvasObs = null;
