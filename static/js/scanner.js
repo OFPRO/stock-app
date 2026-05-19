@@ -4,107 +4,8 @@ let scannerPaused = false;
 let scannerStream = null;
 let scanHistory = [];
 let scannerAbort = null;
-let scannerAudioCtx = null;
-let scannerCanvasResize = null;
 
 function id(el) { return document.getElementById(el); }
-
-function initCanvas(video) {
-    const canvas = id('scannerCanvas');
-    if (!canvas) return;
-    const wrapper = canvas.parentElement;
-    const w = wrapper.clientWidth;
-    const h = wrapper.clientHeight;
-    canvas.width = w;
-    canvas.height = h;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    clearCanvas();
-}
-
-function clearCanvas() {
-    const canvas = id('scannerCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function drawBoundingBox(points, video) {
-    const canvas = id('scannerCanvas');
-    if (!canvas || !points || points.length === 0) return;
-
-    const ctx = canvas.getContext('2d');
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
-    if (!vw || !vh) return;
-
-    const scaleX = canvas.width / vw;
-    const scaleY = canvas.height / vh;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = '#10b981';
-    ctx.lineWidth = 3;
-    ctx.shadowColor = '#10b981';
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
-
-    if (points.length === 2) {
-        const x1 = points[0].getX() * scaleX;
-        const y1 = points[0].getY() * scaleY;
-        const x2 = points[1].getX() * scaleX;
-        const y2 = points[1].getY() * scaleY;
-        const pad = 10;
-        const left = Math.min(x1, x2) - pad;
-        const top = Math.min(y1, y2) - pad;
-        const w = Math.max(x1, x2) - left + pad;
-        const h = Math.max(y1, y2) - top + pad;
-        ctx.strokeRect(left, top, w, h);
-        ctx.fillRect(left, top, w, h);
-    } else if (points.length >= 3) {
-        ctx.beginPath();
-        ctx.moveTo(points[0].getX() * scaleX, points[0].getY() * scaleY);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].getX() * scaleX, points[i].getY() * scaleY);
-        }
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fill();
-    }
-}
-
-function getAudioCtx() {
-    if (!scannerAudioCtx) {
-        try {
-            scannerAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) {
-            return null;
-        }
-    }
-    if (scannerAudioCtx.state === 'suspended') {
-        scannerAudioCtx.resume();
-    }
-    return scannerAudioCtx;
-}
-
-function playScanSound() {
-    try {
-        const ctx = getAudioCtx();
-        if (!ctx) return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 1200;
-        osc.type = 'sine';
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.12);
-    } catch (e) {
-        /* audio not supported */
-    }
-}
 
 function startScanner(videoElementId, resultCallback) {
     if (scannerActive) return;
@@ -131,11 +32,6 @@ function startScanner(videoElementId, resultCallback) {
     const abortCtrl = new AbortController();
     scannerAbort = abortCtrl;
 
-    if (scannerCanvasResize) {
-        window.removeEventListener('resize', scannerCanvasResize);
-        scannerCanvasResize = null;
-    }
-
     navigator.mediaDevices.enumerateDevices()
         .then(devices => {
             if (abortCtrl.signal.aborted) return;
@@ -157,9 +53,6 @@ function startScanner(videoElementId, resultCallback) {
 
             video.addEventListener('playing', () => {
                 scannerStream = video.srcObject;
-                initCanvas(video);
-                scannerCanvasResize = function () { initCanvas(video); };
-                window.addEventListener('resize', scannerCanvasResize);
             }, { once: true });
 
             let scanCount = 0;
@@ -169,11 +62,6 @@ function startScanner(videoElementId, resultCallback) {
                 if (result) {
                     const barcode = result.getText();
                     const format = result.getBarcodeFormat();
-                    const points = result.getResultPoints();
-
-                    drawBoundingBox(points, video);
-                    playScanSound();
-
                     scannerPaused = true;
                     updatePauseButton();
                     if (resultCallback) {
@@ -241,10 +129,6 @@ function showScannerControls(state) {
 }
 
 function stopScanner() {
-    if (scannerCanvasResize) {
-        window.removeEventListener('resize', scannerCanvasResize);
-        scannerCanvasResize = null;
-    }
     if (scannerAbort) {
         scannerAbort.abort();
         scannerAbort = null;
@@ -267,7 +151,6 @@ function stopScanner() {
     const video = id('scannerVideo');
     if (video) video.srcObject = null;
 
-    clearCanvas();
     showScannerControls('stopped');
     setScannerStatus('Scanner arrêté', 'info');
 }
@@ -278,7 +161,6 @@ function pauseScanner() {
     updatePauseButton();
     if (scannerPaused) {
         setScannerStatus('En pause', 'info');
-        clearCanvas();
     } else {
         setScannerStatus('Prêt', 'success');
     }
