@@ -1,0 +1,388 @@
+let scannerReader = null;
+let scannerActive = false;
+let scannerPaused = false;
+let scannerStream = null;
+let scanHistory = [];
+let scannerAbort = null;
+
+function id(el) { return document.getElementById(el); }
+
+function startScanner(videoElementId, resultCallback) {
+    if (scannerActive) return;
+    if (typeof ZXing === 'undefined') {
+        showError('La bibliothèque de scan n\'est pas chargée.');
+        return;
+    }
+    const video = id(videoElementId);
+    if (!video) return;
+
+    const placeholder = id('scannerPlaceholder');
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        setScannerStatus('Navigateur non compatible avec la caméra.', 'error');
+        return;
+    }
+
+    setScannerStatus('Demande d\'accès à la caméra...', 'info');
+    if (placeholder) placeholder.style.display = 'none';
+
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+    scannerReader = codeReader;
+
+    const abortCtrl = new AbortController();
+    scannerAbort = abortCtrl;
+
+    navigator.mediaDevices.enumerateDevices()
+        .then(devices => {
+            if (abortCtrl.signal.aborted) return;
+
+            const videoInputs = devices.filter(d => d.kind === 'videoinput');
+            let deviceId = null;
+
+            const backCamera = videoInputs.find(d => {
+                const label = (d.label || '').toLowerCase();
+                return label.includes('back') || label.includes('environment') || label.includes('arrière');
+            });
+            if (backCamera) {
+                deviceId = backCamera.deviceId;
+            } else if (videoInputs.length > 0) {
+                deviceId = videoInputs[0].deviceId;
+            }
+
+            setScannerStatus('Caméra détectée, démarrage...', 'info');
+
+            video.addEventListener('playing', () => {
+                scannerStream = video.srcObject;
+            }, { once: true });
+
+            let scanCount = 0;
+            return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+                if (abortCtrl.signal.aborted) return;
+                if (scannerPaused) return;
+                if (result) {
+                    const barcode = result.getText();
+                    const format = result.getBarcodeFormat();
+                    scannerPaused = true;
+                    updatePauseButton();
+                    if (resultCallback) {
+                        try {
+                            resultCallback(barcode, format);
+                        } catch (e) {
+                            console.error('resultCallback error:', e);
+                        }
+                    }
+                }
+                if (err) {
+                    var isNotFound = false;
+                    if (typeof ZXing.NotFoundException === 'function') {
+                        isNotFound = err instanceof ZXing.NotFoundException;
+                    } else if (err.name === 'NotFoundException' || (err.message && err.message.indexOf('NotFound') !== -1)) {
+                        isNotFound = true;
+                    }
+                    if (!isNotFound) {
+                        scanCount++;
+                        if (scanCount <= 3) {
+                            console.warn('Scan error:', err);
+                        }
+                    }
+                }
+            });
+        })
+        .then(() => {
+            if (abortCtrl.signal.aborted) return;
+            scannerActive = true;
+            setScannerStatus('Prêt — placez un code-barres devant la caméra', 'success');
+            showScannerControls('started');
+        })
+        .catch(err => {
+            if (abortCtrl.signal.aborted) return;
+            console.error('Scanner error:', err);
+            if (err.name === 'NotAllowedError' || (err.message && err.message.includes('Permission'))) {
+                setScannerStatus('Autorisation caméra refusée. Vérifiez les permissions de votre navigateur.', 'error');
+            } else if (err.name === 'NotFoundError') {
+                setScannerStatus('Aucune caméra trouvée.', 'error');
+            } else {
+                setScannerStatus('Erreur caméra: ' + (err.message || 'inconnue'), 'error');
+            }
+            if (placeholder) placeholder.style.display = '';
+            scannerActive = false;
+            scannerReader = null;
+        });
+}
+
+function showScannerControls(state) {
+    const s = id('btnStartScanner');
+    const p = id('btnPauseScanner');
+    const st = id('btnStopScanner');
+    const ov = id('scannerOverlay');
+    if (state === 'started') {
+        if (s) s.style.display = 'none';
+        if (p) { p.style.display = ''; p.innerHTML = '<i class="fas fa-pause"></i> Pause'; }
+        if (st) st.style.display = '';
+        if (ov) ov.style.display = '';
+    } else {
+        if (s) s.style.display = '';
+        if (p) { p.style.display = 'none'; p.innerHTML = '<i class="fas fa-pause"></i> Pause'; }
+        if (st) st.style.display = 'none';
+        if (ov) ov.style.display = 'none';
+    }
+}
+
+function stopScanner() {
+    if (scannerAbort) {
+        scannerAbort.abort();
+        scannerAbort = null;
+    }
+    if (scannerReader) {
+        try { scannerReader.reset(); } catch (e) { /* ignore */ }
+        scannerReader = null;
+    }
+    if (scannerStream) {
+        try {
+            if (typeof scannerStream.getTracks === 'function') {
+                scannerStream.getTracks().forEach(function (t) { t.stop(); });
+            }
+        } catch (e) { /* ignore */ }
+        scannerStream = null;
+    }
+    scannerActive = false;
+    scannerPaused = false;
+
+    const video = id('scannerVideo');
+    if (video) video.srcObject = null;
+
+    showScannerControls('stopped');
+    setScannerStatus('Scanner arrêté', 'info');
+}
+
+function pauseScanner() {
+    if (!scannerActive) return;
+    scannerPaused = !scannerPaused;
+    updatePauseButton();
+    if (scannerPaused) {
+        setScannerStatus('En pause', 'info');
+    } else {
+        setScannerStatus('Prêt', 'success');
+    }
+}
+
+function updatePauseButton() {
+    const btn = id('btnPauseScanner');
+    if (!btn) return;
+    if (scannerPaused) {
+        btn.innerHTML = '<i class="fas fa-play"></i> Reprendre';
+    } else {
+        btn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+    }
+}
+
+function setScannerStatus(msg, type) {
+    const el = id('scannerStatus');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'scanner-status ' + (type || 'info');
+}
+
+function onScanSuccess(barcode, format) {
+    const inp = id('scanInput');
+    if (inp) inp.value = barcode;
+    fetchProductByBarcode(barcode, format);
+}
+
+function searchByBarcode() {
+    const input = id('scanInput');
+    if (!input) return;
+    const code = input.value.trim();
+    if (!code) return;
+    fetchProductByBarcode(code, null);
+}
+
+async function fetchProductByBarcode(code, format) {
+    const resultEl = id('scanResult');
+    if (!resultEl) return;
+
+    resultEl.innerHTML = '<div class="scanner-result-loading"><i class="fas fa-spinner fa-spin"></i><p>Recherche...</p></div>';
+
+    const controller = new AbortController();
+    const timeout = setTimeout(function () { controller.abort(); }, 10000);
+
+    try {
+        const res = await fetch('/api/products/for-sale?search=' + encodeURIComponent(code), {
+            signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if (!res.ok) throw new Error('Erreur ' + res.status);
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+            displayScanResult(data[0], code, format);
+            addScanHistory(code, format, data[0]);
+        } else {
+            displayScanNotFound(code, format);
+            addScanHistory(code, format, null);
+        }
+    } catch (err) {
+        clearTimeout(timeout);
+        console.error('Search error:', err);
+        if (err.name === 'AbortError') {
+            resultEl.innerHTML = '<div class="scanner-result-error"><i class="fas fa-clock"></i><p>Délai de recherche dépassé</p></div>';
+        } else {
+            resultEl.innerHTML = '<div class="scanner-result-error"><i class="fas fa-exclamation-triangle"></i><p>Erreur de recherche</p></div>';
+        }
+    }
+}
+
+function displayScanResult(product, code, format) {
+    const el = id('scanResult');
+    if (!el) return;
+
+    const discountEl = id('posDiscountType');
+    let price = Number(product.price) || 0;
+    if (discountEl) {
+        const discountType = discountEl.value;
+        if (discountType === 'fidele-comptoir' && product.price_loyal) price = Number(product.price_loyal);
+        else if (discountType === 'etudiant-comptoir' && product.price_student) price = Number(product.price_student);
+        else if (discountType === 'ecole-comptoir' && product.price_school) price = Number(product.price_school);
+    }
+    price = Number(price.toFixed(2));
+
+    const safeId = Number(product.id);
+    const safeName = escapeHtml(product.name);
+    const safeCode = escapeHtml(code);
+    const safeFormat = format ? escapeHtml(format) : '';
+    const stockQty = Number(product.quantity) || 0;
+
+    el.innerHTML = '<div class="scanner-result-found">' +
+        '<div class="scanner-result-icon"><i class="fas fa-check-circle"></i></div>' +
+        '<div class="scanner-result-info">' +
+            '<h4>' + safeName + '</h4>' +
+            '<div class="scanner-result-details">' +
+                '<span><strong>Code:</strong> ' + safeCode + '</span>' +
+                (format ? '<span><strong>Format:</strong> ' + safeFormat + '</span>' : '') +
+                '<span><strong>Prix:</strong> ' + price.toFixed(2) + ' DH</span>' +
+                '<span><strong>Stock:</strong> ' + stockQty + '</span>' +
+            '</div>' +
+        '</div>' +
+        '<button class="btn btn-sm btn-success" data-product-id="' + safeId + '" data-product-price="' + price + '" data-click="add-scanned-to-cart">' +
+            '<i class="fas fa-cart-plus"></i> Ajouter au panier' +
+        '</button>' +
+    '</div>';
+}
+
+function displayScanNotFound(code, format) {
+    const el = id('scanResult');
+    if (!el) return;
+    el.innerHTML = '<div class="scanner-result-notfound">' +
+        '<i class="fas fa-times-circle"></i>' +
+        '<h4>Produit non trouvé</h4>' +
+        '<p>Code: ' + escapeHtml(code) + '</p>' +
+        (format ? '<p>Format: ' + escapeHtml(format) + '</p>' : '') +
+        '<p class="text-muted">Vérifiez le code-barres ou ajoutez le produit manuellement</p>' +
+    '</div>';
+}
+
+function handleAddScannedToCart(e) {
+    const btn = e.target.closest('[data-product-id]');
+    if (!btn) return;
+    const id = Number(btn.getAttribute('data-product-id'));
+    const price = Number(btn.getAttribute('data-product-price')) || 0;
+    if (!id) return;
+    stopScanner();
+    showTab('pos');
+    if (typeof addPosProduct === 'function') {
+        addPosProduct(id, '', price, 1);
+    }
+}
+
+function addScanHistory(code, format, product) {
+    var entry = {
+        code: code,
+        format: format || '\u2014',
+        product: product ? product.name : 'Non trouvé',
+        productId: product ? Number(product.id) : null,
+        date: new Date().toLocaleDateString('fr-FR'),
+        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    };
+    scanHistory.unshift(entry);
+    if (scanHistory.length > 50) scanHistory.pop();
+    renderScanHistory();
+}
+
+function renderScanHistory() {
+    const el = id('scanHistory');
+    const btn = id('btnClearHistory');
+    if (!el) return;
+
+    if (scanHistory.length === 0) {
+        el.innerHTML = '<p class="text-muted text-center" style="padding:2rem;">Aucun scan</p>';
+        if (btn) btn.style.display = 'none';
+        return;
+    }
+
+    if (btn) btn.style.display = '';
+    var items = [];
+    for (var i = 0; i < scanHistory.length; i++) {
+        var entry = scanHistory[i];
+        var clickAttr = entry.productId ? ' data-click="rescan-from-history" data-product-id="' + entry.productId + '"' : '';
+        items.push(
+            '<div class="scan-history-item' + (entry.productId ? '' : ' not-found') + '"' + clickAttr + '>' +
+                '<span class="scan-history-date">' + escapeHtml(entry.date) + '</span>' +
+                '<span class="scan-history-time">' + escapeHtml(entry.time) + '</span>' +
+                '<span class="scan-history-code">' + escapeHtml(entry.code) + '</span>' +
+                '<span class="scan-history-format">' + escapeHtml(entry.format) + '</span>' +
+                '<span class="scan-history-product">' + escapeHtml(entry.product) + '</span>' +
+                '<span class="scan-history-status ' + (entry.productId ? 'found' : 'missing') + '">' +
+                    (entry.productId ? '\u2713' : '\u2717') +
+                '</span>' +
+            '</div>'
+        );
+    }
+    el.innerHTML = '<div class="scan-history-list">' + items.join('') + '</div>';
+}
+
+function clearScanHistory() {
+    scanHistory = [];
+    renderScanHistory();
+}
+
+function handleRescanFromHistory(e) {
+    const el = e.target.closest('[data-product-id]');
+    if (!el) return;
+    const productId = Number(el.getAttribute('data-product-id'));
+    if (!productId) return;
+    stopScanner();
+    showTab('pos');
+    var product = null;
+    if (typeof products !== 'undefined' && products && products.length > 0) {
+        for (var i = 0; i < products.length; i++) {
+            if (Number(products[i].id) === productId) {
+                product = products[i];
+                break;
+            }
+        }
+    }
+    if (!product) {
+        setScannerStatus('Produit introuvable dans la liste.', 'error');
+        return;
+    }
+    if (typeof addPosProduct !== 'function') return;
+    var price = Number(product.price) || 0;
+    var discountEl = id('posDiscountType');
+    if (discountEl) {
+        var dt = discountEl.value;
+        if (dt === 'fidele-comptoir' && product.price_loyal) price = Number(product.price_loyal);
+        else if (dt === 'etudiant-comptoir' && product.price_student) price = Number(product.price_student);
+        else if (dt === 'ecole-comptoir' && product.price_school) price = Number(product.price_school);
+    }
+    addPosProduct(productId, product.name, Number(price.toFixed(2)), 1);
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}

@@ -670,11 +670,75 @@
                 
                 <!-- SCANNER TAB -->
                 <div class="tab-content" id="scannerTab">
-                    <div class="card" style="text-align:center;padding:3rem;">
-                        <i class="fas fa-qrcode" style="font-size:4rem;color:var(--text-light)"></i>
-                        <p style="margin:1rem 0;">Entrez le code-barres</p>
-                        <input type="text" id="scanInput" placeholder="Code-barres..." class="form-input" style="max-width:300px;margin:0 auto;" data-keypress="search-barcode">
-                        <button class="btn btn-primary" style="margin-top:1rem;" data-click="search-barcode">Rechercher</button>
+                    <div class="scanner-container">
+                        <div class="scanner-left">
+                            <div class="card scanner-video-card">
+                                <div class="card-header">
+                                    <div class="card-title"><i class="fas fa-camera"></i> Scanner Code-Barres</div>
+                                    <div class="scanner-controls">
+                                        <button class="btn btn-sm btn-primary" data-click="start-scanner" id="btnStartScanner">
+                                            <i class="fas fa-camera"></i> Démarrer
+                                        </button>
+                                        <button class="btn btn-sm btn-outline" data-click="pause-scanner" id="btnPauseScanner" style="display:none;">
+                                            <i class="fas fa-pause"></i> Pause
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" data-click="stop-scanner" id="btnStopScanner" style="display:none;">
+                                            <i class="fas fa-stop"></i> Arrêter
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="scanner-video-wrapper">
+                                    <video id="scannerVideo" class="scanner-video" autoplay muted playsinline></video>
+                                    <div class="scanner-overlay" id="scannerOverlay">
+                                        <div class="scanner-frame"></div>
+                                        <div class="scanner-line"></div>
+                                    </div>
+                                    <div class="scanner-placeholder" id="scannerPlaceholder">
+                                        <i class="fas fa-qrcode"></i>
+                                        <p>Cliquez sur <strong>Démarrer</strong> pour activer la caméra</p>
+                                    </div>
+                                    <div class="scanner-status" id="scannerStatus"></div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-title"><i class="fas fa-keyboard"></i> Saisie Manuelle</div>
+                                </div>
+                                <div style="display:flex;gap:0.5rem;padding:1rem;">
+                                    <input type="text" id="scanInput" placeholder="Code-barres..." class="form-input" data-keypress="search-barcode" style="flex:1;">
+                                    <button class="btn btn-primary" data-click="search-barcode">
+                                        <i class="fas fa-search"></i> Rechercher
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="scanner-right">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-title"><i class="fas fa-cube"></i> Résultat</div>
+                                </div>
+                                <div id="scanResult" class="scanner-result">
+                                    <div class="scanner-result-empty">
+                                        <i class="fas fa-box-open"></i>
+                                        <p>Aucun produit scanné</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header">
+                                    <div class="card-title"><i class="fas fa-history"></i> Historique des Scans</div>
+                                    <button class="btn btn-sm btn-outline" data-click="clear-scan-history" style="display:none;" id="btnClearHistory">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <div id="scanHistory" class="scanner-history">
+                                    <p class="text-muted text-center" style="padding:2rem;">Aucun scan</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -1530,6 +1594,8 @@
         </div>
     </div>
 
+<script src="/static/js/zxing.min.js"></script>
+<script src="/static/js/scanner.js"></script>
 <script src="/static/js/app.js"></script>
 <script src="/static/js/orders.js"></script>
 <script src="/static/js/dashboard.js"></script>
