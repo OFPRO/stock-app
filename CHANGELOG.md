@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.6.2 (2026-05-19)
+
+### Features — Scanners (POS & ZXing)
+
+- **Nouveau** : Scanner code-barres intégré dans le POS (BarcodeDetector API) — compact 180px, toggle button, auto-add au panier
+- **Nouveau** : `/scanner-pro` — page test autonome BarcodeDetector en 1280×720 pour petits codes-barres
+- **Nouveau** : Brouillard caméra — `filter: blur(12px)` sur la vidéo + foncé semi-transparent sur le canvas, seule la zone du code-barre est révélée en net. Visage masqué
+- **Amélioration** : `TRY_HARDER` hint activé pour les petits codes-barres denses (produits cosmétiques)
+
+### Bugs corrigés — Module Scanner
+
+- **Critique** : `non-ReaderException` de ZXing v0.23.0 après scans répétés — try/catch + reset auto après 8 erreurs consécutives
+- **Moyen** : Double scan d'un même code dans la fenêtre de déduplication — `scanHistory` avec incrément de quantité
+
+### Performances
+
+- Interval de détection 500ms → 150ms (×3.3)
+- Formats réduits de 9 à 5 (QR, EAN-13, EAN-8, CODE-128, CODE-39)
+
 ## v0.5 (2026-05-16)
 
 ### Bugs corrigés — Module POS
