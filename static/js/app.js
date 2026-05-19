@@ -96,6 +96,7 @@ function showTab(tab) {
     if (tabEl) tabEl.classList.add('active');
     if (titleEl) titleEl.textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
     if (breadcrumbEl) breadcrumbEl.textContent = tab;
+    if (tab !== 'scanner' && typeof stopScanner === 'function') stopScanner();
     if (tab === 'products') loadProducts();
     if (tab === 'warehouses') loadWarehouses();
     if (tab === 'locations') loadLocations();
@@ -317,6 +318,12 @@ document.addEventListener('click', e => {
         case 'refresh-report': refreshCurrentReport(); break;
         case 'export-report': exportReport(arg); break;
         case 'export-sessions': exportSessions(arg); break;
+        case 'start-scanner': startScanner('scannerVideo', onScanSuccess); break;
+        case 'stop-scanner': stopScanner(); break;
+        case 'pause-scanner': pauseScanner(); break;
+        case 'clear-scan-history': clearScanHistory(); break;
+        case 'add-scanned-to-cart': handleAddScannedToCart(e); break;
+        case 'rescan-from-history': handleRescanFromHistory(e); break;
         case 'search-barcode': searchByBarcode(); break;
         case 'open-pos-session': openPosSession(); break;
         case 'close-pos-session': closePosSession(); break;
