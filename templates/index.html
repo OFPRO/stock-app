@@ -766,9 +766,20 @@
                                 <button class="btn btn-sm btn-primary" data-click="add-pos-from-search">
                                     <i class="fas fa-plus"></i> Ajouter
                                 </button>
+                                <button class="btn btn-sm btn-outline pos-scanner-toggle" id="posScannerToggle" onclick="togglePosScanner()" title="Scanner code-barres">
+                                    <i class="fas fa-camera"></i>
+                                </button>
                             </div>
                             
                             <div id="posSearchResults" class="pos-search-results"></div>
+                            
+                            <div id="posScannerContainer" class="pos-scanner-container" style="display:none;">
+                                <div class="pos-scanner-video-wrapper">
+                                    <video id="posScannerVideo" class="pos-scanner-video" autoplay muted playsinline></video>
+                                    <canvas id="posScannerCanvas" class="pos-scanner-canvas"></canvas>
+                                    <div class="pos-scanner-status" id="posScannerStatus"></div>
+                                </div>
+                            </div>
                             
                             <div id="bestSellers" class="pos-best-sellers">
                                 <span style="font-size:0.75rem;color:var(--text-light);margin-right:0.5rem;">Les plus vendus:</span>
@@ -1604,6 +1615,7 @@
 <script src="/static/js/movements.js"></script>
 <script src="/static/js/suppliers.js"></script>
 <script src="/static/js/pos.js"></script>
+<script src="/static/js/pos-scanner.js"></script>
 <script src="/static/js/customers.js"></script>
 <script src="/static/js/reports.js"></script>
 <script src="/static/js/invoices.js"></script>

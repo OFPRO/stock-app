@@ -97,6 +97,7 @@ function showTab(tab) {
     if (titleEl) titleEl.textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
     if (breadcrumbEl) breadcrumbEl.textContent = tab;
     if (tab !== 'scanner' && typeof stopScanner === 'function') stopScanner();
+    if (tab !== 'pos' && typeof stopPosScanner === 'function') stopPosScanner();
     if (tab === 'products') loadProducts();
     if (tab === 'warehouses') loadWarehouses();
     if (tab === 'locations') loadLocations();
@@ -328,6 +329,7 @@ document.addEventListener('click', e => {
         case 'open-pos-session': openPosSession(); break;
         case 'close-pos-session': closePosSession(); break;
         case 'add-pos-from-search': addPosProductFromSearch(); break;
+        case 'toggle-pos-scanner': togglePosScanner(); break;
         case 'clear-pos-cart': clearPosCart(); break;
         case 'set-pos-payment': setPosPaymentMethod(arg); break;
         case 'process-pos-payment': processPosPayment(); break;
