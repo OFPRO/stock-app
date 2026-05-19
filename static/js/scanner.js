@@ -5,26 +5,26 @@ let scannerStream = null;
 let scanHistory = [];
 let scannerAbort = null;
 let scannerAudioCtx = null;
-let scannerCanvasObs = null;
+let scannerCanvasResize = null;
 
 function id(el) { return document.getElementById(el); }
 
-function resizeCanvas() {
+function initCanvas(video) {
     const canvas = id('scannerCanvas');
     if (!canvas) return;
-    const parent = canvas.parentElement;
-    const w = parent.clientWidth;
-    const h = parent.clientHeight;
-    if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-    }
+    const wrapper = canvas.parentElement;
+    const w = wrapper.clientWidth;
+    const h = wrapper.clientHeight;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    clearCanvas();
 }
 
 function clearCanvas() {
     const canvas = id('scannerCanvas');
     if (!canvas) return;
-    resizeCanvas();
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
@@ -32,8 +32,6 @@ function clearCanvas() {
 function drawBoundingBox(points, video) {
     const canvas = id('scannerCanvas');
     if (!canvas || !points || points.length === 0) return;
-
-    resizeCanvas();
 
     const ctx = canvas.getContext('2d');
     const vw = video.videoWidth;
@@ -119,7 +117,7 @@ function startScanner(videoElementId, resultCallback) {
 
     const placeholder = id('scannerPlaceholder');
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
         setScannerStatus('Navigateur non compatible avec la caméra.', 'error');
         return;
     }
@@ -127,118 +125,91 @@ function startScanner(videoElementId, resultCallback) {
     setScannerStatus('Demande d\'accès à la caméra...', 'info');
     if (placeholder) placeholder.style.display = 'none';
 
-    const abortCtrl = new AbortController();
-    scannerAbort = abortCtrl;
-
     const codeReader = new ZXing.BrowserMultiFormatReader();
     scannerReader = codeReader;
 
-    const formats = [
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.CODE_93,
-        ZXing.BarcodeFormat.ITF,
-        ZXing.BarcodeFormat.CODABAR,
-        ZXing.BarcodeFormat.QR_CODE,
-        ZXing.BarcodeFormat.DATA_MATRIX,
-    ];
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-    codeReader.setHints(hints);
+    const abortCtrl = new AbortController();
+    scannerAbort = abortCtrl;
 
-    const constraints = {
-        video: {
-            facingMode: 'environment',
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-        },
-        audio: false
-    };
+    if (scannerCanvasResize) {
+        window.removeEventListener('resize', scannerCanvasResize);
+        scannerCanvasResize = null;
+    }
 
-    navigator.mediaDevices.getUserMedia(constraints)
-        .then(stream => {
-            if (abortCtrl.signal.aborted) {
-                stream.getTracks().forEach(t => t.stop());
-                return;
+    navigator.mediaDevices.enumerateDevices()
+        .then(devices => {
+            if (abortCtrl.signal.aborted) return;
+
+            const videoInputs = devices.filter(d => d.kind === 'videoinput');
+            let deviceId = null;
+
+            const backCamera = videoInputs.find(d => {
+                const label = (d.label || '').toLowerCase();
+                return label.includes('back') || label.includes('environment') || label.includes('arrière');
+            });
+            if (backCamera) {
+                deviceId = backCamera.deviceId;
+            } else if (videoInputs.length > 0) {
+                deviceId = videoInputs[0].deviceId;
             }
 
-            scannerStream = stream;
-            video.srcObject = stream;
+            setScannerStatus('Caméra détectée, démarrage...', 'info');
 
-            video.addEventListener('playing', function onPlaying() {
-                video.removeEventListener('playing', onPlaying);
+            video.addEventListener('playing', () => {
+                scannerStream = video.srcObject;
+                initCanvas(video);
+                scannerCanvasResize = function () { initCanvas(video); };
+                window.addEventListener('resize', scannerCanvasResize);
+            }, { once: true });
+
+            let scanCount = 0;
+            return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
                 if (abortCtrl.signal.aborted) return;
+                if (scannerPaused) return;
+                if (result) {
+                    const barcode = result.getText();
+                    const format = result.getBarcodeFormat();
+                    const points = result.getResultPoints();
 
-                resizeCanvas();
+                    drawBoundingBox(points, video);
+                    playScanSound();
 
-                if (scannerCanvasObs) scannerCanvasObs.disconnect();
-                try {
-                    scannerCanvasObs = new ResizeObserver(function () { resizeCanvas(); });
-                    scannerCanvasObs.observe(video.parentElement);
-                } catch (e) { /* ResizeObserver not supported */ }
-
-                setScannerStatus('Prêt — placez un code-barres devant la caméra', 'success');
-                showScannerControls('started');
-                scannerActive = true;
-
-                let scanCount = 0;
-                codeReader.decodeFromVideoElement(video, function (result, err) {
-                    if (abortCtrl.signal.aborted) return;
-                    if (scannerPaused) return;
-                    if (result) {
-                        const barcode = result.getText();
-                        const format = result.getBarcodeFormat();
-                        const points = result.getResultPoints();
-
-                        drawBoundingBox(points, video);
-                        playScanSound();
-
-                        scannerPaused = true;
-                        updatePauseButton();
-                        if (resultCallback) {
-                            try {
-                                resultCallback(barcode, format);
-                            } catch (e) {
-                                console.error('resultCallback error:', e);
-                            }
+                    scannerPaused = true;
+                    updatePauseButton();
+                    if (resultCallback) {
+                        try {
+                            resultCallback(barcode, format);
+                        } catch (e) {
+                            console.error('resultCallback error:', e);
                         }
                     }
-                    if (err && !abortCtrl.signal.aborted) {
-                        var isNotFound = false;
-                        if (typeof ZXing.NotFoundException === 'function') {
-                            isNotFound = err instanceof ZXing.NotFoundException;
-                        } else if (err.name === 'NotFoundException' || (err.message && err.message.indexOf('NotFound') !== -1)) {
-                            isNotFound = true;
-                        }
-                        if (!isNotFound) {
-                            scanCount++;
-                            if (scanCount <= 3) {
-                                console.warn('Scan error:', err);
-                            }
-                        }
-                    }
-                });
-            });
-
-            video.play().catch(function (err) {
-                if (abortCtrl.signal.aborted) return;
-                console.error('Video play error:', err);
-                if (err.name === 'NotAllowedError') {
-                    setScannerStatus('Autorisation caméra refusée.', 'error');
-                } else {
-                    setScannerStatus('Erreur de lecture vidéo: ' + (err.message || 'inconnue'), 'error');
                 }
-                if (placeholder) placeholder.style.display = '';
-                scannerActive = false;
-                scannerReader = null;
+                if (err) {
+                    var isNotFound = false;
+                    if (typeof ZXing.NotFoundException === 'function') {
+                        isNotFound = err instanceof ZXing.NotFoundException;
+                    } else if (err.name === 'NotFoundException' || (err.message && err.message.indexOf('NotFound') !== -1)) {
+                        isNotFound = true;
+                    }
+                    if (!isNotFound) {
+                        scanCount++;
+                        if (scanCount <= 3) {
+                            console.warn('Scan error:', err);
+                        }
+                    }
+                }
             });
         })
-        .catch(function (err) {
+        .then(() => {
             if (abortCtrl.signal.aborted) return;
-            console.error('Camera error:', err);
-            if (err.name === 'NotAllowedError' || (err.message && err.message.indexOf('Permission') !== -1)) {
+            scannerActive = true;
+            setScannerStatus('Prêt — placez un code-barres devant la caméra', 'success');
+            showScannerControls('started');
+        })
+        .catch(err => {
+            if (abortCtrl.signal.aborted) return;
+            console.error('Scanner error:', err);
+            if (err.name === 'NotAllowedError' || (err.message && err.message.includes('Permission'))) {
                 setScannerStatus('Autorisation caméra refusée. Vérifiez les permissions de votre navigateur.', 'error');
             } else if (err.name === 'NotFoundError') {
                 setScannerStatus('Aucune caméra trouvée.', 'error');
@@ -270,9 +241,9 @@ function showScannerControls(state) {
 }
 
 function stopScanner() {
-    if (scannerCanvasObs) {
-        scannerCanvasObs.disconnect();
-        scannerCanvasObs = null;
+    if (scannerCanvasResize) {
+        window.removeEventListener('resize', scannerCanvasResize);
+        scannerCanvasResize = null;
     }
     if (scannerAbort) {
         scannerAbort.abort();
