@@ -127,12 +127,13 @@ function startScanner(videoElementId, resultCallback) {
 
     const hints = new Map();
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.QR_CODE,
         ZXing.BarcodeFormat.EAN_13,
         ZXing.BarcodeFormat.EAN_8,
         ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.QR_CODE,
         ZXing.BarcodeFormat.CODE_39,
     ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
     const codeReader = new ZXing.BrowserMultiFormatReader(hints, 150);
     scannerReader = codeReader;
