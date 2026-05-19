@@ -1347,7 +1347,7 @@
 
         .scan-history-item {
             display: grid;
-            grid-template-columns: 60px 1fr 50px 1fr 24px;
+            grid-template-columns: 60px 50px 1fr 50px 36px 1fr 24px;
             gap: 0.5rem;
             padding: 0.5rem 0.75rem;
             font-size: 0.8rem;
@@ -1363,6 +1363,7 @@
         .scan-history-time { color: var(--text-light); font-family: var(--font-mono); font-size: 0.75rem; }
         .scan-history-code { font-family: var(--font-mono); font-weight: 600; font-size: 0.8rem; }
         .scan-history-format { color: var(--text-light); font-size: 0.75rem; }
+        .scan-history-qty { font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem; text-align: center; color: var(--color-primary); }
         .scan-history-product { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .scan-history-status.found { color: var(--color-success); }
         .scan-history-status.missing { color: var(--color-danger); }

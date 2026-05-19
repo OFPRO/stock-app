@@ -10,6 +10,8 @@ let lastDetectedCode = '';
 let lastDetectedTime = 0;
 let clearBoxTimer = null;
 const DEDUP_MS = 1500;
+const MAX_ERRORS_BEFORE_RESET = 8;
+let scannerErrorCount = 0;
 
 function id(el) { return document.getElementById(el); }
 
@@ -174,46 +176,62 @@ function startScanner(videoElementId, resultCallback) {
 
             let scanCount = 0;
             return codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
-                if (abortCtrl.signal.aborted) return;
-                if (scannerPaused) return;
-                if (result) {
-                    const barcode = result.getText();
-                    const format = result.getBarcodeFormat();
-                    const points = result.getResultPoints();
-                    const now = Date.now();
+                try {
+                    if (abortCtrl.signal.aborted) return;
+                    if (scannerPaused) return;
+                    if (result) {
+                        scannerErrorCount = 0;
+                        const barcode = result.getText();
+                        const format = result.getBarcodeFormat();
+                        const points = result.getResultPoints();
+                        const now = Date.now();
 
-                    if (clearBoxTimer) {
-                        clearTimeout(clearBoxTimer);
-                        clearBoxTimer = null;
-                    }
-                    drawBoundingBox(points, video);
-                    clearBoxTimer = setTimeout(function () { clearCanvas(); }, 500);
+                        if (clearBoxTimer) {
+                            clearTimeout(clearBoxTimer);
+                            clearBoxTimer = null;
+                        }
+                        drawBoundingBox(points, video);
+                        clearBoxTimer = setTimeout(function () { clearCanvas(); }, 500);
 
-                    if (barcode !== lastDetectedCode || now - lastDetectedTime > DEDUP_MS) {
-                        lastDetectedCode = barcode;
-                        lastDetectedTime = now;
-                        playScanSound();
-                        if (resultCallback) {
-                            try {
-                                resultCallback(barcode, format);
-                            } catch (e) {
-                                console.error('resultCallback error:', e);
+                        if (barcode !== lastDetectedCode || now - lastDetectedTime > DEDUP_MS) {
+                            lastDetectedCode = barcode;
+                            lastDetectedTime = now;
+                            playScanSound();
+                            if (resultCallback) {
+                                try {
+                                    resultCallback(barcode, format);
+                                } catch (e) {
+                                    console.error('resultCallback error:', e);
+                                }
                             }
                         }
                     }
-                }
-                if (err) {
-                    var isNotFound = false;
-                    if (typeof ZXing.NotFoundException === 'function') {
-                        isNotFound = err instanceof ZXing.NotFoundException;
-                    } else if (err.name === 'NotFoundException' || (err.message && err.message.indexOf('NotFound') !== -1)) {
-                        isNotFound = true;
-                    }
-                    if (!isNotFound) {
-                        scanCount++;
-                        if (scanCount <= 3) {
-                            console.warn('Scan error:', err);
+                    if (err) {
+                        var isNotFound = false;
+                        if (typeof ZXing.NotFoundException === 'function') {
+                            isNotFound = err instanceof ZXing.NotFoundException;
+                        } else if (err.name === 'NotFoundException' || (err.message && err.message.indexOf('NotFound') !== -1)) {
+                            isNotFound = true;
                         }
+                        if (isNotFound) {
+                            scannerErrorCount = 0;
+                        } else {
+                            scannerErrorCount++;
+                            if (scannerErrorCount >= MAX_ERRORS_BEFORE_RESET && scannerReader) {
+                                scannerReader.reset();
+                                scannerErrorCount = 0;
+                                setScannerStatus('Redémarrage du lecteur...', 'info');
+                            }
+                            scanCount++;
+                            if (scanCount <= 3) {
+                                console.warn('Scan error:', err);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Scanner callback crashed:', e);
+                    if (scannerReader) {
+                        try { scannerReader.reset(); } catch (r) { /* ignore */ }
                     }
                 }
             });
@@ -435,13 +453,31 @@ function handleAddScannedToCart(e) {
 }
 
 function addScanHistory(code, format, product) {
+    var productId = product ? Number(product.id) : null;
+    var now = new Date();
+    var date = now.toLocaleDateString('fr-FR');
+    var time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    for (var i = 0; i < scanHistory.length; i++) {
+        if (scanHistory[i].code === code && scanHistory[i].productId === productId) {
+            scanHistory[i].quantity = (scanHistory[i].quantity || 1) + 1;
+            scanHistory[i].date = date;
+            scanHistory[i].time = time;
+            var entry = scanHistory.splice(i, 1)[0];
+            scanHistory.unshift(entry);
+            renderScanHistory();
+            return;
+        }
+    }
+
     var entry = {
         code: code,
         format: format || '\u2014',
         product: product ? product.name : 'Non trouvé',
-        productId: product ? Number(product.id) : null,
-        date: new Date().toLocaleDateString('fr-FR'),
-        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        productId: productId,
+        quantity: 1,
+        date: date,
+        time: time
     };
     scanHistory.unshift(entry);
     if (scanHistory.length > 50) scanHistory.pop();
@@ -463,6 +499,7 @@ function renderScanHistory() {
     var items = [];
     for (var i = 0; i < scanHistory.length; i++) {
         var entry = scanHistory[i];
+        var qty = entry.quantity || 1;
         var clickAttr = entry.productId ? ' data-click="rescan-from-history" data-product-id="' + entry.productId + '"' : '';
         items.push(
             '<div class="scan-history-item' + (entry.productId ? '' : ' not-found') + '"' + clickAttr + '>' +
@@ -470,6 +507,7 @@ function renderScanHistory() {
                 '<span class="scan-history-time">' + escapeHtml(entry.time) + '</span>' +
                 '<span class="scan-history-code">' + escapeHtml(entry.code) + '</span>' +
                 '<span class="scan-history-format">' + escapeHtml(entry.format) + '</span>' +
+                '<span class="scan-history-qty">' + qty + '</span>' +
                 '<span class="scan-history-product">' + escapeHtml(entry.product) + '</span>' +
                 '<span class="scan-history-status ' + (entry.productId ? 'found' : 'missing') + '">' +
                     (entry.productId ? '\u2713' : '\u2717') +
