@@ -408,7 +408,7 @@ function onCustomerChange() {
         if (discountSelect) {
             const autoOption = discountSelect.querySelector('option[value="auto"]');
             if (autoOption) autoOption.disabled = true;
-            discountSelect.value = 'normal';
+            discountSelect.value = 'price_base';
         }
         if (creditSection) creditSection.style.display = 'none';
         if (creditCheckbox) creditCheckbox.checked = false;
