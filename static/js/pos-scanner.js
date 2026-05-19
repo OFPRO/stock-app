@@ -8,7 +8,6 @@
     var audioCtx = null;
     var lastCode = '';
     var lastTime = 0;
-    var clearTimer = null;
 
     function getAudioCtx() {
         if (!audioCtx) {
@@ -65,20 +64,27 @@
     function drawBox(points) {
         var c = getEl('posScannerCanvas');
         if (!c || !points || points.length < 4) return;
-        resizeCanvas();
         var ctx = c.getContext('2d');
-        ctx.clearRect(0, 0, c.width, c.height);
         ctx.strokeStyle = '#10b981';
         ctx.lineWidth = 3;
         ctx.shadowColor = '#10b981';
         ctx.shadowBlur = 8;
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
         for (var i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
         ctx.closePath();
         ctx.stroke();
-        ctx.fill();
+    }
+
+    function getBoundingBox(points) {
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (var i = 0; i < points.length; i++) {
+            if (points[i].x < minX) minX = points[i].x;
+            if (points[i].y < minY) minY = points[i].y;
+            if (points[i].x > maxX) maxX = points[i].x;
+            if (points[i].y > maxY) maxY = points[i].y;
+        }
+        return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
     }
 
     function setStatus(msg, type) {
@@ -93,21 +99,42 @@
         if (!isActive) return;
 
         var video = getEl('posScannerVideo');
-        if (!video || !detector) return;
+        var canvas = getEl('posScannerCanvas');
+        if (!video || !detector || !canvas) return;
 
         detector.detect(video).then(function (barcodes) {
             if (!isActive) return;
 
-            if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
+            resizeCanvas();
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (barcodes.length > 0) {
                 var bc = barcodes[0];
                 var code = bc.rawValue;
                 var format = bc.format;
                 var now = Date.now();
+                var vw = video.videoWidth || 1280;
+                var vh = video.videoHeight || 720;
+                var scale = Math.max(canvas.width / vw, canvas.height / vh);
+                var ox = (canvas.width - vw * scale) / 2;
+                var oy = (canvas.height - vh * scale) / 2;
 
-                drawBox(bc.cornerPoints);
-                clearTimer = setTimeout(function () { clearCanvas(); }, 500);
+                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                var bbox = getBoundingBox(bc.cornerPoints);
+                var pad = 0.05;
+                var sx = Math.max(0, bbox.x - bbox.w * pad);
+                var sy = Math.max(0, bbox.y - bbox.h * pad);
+                var sw = Math.min(vw - sx, bbox.w * (1 + 2 * pad));
+                var sh = Math.min(vh - sy, bbox.h * (1 + 2 * pad));
+                ctx.drawImage(video, sx, sy, sw, sh, sx * scale + ox, sy * scale + oy, sw * scale, sh * scale);
+
+                var pts = bc.cornerPoints.map(function (p) {
+                    return { x: p.x * scale + ox, y: p.y * scale + oy };
+                });
+                drawBox(pts);
 
                 if (code !== lastCode || now - lastTime > 1500) {
                     lastCode = code;
@@ -221,7 +248,6 @@
     function stopPosScanner() {
         isActive = false;
         if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
-        if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
         if (stream) {
             stream.getTracks().forEach(function (t) { t.stop(); });
             stream = null;

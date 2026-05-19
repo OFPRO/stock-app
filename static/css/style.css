@@ -928,7 +928,7 @@
         .pos-scanner-toggle { margin-left: 0.25rem; }
         .pos-scanner-container { margin: 0.5rem 0; border-radius: var(--radius-lg); overflow: hidden; background: #000; }
         .pos-scanner-video-wrapper { position: relative; width: 100%; height: 180px; overflow: hidden; background: #000; }
-        .pos-scanner-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .pos-scanner-video { width: 100%; height: 100%; object-fit: cover; display: block; filter: blur(12px); }
         .pos-scanner-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
         .pos-scanner-status { position: absolute; bottom: 6px; left: 8px; font-size: 0.7rem; color: #fff; background: rgba(0,0,0,0.55); padding: 2px 8px; border-radius: 4px; z-index: 3; font-family: var(--font-mono); }
         .pos-scanner-status.error { color: #ef4444; background: rgba(0,0,0,0.7); }
