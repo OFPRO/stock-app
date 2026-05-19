@@ -119,6 +119,8 @@ function addPosProductFromSearch() {
             showError('Produit non trouve');
         }
     }
+    document.getElementById('posSearchInput').value = '';
+    document.getElementById('posSearchInput').focus();
 }
 
 function addPosProduct(productId) {
