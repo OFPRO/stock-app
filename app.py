@@ -550,6 +550,11 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/scanner-pro')
+def scanner_pro():
+    return render_template('scanner-pro.html')
+
+
 
 
 
