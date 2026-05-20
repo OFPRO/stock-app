@@ -385,25 +385,25 @@ def get_kpis_receivables():
         date_params = ['-' + str(period) + ' days']
 
     with get_db() as conn:
-        total_creances = conn.execute(f"""
+        total_creances = conn.execute("""
             SELECT COALESCE(SUM(total), 0) as total 
             FROM invoices 
-            WHERE status = 'envoyee' {date_filter}
-        """, tuple(date_params)).fetchone()[0]
+            WHERE status = 'envoyee' """ + date_filter,
+            tuple(date_params)).fetchone()[0]
 
-        nb_impayees = conn.execute(f"""
+        nb_impayees = conn.execute("""
             SELECT COUNT(*) as count 
             FROM invoices 
-            WHERE status = 'envoyee' {date_filter}
-        """, tuple(date_params)).fetchone()[0]
+            WHERE status = 'envoyee' """ + date_filter,
+            tuple(date_params)).fetchone()[0]
 
-        creances_par_client = conn.execute(f"""
+        creances_par_client = conn.execute("""
             SELECT c.id, c.name, c.client_code,
                    COALESCE(SUM(i.total), 0) as montant,
                    COUNT(i.id) as nb_factures,
                    MIN(i.due_date) as premiere_echeance
             FROM customers c
-            JOIN invoices i ON c.id = i.customer_id AND i.status = 'envoyee' {date_filter_i}
+            JOIN invoices i ON c.id = i.customer_id AND i.status = 'envoyee' """ + date_filter_i + """
             GROUP BY c.id
             ORDER BY montant DESC
             LIMIT 10
@@ -411,12 +411,12 @@ def get_kpis_receivables():
 
         clients = [dict(c) for c in creances_par_client]
 
-        total_factures = conn.execute(f"""
-            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != 'annulee' {date_filter}
-        """, tuple(date_params)).fetchone()[0]
-        paye = conn.execute(f"""
-            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'payee' {date_filter}
-        """, tuple(date_params)).fetchone()[0]
+        total_factures = conn.execute("""
+            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != 'annulee' """ + date_filter,
+            tuple(date_params)).fetchone()[0]
+        paye = conn.execute("""
+            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'payee' """ + date_filter,
+            tuple(date_params)).fetchone()[0]
         taux_encaissement = (paye / total_factures * 100) if total_factures > 0 else 0
 
         return jsonify({
@@ -448,10 +448,10 @@ def get_kpis_invoices_status():
         date_params = ['-' + str(period) + ' days']
 
     with get_db() as conn:
-        brouillon = conn.execute(f"SELECT COUNT(*) FROM invoices WHERE status = 'brouillon' {date_filter}", tuple(date_params)).fetchone()[0]
-        envoyee = conn.execute(f"SELECT COUNT(*) FROM invoices WHERE status = 'envoyee' {date_filter}", tuple(date_params)).fetchone()[0]
-        payee = conn.execute(f"SELECT COUNT(*) FROM invoices WHERE status = 'payee' {date_filter}", tuple(date_params)).fetchone()[0]
-        annulee = conn.execute(f"SELECT COUNT(*) FROM invoices WHERE status = 'annulee' {date_filter}", tuple(date_params)).fetchone()[0]
+        brouillon = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'brouillon' " + date_filter, tuple(date_params)).fetchone()[0]
+        envoyee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'envoyee' " + date_filter, tuple(date_params)).fetchone()[0]
+        payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'payee' " + date_filter, tuple(date_params)).fetchone()[0]
+        annulee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'annulee' " + date_filter, tuple(date_params)).fetchone()[0]
         return jsonify({
             'brouillon': brouillon,
             'envoyee': envoyee,
@@ -869,19 +869,19 @@ def get_kpis_payment_methods():
         params = ['-' + str(period) + ' days']
 
     with get_db() as conn:
-        pos = conn.execute(f"""
+        pos = conn.execute("""
             SELECT COALESCE(payment_method, 'carte') as payment_method,
                    COALESCE(SUM(total), 0) as total, COUNT(*) as nb
             FROM pos_transactions
-            WHERE status = 'completed' {pos_filter}
+            WHERE status = 'completed' """ + pos_filter + """
             GROUP BY payment_method
         """, tuple(params)).fetchall()
 
-        inv = conn.execute(f"""
+        inv = conn.execute("""
             SELECT COALESCE(payment_method, 'card') as payment_method,
                    COALESCE(SUM(total), 0) as total, COUNT(*) as nb
             FROM invoices
-            WHERE status = 'payee' {inv_filter}
+            WHERE status = 'payee' """ + inv_filter + """
             GROUP BY payment_method
         """, tuple(params)).fetchall()
 

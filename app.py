@@ -9,7 +9,12 @@ import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, Response, send_from_directory
-from routes.db import get_db, DB_NAME
+from routes.db import get_db, get_db_ctx, get_price_for_customer, DB_NAME
+try:
+    from reset_test_db import reset_transactional_data
+    _HAS_RESET = True
+except ImportError:
+    _HAS_RESET = False
 from routes.products import products_bp
 from routes.kpis import kpis_bp
 from routes.customers import customers_bp
@@ -31,26 +36,13 @@ def _safe_int(value, default):
     except (ValueError, TypeError):
         return default
 
-def get_price_for_customer(product, customer_type, is_loyal):
-    if isinstance(product, dict):
-        base_price = product.get('price_base', 0)
-        price = product.get('price', 0)
-    else:
-        base_price = product['price_base'] if 'price_base' in product.keys() else 0
-        price = product['price'] if 'price' in product.keys() else 0
-    normal_price = base_price if base_price > 0 else price
-    if customer_type == 'ecole':
-        return round(normal_price * 0.80, 2)
-    if is_loyal:
-        return round(normal_price * 0.85, 2)
-    if customer_type == 'etudiant':
-        return round(normal_price * 0.85, 2)
-    return round(normal_price, 2)
-
 def next_sequence(conn, name):
+    conn.execute('SAVEPOINT seq')
     conn.execute('INSERT OR IGNORE INTO sequences (name, current_value) VALUES (?, 0)', (name,))
     conn.execute('UPDATE sequences SET current_value = current_value + 1 WHERE name = ?', (name,))
-    return conn.execute('SELECT current_value FROM sequences WHERE name = ?', (name,)).fetchone()[0]
+    result = conn.execute('SELECT current_value FROM sequences WHERE name = ?', (name,)).fetchone()[0]
+    conn.execute('RELEASE seq')
+    return result
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -1057,8 +1049,8 @@ def mark_all_notifications_read():
 
 @app.route('/api/reset-data', methods=['POST'])
 def reset_data():
-    """Vider toutes les données transactionnelles, garder les références"""
-    from reset_test_db import reset_transactional_data
+    if not _HAS_RESET:
+        return jsonify({'error': 'Module reset_test_db non disponible'}), 500
     conn = get_db()
     reset_transactional_data(conn)
     conn.close()
@@ -1313,6 +1305,14 @@ def delete_invoice(invoice_id):
     if invoice and invoice['status'] == 'payee':
         conn.close()
         return jsonify({'error': 'Impossible de supprimer une facture payée'}), 400
+    
+    old_items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+    for item in old_items:
+        conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
+        conn.execute('''
+            INSERT INTO stock_movements (product_id, type, quantity, note)
+            VALUES (?, 'in', ?, 'Rétablissement stock - suppression facture')
+        ''', (item['product_id'], item['quantity']))
     
     conn.execute('DELETE FROM invoice_items WHERE invoice_id=?', (invoice_id,))
     conn.execute('DELETE FROM invoices WHERE id=?', (invoice_id,))
@@ -1747,17 +1747,19 @@ def close_pos_session(session_id):
     deposit_to_main = data.get('deposit_to_main', True)
     
     conn = get_db()
+    conn.execute('SAVEPOINT close_session')
     
     session = conn.execute('SELECT * FROM pos_sessions WHERE id = ?', (session_id,)).fetchone()
     if not session:
+        conn.execute('ROLLBACK TO close_session')
         conn.close()
         return jsonify({'error': 'Session non trouvée'}), 404
     
     if session['status'] != 'open':
+        conn.execute('ROLLBACK TO close_session')
         conn.close()
         return jsonify({'error': 'Session déjà fermé'}), 400
     
-    # Calculate expected cash
     total_in = conn.execute('''
         SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements 
         WHERE session_id = ? AND type = 'in'
@@ -1784,6 +1786,7 @@ def close_pos_session(session_id):
             VALUES ('in', ?, 'session_close', ?, ?)
         ''', (expected_cash, session_id, 'Session: ' + session['session_number']))
     
+    conn.execute('RELEASE close_session')
     conn.commit()
     conn.close()
     
@@ -1894,12 +1897,12 @@ def create_pos_transaction():
             VALUES (?, 'sale', ?, ?)
         ''', (product_id, qty, f'Vente POS: {doc_number}'))
     
-    # Record cash movement if cash payment (tendered amount, not total)
-    if payment_method == 'cash' and tendered_amount > 0:
+    # Record cash movement (net sale amount, not tendered)
+    if payment_method == 'cash' and total > 0:
         conn.execute('''
             INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
             VALUES (?, 'in', ?, 'sale', ?)
-        ''', (session_id, tendered_amount, doc_number))
+        ''', (session_id, total, doc_number))
         
         if change_amount > 0:
             conn.execute('''

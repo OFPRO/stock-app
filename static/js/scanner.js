@@ -445,7 +445,7 @@ function handleAddScannedToCart(e) {
     stopScanner();
     showTab('pos');
     if (typeof addPosProduct === 'function') {
-        addPosProduct(id, '', price, 1);
+        addPosProduct(id);
     }
 }
 
@@ -549,7 +549,7 @@ function handleRescanFromHistory(e) {
         else if (dt === 'etudiant-comptoir' && product.price_student) price = Number(product.price_student);
         else if (dt === 'ecole-comptoir' && product.price_school) price = Number(product.price_school);
     }
-    addPosProduct(productId, product.name, Number(price.toFixed(2)), 1);
+    addPosProduct(productId);
 }
 
 function escapeHtml(str) {

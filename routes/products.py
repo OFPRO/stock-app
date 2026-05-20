@@ -1,6 +1,6 @@
 import json
 from flask import Blueprint, request, jsonify
-from routes.db import get_db_ctx as get_db, validate_id
+from routes.db import get_db_ctx as get_db, get_price_for_customer, validate_id
 
 products_bp = Blueprint('products', __name__)
 
@@ -194,11 +194,11 @@ def delete_product(product_id):
             ''', (product_id, qty))
             details.append(f"Stock détruit: {qty} unité(s)")
         
-        # ── Étape 2 : Factures non payées → annulées ──
+        # ── Étape 2 : Factures non payées/non annulées → annulées ──
         unpaid_invoices = conn.execute('''
             SELECT id, invoice_number, status FROM invoices 
             WHERE id IN (SELECT invoice_id FROM invoice_items WHERE product_id=?)
-            AND status NOT IN ('payee')
+            AND status NOT IN ('payee', 'annulee')
         ''', (product_id,)).fetchall()
         for inv in unpaid_invoices:
             conn.execute("UPDATE invoices SET status='annulee', updated_at=CURRENT_TIMESTAMP WHERE id=?", (inv['id'],))
@@ -313,16 +313,6 @@ def get_products_for_sale():
         customer = None
         if customer_id:
             customer = conn.execute('SELECT * FROM customers WHERE id=?', (customer_id,)).fetchone()
-        
-        def get_price_for_customer(product, customer_type, is_loyal):
-            normal_price = product['price_base'] if product['price_base'] > 0 else product['price']
-            if customer_type == 'ecole':
-                return round(normal_price * 0.80, 2)
-            if is_loyal:
-                return round(normal_price * 0.85, 2)
-            if customer_type == 'etudiant':
-                return round(normal_price * 0.85, 2)
-            return round(normal_price, 2)
         
         result = []
         for p in products:

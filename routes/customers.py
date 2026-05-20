@@ -52,14 +52,16 @@ def get_customer(customer_id):
 def update_customer(customer_id):
     data = request.json
     conn = get_db()
-    conn.execute('''
-        UPDATE customers SET name=?, type=?, email=?, phone=?, address=?, discount_rate=?, is_loyal=?, notes=?, updated_at=CURRENT_TIMESTAMP
-        WHERE id=?
-    ''', (data['name'], data.get('type', 'particulier'), data.get('email', ''),
-          data.get('phone', ''), data.get('address', ''), data.get('discount_rate', 0),
-          data.get('is_loyal', 0), data.get('notes', ''), customer_id))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute('''
+            UPDATE customers SET name=?, type=?, email=?, phone=?, address=?, discount_rate=?, is_loyal=?, notes=?, updated_at=CURRENT_TIMESTAMP
+            WHERE id=?
+        ''', (data['name'], data.get('type', 'particulier'), data.get('email', ''),
+              data.get('phone', ''), data.get('address', ''), data.get('discount_rate', 0),
+              data.get('is_loyal', 0), data.get('notes', ''), customer_id))
+        conn.commit()
+    finally:
+        conn.close()
     return jsonify({'success': True})
 
 @customers_bp.route('/api/customers/<int:customer_id>', methods=['DELETE'])

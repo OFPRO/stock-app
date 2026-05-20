@@ -31,13 +31,15 @@ def add_supplier():
 def update_supplier(supplier_id):
     data = request.json
     conn = get_db()
-    conn.execute('''
-        UPDATE suppliers SET name=?, email=?, phone=?, address=?, contact_person=?
-        WHERE id=?
-    ''', (data['name'], data.get('email', ''), data.get('phone', ''),
-          data.get('address', ''), data.get('contact_person', ''), supplier_id))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute('''
+            UPDATE suppliers SET name=?, email=?, phone=?, address=?, contact_person=?
+            WHERE id=?
+        ''', (data['name'], data.get('email', ''), data.get('phone', ''),
+              data.get('address', ''), data.get('contact_person', ''), supplier_id))
+        conn.commit()
+    finally:
+        conn.close()
     return jsonify({'success': True})
 
 @suppliers_bp.route('/api/suppliers/<int:supplier_id>', methods=['DELETE'])

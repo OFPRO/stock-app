@@ -8,6 +8,7 @@
     var audioCtx = null;
     var lastCode = '';
     var lastTime = 0;
+    var resizeObs = null;
 
     function getAudioCtx() {
         if (!audioCtx) {
@@ -204,6 +205,7 @@
             var available = wanted.filter(function (f) { return supported.indexOf(f) !== -1; });
             if (available.length === 0) {
                 setStatus('Aucun format support\u00e9', 'error');
+                stopPosScanner();
                 return;
             }
 
@@ -229,8 +231,9 @@
                     lastCode = '';
                     lastTime = 0;
                     resizeCanvas();
-                    var obs = new ResizeObserver(function () { resizeCanvas(); });
-                    obs.observe(video.parentElement);
+                    if (resizeObs) resizeObs.disconnect();
+                    resizeObs = new ResizeObserver(function () { resizeCanvas(); });
+                    resizeObs.observe(video.parentElement);
                     setStatus('Pr\u00eat', 'success');
                     getEl('posScannerToggle').innerHTML = '<i class="fas fa-stop"></i>';
                     animFrame = requestAnimationFrame(detectLoop);
@@ -241,6 +244,7 @@
                 } else {
                     setStatus('Erreur: ' + (err.message || 'inconnue'), 'error');
                 }
+                stopPosScanner();
             });
         });
     }
@@ -248,6 +252,7 @@
     function stopPosScanner() {
         isActive = false;
         if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+        if (resizeObs) { resizeObs.disconnect(); resizeObs = null; }
         if (stream) {
             stream.getTracks().forEach(function (t) { t.stop(); });
             stream = null;

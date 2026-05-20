@@ -203,7 +203,7 @@ function updatePosCartItemPrice(productId, newPrice) {
         item.unit_price = newUnitPrice;
         item.base_price = oldBase;
         if (oldBase > 0) {
-            item.discount_percent = (1 - newUnitPrice / oldBase) * 100;
+            item.discount_percent = Math.round((1 - newUnitPrice / oldBase) * 10000) / 100;
         }
         renderPosCart();
     }
@@ -223,7 +223,6 @@ function renderPosCart() {
         return;
     }
     container.innerHTML = posCart.map(item => {
-        const lineTotal = item.quantity * item.unit_price * (1 - item.discount_percent / 100);
         return '<div class="pos-cart-item">' +
             '<div class="pos-cart-item-qty">' +
             '<button onclick="updatePosCartItemQty(' + item.product_id + ', -1)">-</button>' +
@@ -363,20 +362,6 @@ async function processPosPayment() {
             loadProducts();
             loadPosCashMovements();
             loadPosTransactions();
-        } else if (data.insufficient_items) {
-            let msg = 'STOCK INSUFFISANT:\n\n';
-            data.insufficient_items.forEach(item => {
-                msg += '- ' + item.product_name + '\n';
-                msg += '  Demandé: ' + item.requested + ' | Disponible: ' + item.available + '\n\n';
-            });
-            alert(msg);
-            data.insufficient_items.forEach(item => {
-                const cartItem = posCart.find(i => i.product_id === item.product_id);
-                if (cartItem) {
-                    cartItem.quantity = item.available;
-                }
-            });
-            renderPosCart();
         } else {
             showError(data.error || 'Erreur transaction');
         }
@@ -466,6 +451,7 @@ async function loadPosCashMovements() {
         const movements = await res.json();
         const container = document.getElementById('posCashMovementsList');
 
+        movements.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         let balance = 0;
         const opening = posSession.opening_cash || 0;
         movements.forEach(m => {
