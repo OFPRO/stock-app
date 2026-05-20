@@ -25,7 +25,7 @@ actor APIClient {
     }
 
     func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T {
-        let url = baseURL.appendingPathComponent(endpoint.path)
+        let url = URL(string: endpoint.path, relativeTo: baseURL) ?? baseURL
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -37,7 +37,7 @@ actor APIClient {
     }
 
     func request<T: Decodable, U: Encodable>(_ endpoint: Endpoint, body: U) async throws -> T {
-        let url = baseURL.appendingPathComponent(endpoint.path)
+        let url = URL(string: endpoint.path, relativeTo: baseURL) ?? baseURL
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -51,7 +51,7 @@ actor APIClient {
     }
 
     func requestVoid(_ endpoint: Endpoint) async throws {
-        let url = baseURL.appendingPathComponent(endpoint.path)
+        let url = URL(string: endpoint.path, relativeTo: baseURL) ?? baseURL
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Accept")
