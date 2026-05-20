@@ -2408,6 +2408,8 @@ def get_pos_transaction_by_invoice(invoice_number):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='StockPro - Gestion de Stock')
+    parser.add_argument('--host', type=str, default='127.0.0.1',
+                        help='Adresse d\'écoute (0.0.0.0 = réseau local)')
     parser.add_argument('--port', type=int, default=5001, help='Port du serveur')
     parser.add_argument('--data-dir', type=str, default=None,
                         help='Dossier de données (DB, logs)')
@@ -2438,4 +2440,4 @@ if __name__ == '__main__':
     if args.open_browser:
         webbrowser.open(f'http://localhost:{args.port}')
 
-    app.run(debug=False, port=args.port, threaded=True)
+    app.run(host=args.host, debug=False, port=args.port, threaded=True)
