@@ -15,12 +15,12 @@ final class KPIProvider: KPIProviderProtocol {
 
     func fetchFinancialKPIs() async throws -> DashboardFinancialKPIs {
         let receivables: ReceivablesKPIDTO = try await api.request(.receivablesKPIs)
-        let alerts: AlertsDTO = try await api.request(.alertes)
+        let dashboard: DashboardKPIDTO = try await api.request(.dashboardKPIs)
         return DashboardFinancialKPIs(
             creances: String(format: "%.2f MAD", receivables.total_creances ?? 0),
             tauxEncaissement: String(format: "%.1f%%", receivables.taux_encaissement ?? 0),
-            valeurStock: String(format: "%.2f MAD", alerts.valeur_stock ?? 0),
-            ruptures: "\(alerts.out_of_stock ?? 0)"
+            valeurStock: String(format: "%.2f MAD", dashboard.total_value ?? 0),
+            ruptures: "\(dashboard.out_of_stock ?? 0)"
         )
     }
 
@@ -28,28 +28,28 @@ final class KPIProvider: KPIProviderProtocol {
         let sessions: SessionsSummaryDTO = try await api.request(.sessionsSummary)
         let payments: PaymentMethodsDTO = try await api.request(.paymentMethods)
         return DashboardPOSKPIs(
-            total: String(format: "%.2f MAD", sessions.ca_total ?? 0),
-            especes: String(format: "%.2f MAD", payments.cash_total ?? 0),
-            carte: String(format: "%.2f MAD", payments.card_total ?? 0)
+            total: String(format: "%.2f MAD", sessions.total_sales_period ?? 0),
+            especes: String(format: "%.2f MAD", payments.methods?.cash?.total ?? 0),
+            carte: String(format: "%.2f MAD", payments.methods?.card?.total ?? 0)
         )
     }
 
     func fetchDailySales(days: Int) async throws -> [DailySalesData] {
         typealias Response = [DailySalesDTO]
         let dtos: Response = try await api.request(.salesDaily(days: days))
-        return dtos.map { DailySalesData(date: $0.date, amount: $0.total ?? $0.amount ?? 0) }
+        return dtos.map { DailySalesData(date: $0.date, amount: $0.ca ?? $0.total ?? $0.amount ?? 0) }
     }
 
     func fetchCategoryDistribution() async throws -> [CategoryDistribution] {
         typealias Response = [CategoryDistribDTO]
         let dtos: Response = try await api.request(.categoriesDistribution)
-        return dtos.map { CategoryDistribution(category: $0.category ?? $0.name ?? "Autre", percentage: $0.percentage ?? $0.percent ?? 0, amount: $0.total ?? $0.amount ?? 0) }
+        return dtos.map { CategoryDistribution(category: $0.category ?? $0.name ?? "Autre", percentage: $0.percentage ?? $0.percent ?? 0, amount: $0.ca ?? $0.total ?? $0.amount ?? 0) }
     }
 
     func fetchTopSellingProducts(limit: Int) async throws -> [TopProductData] {
         typealias Response = [TopProductDTO]
         let dtos: Response = try await api.request(.topSellingProducts(limit: limit))
-        return dtos.map { TopProductData(name: $0.name ?? $0.product_name ?? "Produit", quantity: $0.quantity ?? $0.total_qty ?? 0, revenue: $0.revenue ?? $0.total_revenue ?? 0) }
+        return dtos.map { TopProductData(name: $0.name ?? $0.product_name ?? "Produit", quantity: $0.qty_vendue ?? $0.quantity ?? $0.total_qty ?? 0, revenue: $0.ca ?? $0.revenue ?? $0.total_revenue ?? 0) }
     }
 }
 
@@ -108,24 +108,31 @@ struct ReceivablesKPIDTO: Decodable {
     let taux_encaissement: Double?
 }
 
-struct AlertsDTO: Decodable {
-    let valeur_stock: Double?
+struct DashboardKPIDTO: Decodable {
+    let total_value: Double?
     let out_of_stock: Int?
 }
 
 struct SessionsSummaryDTO: Decodable {
-    let ca_total: Double?
+    let total_sales_period: Double?
 }
 
 struct PaymentMethodsDTO: Decodable {
-    let cash_total: Double?
-    let card_total: Double?
+    struct MethodTotals: Decodable {
+        struct MethodAmount: Decodable {
+            let total: Double?
+        }
+        let cash: MethodAmount?
+        let card: MethodAmount?
+    }
+    let methods: MethodTotals?
 }
 
 // MARK: - Chart DTOs
 
 struct DailySalesDTO: Decodable {
     let date: String
+    let ca: Double?
     let total: Double?
     let amount: Double?
 }
@@ -133,6 +140,7 @@ struct DailySalesDTO: Decodable {
 struct CategoryDistribDTO: Decodable {
     let category: String?
     let name: String?
+    let ca: Double?
     let percentage: Double?
     let percent: Double?
     let total: Double?
@@ -142,6 +150,8 @@ struct CategoryDistribDTO: Decodable {
 struct TopProductDTO: Decodable {
     let name: String?
     let product_name: String?
+    let ca: Double?
+    let qty_vendue: Int?
     let quantity: Int?
     let total_qty: Int?
     let revenue: Double?
