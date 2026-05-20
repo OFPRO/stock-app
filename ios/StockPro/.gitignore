@@ -1,0 +1,10 @@
+.build/
+.build-arm/
+.build-x86_64/
+*.xcworkspace
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+DerivedData/
+.build/
+.build
+Package.resolved
