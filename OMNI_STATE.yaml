@@ -1,0 +1,61 @@
+# OMNI Framework — Dynamic Project State
+# Automatically managed by OpenCode. Do not edit manually.
+
+framework: OMNI
+version: 1.0.0
+
+project:
+  name: ""
+  type: ""              # android | web | ios | mixed | unknown
+  root: ""              # absolute path to project root
+
+current_phase: 0          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
+
+phase_history:
+  - phase: 0
+    status: pending      # pending | in_progress | completed | blocked
+    completed_skills: []
+    artifacts: []
+    blockers: []
+
+state:
+  project_context: ""    # path to project-context.md
+  prd: ""                # path to prd.md
+  architecture: ""       # path to architecture.md
+  epics: ""              # path to epics.md
+  design: ""             # path to DESIGN.md
+  sprint_status: ""      # path to sprint-status.yaml
+  version: ""            # current VERSION string
+
+references:
+  android:
+    - name: nowinandroid
+      path: "../references/android/nowinandroid"
+      origin: "github.com/android/nowinandroid"
+      description: "Google official reference app — Jetpack Compose, Clean Architecture"
+    - name: android-showcase
+      path: "../references/android/android-showcase"
+      origin: "github.com/igorwojda/android-showcase"
+      description: "Production-grade Android Clean Architecture showcase"
+    - name: MVVMTemplate
+      path: "../references/android/MVVMTemplate"
+      origin: "github.com/Drjacky/MVVMTemplate"
+      description: "Multi-module MVVM + Clean Architecture template"
+
+# Taste decisions log — records close approaches, scope calls, codex disagreements
+taste_decisions: []
+  # - timestamp: "2026-05-31T12:00:00Z"
+  #   context: "Brief description of decision context"
+  #   options_considered: ["option A", "option B"]
+  #   decision: "option A because ..."
+  #   rationale: "Full reasoning"
+
+blockers: []
+  # - phase: 2
+  #   description: "Waiting for stakeholder approval on PRD"
+  #   unblocked_by: "user confirmation"
+
+learnings: []
+  # - from: "Phase 4 — feature/X"
+  #   lesson: "Room migrations require careful handling of existing data"
+  #   applied_in: ["Phase 4 — feature/Y"]
