@@ -1,7 +1,65 @@
+# OMNI Framework — Bootstrap
+
+## Règle 0 — Charger le framework OMNI
+Immédiatement après avoir lu ce fichier, lire dans cet ordre :
+1. `OMNI_AGENTS.md` — Framework de routage complet (8 phases, 62 skills, transitions)
+2. `OMNI_STATE.yaml` — État dynamique du projet (phase courante, artefacts, décisions)
+3. `docs/project-context.md` — 38 règles business critiques du projet StockPro
+
+Toute action, planification ou décision doit respecter les phases et transitions
+définies dans OMNI_AGENTS.md. Ne jamais contourner le framework.
+
+## Règle 1 — Connaître l'état courant du projet
+Lire OMNI_STATE.yaml pour savoir :
+- Quelle phase est active (0-7)
+- Quels artefacts ont été produits (PRD, architecture, epics, etc.)
+- Quels blockers existent
+- Quelles décisions ont été prises
+
+## Règle 2 — Progression par phases
+Avancer phase par phase selon OMNI_AGENTS.md. Ne pas sauter de phase.
+Quand une phase est terminée, mettre à jour OMNI_STATE.yaml avec les nouveaux artefacts.
+
+---
+
 # StockPro — Gestion de Stock
 
 > **⚠️ AI Agents: Read `stock-app/docs/project-context.md` before implementing any code.**
 > It contains 38 critical rules covering language patterns, framework conventions, testing, code quality, workflow, and business invariants gathered via BMad multi-agent discovery.
+
+## Graphify Knowledge Graph
+
+This project has a knowledge graph at `graphify-out/` built by Graphify (v0.8.14). Use it for structural codebase queries instead of grepping files.
+
+- `graphify-out/graph.json` — full graph (2827 nodes, 6907 edges, 149 communities)
+- `graphify-out/graph.html` — interactive visualization (open in browser)
+- `graphify-out/GRAPH_REPORT.md` — architecture summary with god nodes, communities, and cross-connections
+
+**Query the graph (preferred over Grep/Grep):**
+```
+/graphify query "<question>"
+/graphify path "NodeA" "NodeB"
+/graphify explain "NodeName"
+```
+
+**Update after code changes:**
+```
+graphify update .    # AST-only, no API cost
+```
+
+Key god nodes: `constructor()` (153 edges), `decode()` (144), `encode()` (119), `Endpoint` (97)
+Key cross-community bridges: `InvoiceItem`, `get_price_for_customer()`, `Endpoint`
+
+### Graphify CLI commands
+```bash
+graphify query "..."                     # BFS traversal
+graphify query "..." --dfs               # DFS traversal  
+graphify path "ConceptA" "ConceptB"      # shortest path
+graphify explain "FunctionName"          # node + neighbors
+graphify update .                        # re-extract changed code
+```
+
+---
 
 ## Stack
 - **Backend:** Python Flask (single `app.py`, port 5001)
