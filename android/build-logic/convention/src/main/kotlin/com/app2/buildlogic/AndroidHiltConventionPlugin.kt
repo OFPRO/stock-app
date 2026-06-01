@@ -1,0 +1,22 @@
+package com.app2.buildlogic
+
+import org.gradle.api.Plugin
+import org.gradle.api.Project
+import org.gradle.kotlin.dsl.dependencies
+
+class AndroidHiltConventionPlugin : Plugin<Project> {
+    override fun apply(target: Project) {
+        with(target) {
+            with(pluginManager) {
+                apply("com.google.dagger.hilt.android")
+                apply("com.google.devtools.ksp")
+            }
+
+            dependencies {
+                add("implementation", "com.google.dagger:hilt-android:2.52")
+                add("ksp", "com.google.dagger:hilt-compiler:2.52")
+                add("implementation", "javax.inject:javax.inject:1")
+            }
+        }
+    }
+}

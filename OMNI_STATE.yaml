@@ -5,57 +5,133 @@ framework: OMNI
 version: 1.0.0
 
 project:
-  name: ""
-  type: ""              # android | web | ios | mixed | unknown
-  root: ""              # absolute path to project root
+  name: "App2"
+  type: "android"
+  root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/android"
 
-current_phase: 0          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
+current_phase: 6          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
 
 phase_history:
   - phase: 0
-    status: pending      # pending | in_progress | completed | blocked
-    completed_skills: []
-    artifacts: []
+    status: completed
+    completed_skills:
+      - android-tooling
+      - android-architecture
+      - android-build-ci
+    artifacts:
+      - "android/build.gradle.kts"
+      - "android/settings.gradle.kts"
+      - "android/gradle/libs.versions.toml"
+      - "android/gradle.properties"
+      - "android/app/build.gradle.kts"
+      - "android/app/src/main/AndroidManifest.xml"
+      - "android/app/src/main/java/com/app2/MainActivity.kt"
+      - "android/core/data/build.gradle.kts"
+      - "android/core/domain/build.gradle.kts"
+      - "android/core/ui/build.gradle.kts"
+      - "android/core/ui/src/main/java/com/app2/core/ui/theme/Theme.kt"
+      - "android/local.properties"
+      - "android/gradlew"
+    blockers: []
+  - phase: 1
+    status: completed
+    completed_skills:
+      - bmad-product-brief
+    artifacts:
+      - "android/docs/product-brief.md"
+    blockers: []
+  - phase: 2
+    status: completed
+    completed_skills:
+      - android-architecture
+      - android-build-ci
+      - bmad-create-epics-and-stories
+    artifacts:
+      - "android/docs/architecture.md"
+      - "android/build-logic/convention/src/main/kotlin/com/app2/buildlogic/*.kt"
+      - "android/build-logic/convention/build.gradle.kts"
+      - "android/docs/epics.md"
+    blockers: []
+  - phase: 4
+    status: completed
+    completed_skills:
+      - bmad-dev-story
+    artifacts:
+      - "android/feature/dashboard/src/main/java/com/app2/feature/dashboard/DashboardViewModel.kt"
+      - "android/feature/dashboard/src/main/java/com/app2/feature/dashboard/DashboardScreen.kt"
+      - "android/feature/products/build.gradle.kts"
+      - "android/feature/products/src/main/java/com/app2/feature/products/ProductsViewModel.kt"
+      - "android/feature/products/src/main/java/com/app2/feature/products/ProductsScreen.kt"
+      - "android/feature/products/src/main/java/com/app2/feature/products/ProductDetailViewModel.kt"
+      - "android/feature/products/src/main/java/com/app2/feature/products/ProductDetailScreen.kt"
+      - "android/feature/pos/build.gradle.kts"
+      - "android/feature/pos/src/main/java/com/app2/feature/pos/POSSessionViewModel.kt"
+      - "android/feature/pos/src/main/java/com/app2/feature/pos/POSRegisterViewModel.kt"
+      - "android/feature/pos/src/main/java/com/app2/feature/pos/POSScreen.kt"
+      - "android/feature/pos/src/main/java/com/app2/feature/pos/BarcodeScanner.kt"
+      - "android/feature/customers/build.gradle.kts"
+      - "android/feature/customers/src/main/java/com/app2/feature/customers/CustomersViewModel.kt"
+      - "android/feature/customers/src/main/java/com/app2/feature/customers/CustomersScreen.kt"
+      - "android/feature/customers/src/main/java/com/app2/feature/customers/CustomerDetailViewModel.kt"
+      - "android/feature/customers/src/main/java/com/app2/feature/customers/CustomerDetailScreen.kt"
+      - "android/feature/customers/src/main/java/com/app2/feature/customers/CustomerFormViewModel.kt"
+      - "android/feature/customers/src/main/java/com/app2/feature/customers/CustomerFormScreen.kt"
+      - "android/core/ui/src/main/java/com/app2/core/ui/navigation/Screen.kt"
+      - "android/feature/suppliers/build.gradle.kts"
+      - "android/feature/suppliers/src/main/java/com/app2/feature/suppliers/SuppliersViewModel.kt"
+      - "android/feature/suppliers/src/main/java/com/app2/feature/suppliers/SuppliersScreen.kt"
+      - "android/feature/suppliers/src/main/java/com/app2/feature/suppliers/SupplierDetailViewModel.kt"
+      - "android/feature/suppliers/src/main/java/com/app2/feature/suppliers/SupplierDetailScreen.kt"
+      - "android/feature/suppliers/src/main/java/com/app2/feature/suppliers/SupplierFormViewModel.kt"
+      - "android/feature/suppliers/src/main/java/com/app2/feature/suppliers/SupplierFormScreen.kt"
+      - "android/feature/warehouses/build.gradle.kts"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/WarehousesViewModel.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/WarehousesScreen.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/WarehouseFormViewModel.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/WarehouseFormScreen.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/LocationsViewModel.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/LocationsScreen.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/LocationFormViewModel.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/LocationFormScreen.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/MovementListViewModel.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/MovementListScreen.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/CreateMovementViewModel.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/CreateMovementScreen.kt"
+    blockers: []
+  - phase: 5
+    status: completed
+    completed_skills:
+      - bmad-code-review
+      - bmad-checkpoint-preview
+      - bmad-review-adversarial-general
+      - bmad-review-edge-case-hunter
+      - cso
+    artifacts:
+      - "android/core/ui/src/main/java/com/app2/core/ui/components/StockButton.kt"
+      - "android/core/ui/src/main/java/com/app2/core/ui/theme/Theme.kt"
+      - "android/core/ui/src/main/java/com/app2/core/ui/components/StockSkeleton.kt"
+      - "android/feature/pos/src/main/java/com/app2/feature/pos/POSScreen.kt"
+      - "android/feature/pos/src/main/java/com/app2/feature/pos/POSSessionViewModel.kt"
+      - "android/feature/pos/src/main/java/com/app2/feature/pos/POSRegisterViewModel.kt"
+      - "android/feature/pos/src/main/java/com/app2/feature/pos/BarcodeScanner.kt"
+      - "android/feature/auth/src/main/java/com/app2/feature/auth/PinManager.kt"
+      - "android/feature/auth/src/main/java/com/app2/feature/auth/PinLockScreen.kt"
+      - "android/feature/dashboard/src/main/java/com/app2/feature/dashboard/DashboardViewModel.kt"
+      - "android/core/data/src/main/java/com/app2/core/data/di/NetworkModule.kt"
+      - "android/core/data/src/main/java/com/app2/core/data/remote/ApiService.kt"
+      - "android/feature/customers/src/main/java/com/app2/feature/customers/CustomerDetailViewModel.kt"
+      - "android/feature/customers/src/main/java/com/app2/feature/customers/CustomerDetailScreen.kt"
+      - "android/feature/products/src/main/java/com/app2/feature/products/ProductsViewModel.kt"
+      - "android/feature/products/src/main/java/com/app2/feature/products/ProductsScreen.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/CreateMovementViewModel.kt"
+      - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/CreateMovementScreen.kt"
     blockers: []
 
 state:
-  project_context: ""    # path to project-context.md
-  prd: ""                # path to prd.md
-  architecture: ""       # path to architecture.md
-  epics: ""              # path to epics.md
-  design: ""             # path to DESIGN.md
-  sprint_status: ""      # path to sprint-status.yaml
-  version: ""            # current VERSION string
-
-references:
-  android:
-    - name: nowinandroid
-      path: "../references/android/nowinandroid"
-      origin: "github.com/android/nowinandroid"
-      description: "Google official reference app — Jetpack Compose, Clean Architecture"
-    - name: android-showcase
-      path: "../references/android/android-showcase"
-      origin: "github.com/igorwojda/android-showcase"
-      description: "Production-grade Android Clean Architecture showcase"
-    - name: MVVMTemplate
-      path: "../references/android/MVVMTemplate"
-      origin: "github.com/Drjacky/MVVMTemplate"
-      description: "Multi-module MVVM + Clean Architecture template"
-
-# Taste decisions log — records close approaches, scope calls, codex disagreements
-taste_decisions: []
-  # - timestamp: "2026-05-31T12:00:00Z"
-  #   context: "Brief description of decision context"
-  #   options_considered: ["option A", "option B"]
-  #   decision: "option A because ..."
-  #   rationale: "Full reasoning"
-
-blockers: []
-  # - phase: 2
-  #   description: "Waiting for stakeholder approval on PRD"
-  #   unblocked_by: "user confirmation"
-
-learnings: []
-  # - from: "Phase 4 — feature/X"
-  #   lesson: "Room migrations require careful handling of existing data"
-  #   applied_in: ["Phase 4 — feature/Y"]
+  project_context: "android/project-context.md"
+  prd: "android/docs/product-brief.md"
+  architecture: "android/docs/architecture.md"
+  epics: "android/docs/epics.md"
+  design: ""
+  sprint_status: ""
+  version: "1.1.0"
