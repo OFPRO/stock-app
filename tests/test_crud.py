@@ -40,7 +40,7 @@ class TestProducts:
         rv = client.put(f'/api/products/{seed_data["product_id"]}', json={
             'name': 'Test Product', 'sku': 'TST001',
             'price': 15, 'price_base': 15,
-            'price_loyal': 12.75, 'price_student': 12.00, 'price_school': 11.25,
+            'price_loyal': 12.75, 'price_gros': 11.25,
         })
         assert rv.status_code == 200
         data = rv.get_json()
@@ -131,6 +131,12 @@ class TestLocations:
             'name': 'Temp', 'warehouse_id': seed_data['warehouse_id'],
         })
         assert rv.status_code == 200
+        locs = client.get('/api/locations').get_json()
+        loc = [l for l in locs if l['name'] == 'Temp'][0]
+        rv = client.put(f'/api/locations/{loc["id"]}', json={
+            'name': 'Updated', 'warehouse_id': seed_data['warehouse_id'],
+        })
+        assert rv.status_code == 200
 
 
 class TestOrders:
@@ -214,10 +220,15 @@ class TestStockMovements:
         assert rv.status_code in (400, 422, 200)
 
     def test_stock_transfer(self, client, seed_data):
+        client.post('/api/locations', json={
+            'name': 'Destination', 'warehouse_id': seed_data['warehouse_id'],
+        })
+        locs = client.get('/api/locations').get_json()
+        to_loc = [l for l in locs if l['name'] == 'Destination'][0]
         rv = client.post('/api/stock/transfer', json={
             'product_id': seed_data['product_id'],
             'from_location_id': seed_data['location_id'],
-            'to_location_id': seed_data['location_id'],
+            'to_location_id': to_loc['id'],
             'quantity': 3,
         })
         assert rv.status_code == 200
@@ -365,7 +376,7 @@ class TestEdgeCases:
 
     def test_nonexistent_invoice(self, client, seed_data):
         rv = client.get('/api/invoices/99999')
-        assert rv.status_code in (404, 500)
+        assert rv.status_code == 404
 
 
 class TestReports:

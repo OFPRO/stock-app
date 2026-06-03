@@ -4,6 +4,12 @@ import sqlite3
 
 DB_NAME = os.environ.get('STOCKPRO_DB_PATH', 'stock.db')
 
+def _safe_int(value, default):
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
 def validate_id(value):
     if value is None:
         return None
@@ -13,21 +19,13 @@ def validate_id(value):
         return value
     return None
 
-def get_price_for_customer(product, customer_type, is_loyal):
-    if isinstance(product, dict):
-        base_price = product.get('price_base', 0)
-        price = product.get('price', 0)
-    else:
-        base_price = product['price_base'] if 'price_base' in product.keys() else 0
-        price = product['price'] if 'price' in product.keys() else 0
-    normal_price = base_price if base_price > 0 else price
-    if customer_type == 'ecole':
-        return round(normal_price * 0.80, 2)
-    if is_loyal:
-        return round(normal_price * 0.85, 2)
-    if customer_type == 'etudiant':
-        return round(normal_price * 0.85, 2)
-    return round(normal_price, 2)
+def get_price_by_tier(product, tier):
+    base_price = product.get('price_base', 0) or product.get('price', 0)
+    if tier == 'fidele':
+        return product.get('price_loyal', 0) or base_price
+    elif tier == 'gros':
+        return product.get('price_gros', 0) or base_price
+    return base_price
 
 def get_db():
     conn = sqlite3.connect(DB_NAME, check_same_thread=False, timeout=30)
@@ -47,7 +45,7 @@ def get_db_ctx():
     try:
         yield conn
         conn.commit()
-    except:
+    except Exception:
         conn.rollback()
         raise
     finally:

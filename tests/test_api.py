@@ -68,18 +68,26 @@ def test_api_kpis_dashboard(client):
 def test_api_kpis_sales(client):
     rv = client.get('/api/kpis/sales?period=30')
     assert rv.status_code == 200
+    data = rv.get_json()
+    assert 'ca_periode' in data
 
 def test_api_kpis_margins(client):
     rv = client.get('/api/kpis/margins')
     assert rv.status_code == 200
+    assert rv.get_json() is not None
 
 def test_api_kpis_receivables(client):
     rv = client.get('/api/kpis/receivables')
     assert rv.status_code == 200
+    data = rv.get_json()
+    assert 'total_creances' in data
+    assert 'nb_impayees' in data
 
 def test_api_kpis_trends(client):
     rv = client.get('/api/kpis/trends?period=30')
     assert rv.status_code == 200
+    data = rv.get_json()
+    assert isinstance(data, list)
 
 def test_api_kpis_alertes(client):
     rv = client.get('/api/kpis/alertes')
@@ -98,10 +106,14 @@ def test_api_categories(client, seed_data):
 def test_api_pos_best_sellers(client):
     rv = client.get('/api/pos/best-sellers?limit=5')
     assert rv.status_code == 200
+    data = rv.get_json()
+    assert isinstance(data, list)
 
 def test_api_main_account(client):
     rv = client.get('/api/main-account')
     assert rv.status_code == 200
+    data = rv.get_json()
+    assert 'account' in data or 'current_balance' in data
 
 def test_api_notifications(client):
     rv = client.get('/api/notifications')
@@ -113,3 +125,5 @@ def test_api_notifications(client):
 def test_api_reorder_rules(client):
     rv = client.get('/api/reorder-rules')
     assert rv.status_code == 200
+    data = rv.get_json()
+    assert isinstance(data, list)
