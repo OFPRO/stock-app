@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from routes.db import get_db
+from routes.db import get_db, validate_id
 
 warehouses_bp = Blueprint('warehouses', __name__)
 
@@ -175,9 +175,10 @@ def get_all_movements():
     if product_id and product_id.isdigit():
         query += ' AND m.product_id = ?'
         params.append(int(product_id))
-    if warehouse_id and warehouse_id.isdigit():
+    wid = validate_id(warehouse_id)
+    if wid:
         query += ' AND (p.warehouse_id = ? OR EXISTS (SELECT 1 FROM locations l JOIN stock s ON s.location_id = l.id WHERE s.product_id = p.id AND l.warehouse_id = ?))'
-        params.extend([int(warehouse_id), int(warehouse_id)])
+        params.extend([wid, wid])
 
     query += ' ORDER BY m.created_at DESC LIMIT 100'
 

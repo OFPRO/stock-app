@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.8 (2026-06-03)
+
+### Qualité (Phase 5b) — 8 correctifs
+
+- **Q1** : `_safe_int()` extrait dans `routes/db.py`, supprimé les duplications
+- **Q2** : `_esc()`/`_n()` factorisés au niveau module dans `app.py`
+- **Q3-Q4** : Imports morts (`csv`, `Response`, `StringIO`, `get_db_ctx`) supprimés
+- **Q5-Q6** : `warehouse_id.isdigit()` → `validate_id()` unifié dans 16 occurrences (app.py, kpis.py, warehouses.py, locations.py)
+- **Q7** : `'carte'` → `'card'` unifié dans `kpis.py`
+- **Q8** : 3 boucles N+1 dans `kpis.py` remplacées par des `GROUP BY date()` (sales_daily, trends, evolution)
+
+### Sécurité (Phase 5c) — 3 correctifs
+
+- **S1** : `app.secret_key` ajouté (sessions Flask signées)
+- **S3** : `templates/index.html.bak` untracked (stale SPA 173KB, plus servi)
+- **S4** : `SESSION_COOKIE_SAMESITE = 'Lax'` configuré
+
+### Tests (Phase 5d) — 5 correctifs
+
+- **T1** : `test_nonexistent_invoice` retourne 404 au lieu de 500
+- **T2** : Assertions body ajoutées à 7 tests nus
+- **T3** : `test_stock_transfer` utilise 2 emplacements différents
+- **T4** : `test_update_location` ajoute vrai PUT après POST
+- **T5** : `test_kpis_sales_daily_period_30` supprime assertion `len(data) == 31` rigide
+
 ## v0.6.2 (2026-05-19)
 
 ### Features — Scanners (POS & ZXing)

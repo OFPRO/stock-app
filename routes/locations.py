@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from routes.db import get_db
+from routes.db import get_db, validate_id
 
 locations_bp = Blueprint('locations', __name__)
 
@@ -7,8 +7,9 @@ locations_bp = Blueprint('locations', __name__)
 def get_locations():
     warehouse_id = request.args.get('warehouse_id')
     conn = get_db()
-    if warehouse_id and warehouse_id.isdigit():
-        locations = conn.execute('SELECT * FROM locations WHERE warehouse_id=? ORDER BY name', (int(warehouse_id),)).fetchall()
+    wid = validate_id(warehouse_id)
+    if wid:
+        locations = conn.execute('SELECT * FROM locations WHERE warehouse_id=? ORDER BY name', (wid,)).fetchall()
     else:
         locations = conn.execute('''
             SELECT l.*, w.name as warehouse_name

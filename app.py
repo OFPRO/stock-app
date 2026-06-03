@@ -9,7 +9,7 @@ import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, Response, send_from_directory
-from routes.db import get_db, get_db_ctx, get_price_for_customer, DB_NAME
+from routes.db import get_db, get_price_by_tier, DB_NAME, _safe_int, validate_id
 try:
     from reset_test_db import reset_transactional_data
     _HAS_RESET = True
@@ -23,6 +23,8 @@ from routes.warehouses import warehouses_bp
 from routes.locations import locations_bp
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24).hex()
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.register_blueprint(products_bp)
 app.register_blueprint(kpis_bp)
 app.register_blueprint(customers_bp)
@@ -30,11 +32,15 @@ app.register_blueprint(suppliers_bp)
 app.register_blueprint(warehouses_bp)
 app.register_blueprint(locations_bp)
 
-def _safe_int(value, default):
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
+def _esc(d):
+    for k, v in d.items():
+        if v is None:
+            d[k] = ''
+        elif isinstance(v, str):
+            d[k] = html.escape(v)
+
+def _n(val, default='-'):
+    return val if val else default
 
 def next_sequence(conn, name):
     conn.execute('SAVEPOINT seq')
@@ -90,8 +96,7 @@ def init_db():
             price REAL DEFAULT 0,
             price_base REAL DEFAULT 0,
             price_loyal REAL DEFAULT 0,
-            price_school REAL DEFAULT 0,
-            price_student REAL DEFAULT 0,
+            price_gros REAL DEFAULT 0,
             tax_category TEXT DEFAULT '20',
             lot_number TEXT,
             serial_number TEXT,
@@ -114,11 +119,7 @@ def init_db():
     except Exception:
         pass
     try:
-        c.execute('ALTER TABLE products ADD COLUMN price_school REAL DEFAULT 0')
-    except Exception:
-        pass
-    try:
-        c.execute('ALTER TABLE products ADD COLUMN price_student REAL DEFAULT 0')
+        c.execute('ALTER TABLE products ADD COLUMN price_gros REAL DEFAULT 0')
     except Exception:
         pass
     try:
@@ -242,6 +243,10 @@ def init_db():
             FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
         )
     ''')
+    try:
+        c.execute("ALTER TABLE purchase_orders ADD COLUMN paid_at TIMESTAMP")
+    except:
+        pass
     
     c.execute('''
         CREATE TABLE IF NOT EXISTS purchase_order_items (
@@ -343,6 +348,18 @@ def init_db():
         pass
     try:
         c.execute('ALTER TABLE invoices ADD COLUMN change_given REAL DEFAULT 0')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN amount_paid REAL DEFAULT 0')
+    except Exception:
+        pass
+    try:
+        c.execute("UPDATE invoices SET amount_paid = total WHERE status IN ('payee', 'ticket') AND amount_paid = 0")
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN is_credit_payment INTEGER DEFAULT 0')
     except Exception:
         pass
 
@@ -567,8 +584,8 @@ def get_reports():
     warehouse_id = request.args.get('warehouse_id')
     
     if report_type == 'overview':
-        if warehouse_id and warehouse_id.isdigit():
-            wid = int(warehouse_id)
+        wid = validate_id(warehouse_id)
+        if wid:
             total_products = conn.execute('SELECT COUNT(*) FROM products WHERE warehouse_id=?', (wid,)).fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products WHERE warehouse_id=?', (wid,)).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND warehouse_id=?', (wid,)).fetchone()[0]
@@ -590,8 +607,8 @@ def get_reports():
         })
 
     elif report_type == 'rotation':
-        if warehouse_id and warehouse_id.isdigit():
-            wid = int(warehouse_id)
+        wid = validate_id(warehouse_id)
+        if wid:
             products = conn.execute('SELECT p.name, p.quantity, p.min_quantity, (SELECT COUNT(*) FROM stock_movements WHERE product_id = p.id) as movements FROM products p WHERE p.warehouse_id=? ORDER BY movements DESC LIMIT 20', (wid,)).fetchall()
         else:
             products = conn.execute('SELECT p.name, p.quantity, p.min_quantity, (SELECT COUNT(*) FROM stock_movements WHERE product_id = p.id) as movements FROM products p ORDER BY movements DESC LIMIT 20').fetchall()
@@ -599,8 +616,8 @@ def get_reports():
         return jsonify([dict(p) for p in products])
 
     elif report_type == 'expiry':
-        if warehouse_id and warehouse_id.isdigit():
-            wid = int(warehouse_id)
+        wid = validate_id(warehouse_id)
+        if wid:
             products = conn.execute('SELECT name, lot_number, expiry_date, quantity FROM products WHERE expiry_date IS NOT NULL AND expiry_date <= date(\'now\', \'+90 days\') AND warehouse_id=? ORDER BY expiry_date', (wid,)).fetchall()
         else:
             products = conn.execute('SELECT name, lot_number, expiry_date, quantity FROM products WHERE expiry_date IS NOT NULL AND expiry_date <= date(\'now\', \'+90 days\') ORDER BY expiry_date').fetchall()
@@ -608,8 +625,8 @@ def get_reports():
         return jsonify([dict(p) for p in products])
 
     elif report_type == 'categories':
-        if warehouse_id and warehouse_id.isdigit():
-            wid = int(warehouse_id)
+        wid = validate_id(warehouse_id)
+        if wid:
             data = conn.execute('SELECT category, COUNT(*) as count, SUM(quantity) as total_qty, SUM(quantity * price) as value FROM products WHERE warehouse_id=? GROUP BY category', (wid,)).fetchall()
         else:
             data = conn.execute('SELECT category, COUNT(*) as count, SUM(quantity) as total_qty, SUM(quantity * price) as value FROM products GROUP BY category').fetchall()
@@ -617,8 +634,8 @@ def get_reports():
         return jsonify([dict(d) for d in data])
 
     elif report_type == 'low_stock':
-        if warehouse_id and warehouse_id.isdigit():
-            wid = int(warehouse_id)
+        wid = validate_id(warehouse_id)
+        if wid:
             products = conn.execute('SELECT name, quantity, min_quantity, max_quantity, price, (min_quantity - quantity) as needed FROM products WHERE quantity <= min_quantity AND warehouse_id=? ORDER BY needed DESC', (wid,)).fetchall()
         else:
             products = conn.execute('SELECT name, quantity, min_quantity, max_quantity, price, (min_quantity - quantity) as needed FROM products WHERE quantity <= min_quantity ORDER BY needed DESC').fetchall()
@@ -648,8 +665,9 @@ def export_report():
     conn = get_db()
 
     if report_type == 'products':
-        if warehouse_id and warehouse_id.isdigit():
-            products = conn.execute('SELECT * FROM products WHERE warehouse_id = ? ORDER BY name', (int(warehouse_id),)).fetchall()
+        wid = validate_id(warehouse_id)
+        if wid:
+            products = conn.execute('SELECT * FROM products WHERE warehouse_id = ? ORDER BY name', (wid,)).fetchall()
         else:
             products = conn.execute('SELECT * FROM products ORDER BY name').fetchall()
         headers = ['ID', 'Nom', 'Description', 'SKU', 'Code-barres', 'Quantité', 'Seuil Min', 'Max', 'Prix', 'Catégorie', 'Lot', 'N° Série', 'DLC', 'Fournisseur', 'Entrepôt']
@@ -663,9 +681,10 @@ def export_report():
             JOIN products p ON m.product_id = p.id
         '''
         params = []
-        if warehouse_id and warehouse_id.isdigit():
+        wid = validate_id(warehouse_id)
+        if wid:
             query += ' WHERE p.warehouse_id = ?'
-            params.append(int(warehouse_id))
+            params.append(wid)
         query += ' ORDER BY m.created_at DESC LIMIT 500'
         movements = conn.execute(query, params).fetchall()
         headers = ['Date', 'Produit', 'Type', 'Quantité', 'Lot', 'Note']
@@ -707,9 +726,10 @@ def get_orders():
     if status != 'all':
         conditions.append('o.status = ?')
         params.append(status)
-    if warehouse_id and warehouse_id.isdigit():
+    wid = validate_id(warehouse_id)
+    if wid:
         conditions.append('o.warehouse_id = ?')
-        params.append(int(warehouse_id))
+        params.append(wid)
     
     if conditions:
         query += ' WHERE ' + ' AND '.join(conditions)
@@ -757,142 +777,145 @@ def create_order():
 def update_order(order_id):
     data = request.json
     conn = get_db()
-    status = data.get('status')
+    try:
+        status = data.get('status')
 
-    if status == 'recue':
-        conn.execute('''
-            UPDATE purchase_orders SET status='recue', received_at=CURRENT_TIMESTAMP WHERE id=?
-        ''', (order_id,))
-        items = conn.execute('SELECT * FROM purchase_order_items WHERE order_id=?', (order_id,)).fetchall()
-        order = conn.execute('SELECT warehouse_id FROM purchase_orders WHERE id=?', (order_id,)).fetchone()
-        
-        default_location = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', 
-                                        (order['warehouse_id'],)).fetchone()
-        
-        for item in items:
-            conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?',
-                      (item['quantity'], item['product_id']))
-            
-            if default_location:
-                existing = conn.execute('SELECT id FROM stock WHERE product_id=? AND location_id=?', 
-                                        (item['product_id'], default_location['id'])).fetchone()
-                if existing:
-                    conn.execute('UPDATE stock SET quantity = quantity + ? WHERE id=?',
-                               (item['quantity'], existing['id']))
-                else:
-                    conn.execute('INSERT INTO stock (product_id, location_id, quantity) VALUES (?, ?, ?)',
-                               (item['product_id'], default_location['id'], item['quantity']))
-            
+        if status == 'recue':
             conn.execute('''
-                INSERT INTO stock_movements (product_id, type, quantity, dest_location_id, note)
-                VALUES (?, 'in', ?, ?, 'Commande recue')
-            ''', (item['product_id'], item['quantity'], default_location['id'] if default_location else None))
+                UPDATE purchase_orders SET status='recue', received_at=CURRENT_TIMESTAMP WHERE id=?
+            ''', (order_id,))
+            items = conn.execute('SELECT * FROM purchase_order_items WHERE order_id=?', (order_id,)).fetchall()
+            order = conn.execute('SELECT warehouse_id FROM purchase_orders WHERE id=?', (order_id,)).fetchone()
             
-    elif status == 'paye':
-        order = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (order_id,)).fetchone()
-        conn.execute('''
-            UPDATE purchase_orders SET status='paye', paid_at=CURRENT_TIMESTAMP WHERE id=?
-        ''', (order_id,))
-        
-        if order and order['total']:
-            conn.execute('UPDATE main_account SET current_balance = current_balance - ? WHERE id = 1', (order['total'],))
-            conn.execute('''
-                INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
-                VALUES ('out', ?, 'supplier_order', ?, ?)
-            ''', (order['total'], order_id, 'Achat Fournisseur: ' + order['order_number']))
+            default_location = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', 
+                                            (order['warehouse_id'],)).fetchone()
             
-            # CREATE SUPPLIER INVOICE
-            supplier_inv_count = conn.execute("SELECT COUNT(*) FROM invoices WHERE type='fournisseur'").fetchone()[0]
-            today = datetime.now().strftime('%Y%m%d')
-            supplier_inv_number = f"FAC-FOU-{today}-{supplier_inv_count + 1:04d}"
-            
-            conn.execute('''
-                INSERT INTO invoices (
-                    invoice_number, customer_id, supplier_id, warehouse_id, status, type,
-                    subtotal, discount_total, tax_amount, total,
-                    paid_at, payment_method, notes
-                ) VALUES (?, NULL, ?, ?, 'payee', 'fournisseur', ?, 0, 0, ?, CURRENT_TIMESTAMP, 'transfer', ?)
-            ''', (supplier_inv_number, order['supplier_id'], order['warehouse_id'], order['total'], order['total'], 
-                   f"Facture fournisseur - Commande: {order['order_number']}"))
-            
-            new_invoice_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-            
-            # Add invoice items from purchase order
-            order_items = conn.execute('SELECT * FROM purchase_order_items WHERE order_id=?', (order_id,)).fetchall()
-            for item in order_items:
-                product = conn.execute('SELECT * FROM products WHERE id=?', (item['product_id'],)).fetchone()
-                if product:
-                    line_total = item['quantity'] * item['unit_price']
-                    conn.execute('''
-                        INSERT INTO invoice_items (
-                            invoice_id, product_id, product_name, product_sku,
-                            quantity, unit_price, discount_percent, tax_rate, line_total
-                        ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?)
-                    ''', (new_invoice_id, item['product_id'], product['name'], product['sku'],
-                          item['quantity'], item['unit_price'], line_total))
-            
-    elif status == 'annulee':
-        order = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (order_id,)).fetchone()
-        
-        if order:
-            # Reverse stock entries if order was received
-            if order['received_at']:
-                items = conn.execute('SELECT * FROM purchase_order_items WHERE order_id=?', (order_id,)).fetchall()
-                warehouse_id = order['warehouse_id']
+            for item in items:
+                conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?',
+                          (item['quantity'], item['product_id']))
                 
-                for item in items:
-                    # Subtract from products
-                    conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?',
-                               (item['quantity'], item['product_id'], item['quantity']))
-                    
-                    # Get default location
-                    default_location = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', 
-                                                  (warehouse_id,)).fetchone()
-                    
-                    if default_location:
-                        # Update stock table
-                        stock_entry = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?',
-                                                 (item['product_id'], default_location['id'])).fetchone()
-                        if stock_entry:
-                            new_qty = stock_entry['quantity'] - item['quantity']
-                            if new_qty > 0:
-                                conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=? AND quantity >= ?',
-                                           (item['quantity'], stock_entry['id'], item['quantity']))
-                            else:
-                                conn.execute('DELETE FROM stock WHERE id=?', (stock_entry['id'],))
-                        
-                        # Create OUT movement for cancelled order
-                        conn.execute('''
-                            INSERT INTO stock_movements (product_id, type, quantity, source_location_id, note)
-                            VALUES (?, 'out', ?, ?, ?)
-                        ''', (item['product_id'], item['quantity'], default_location['id'], 
-                              f"Commande annulée: {order['order_number']}"))
+                if default_location:
+                    existing = conn.execute('SELECT id FROM stock WHERE product_id=? AND location_id=?', 
+                                            (item['product_id'], default_location['id'])).fetchone()
+                    if existing:
+                        conn.execute('UPDATE stock SET quantity = quantity + ? WHERE id=?',
+                                   (item['quantity'], existing['id']))
+                    else:
+                        conn.execute('INSERT INTO stock (product_id, location_id, quantity) VALUES (?, ?, ?)',
+                                   (item['product_id'], default_location['id'], item['quantity']))
+                
+                conn.execute('''
+                    INSERT INTO stock_movements (product_id, type, quantity, dest_location_id, note)
+                    VALUES (?, 'in', ?, ?, 'Commande recue')
+                ''', (item['product_id'], item['quantity'], default_location['id'] if default_location else None))
+                
+        elif status == 'paye':
+            order = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (order_id,)).fetchone()
+            if not order:
+                return jsonify({'success': False, 'error': 'Commande introuvable'}), 404
+            if order['status'] == 'paye':
+                return jsonify({'success': False, 'error': 'Commande déjà payée'}), 400
+            account = conn.execute('SELECT current_balance FROM main_account WHERE id=1').fetchone()
+            if account and order['total'] and account['current_balance'] < order['total']:
+                return jsonify({'success': False, 'error': 'Solde insuffisant sur le compte principal'}), 400
+            conn.execute('''
+                UPDATE purchase_orders SET status='paye', paid_at=CURRENT_TIMESTAMP WHERE id=?
+            ''', (order_id,))
             
-            # Refund main account if order was paid
-            if order['paid_at'] and order['total']:
-                conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', 
-                           (order['total'],))
+            if order and order['total']:
+                conn.execute('UPDATE main_account SET current_balance = current_balance - ? WHERE id = 1', (order['total'],))
                 conn.execute('''
                     INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
-                    VALUES ('in', ?, 'order_cancelled', ?, ?)
-                ''', (order['total'], order_id, f"Commande annulée: {order['order_number']}"))
+                    VALUES ('out', ?, 'supplier_order', ?, ?)
+                ''', (order['total'], order_id, 'Achat Fournisseur: ' + order['order_number']))
+                
+                supplier_inv_count = conn.execute("SELECT COUNT(*) FROM invoices WHERE type='fournisseur'").fetchone()[0]
+                today = datetime.now().strftime('%Y%m%d')
+                supplier_inv_number = f"FAC-FOU-{today}-{supplier_inv_count + 1:04d}"
+                
+                conn.execute('''
+                    INSERT INTO invoices (
+                        invoice_number, customer_id, supplier_id, warehouse_id, status, type,
+                        subtotal, discount_total, tax_amount, total,
+                        paid_at, payment_method, notes
+                    ) VALUES (?, NULL, ?, ?, 'payee', 'fournisseur', ?, 0, 0, ?, CURRENT_TIMESTAMP, 'transfer', ?)
+                ''', (supplier_inv_number, order['supplier_id'], order['warehouse_id'], order['total'], order['total'], 
+                       f"Facture fournisseur - Commande: {order['order_number']}"))
+                
+                new_invoice_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                
+                order_items = conn.execute('SELECT * FROM purchase_order_items WHERE order_id=?', (order_id,)).fetchall()
+                for item in order_items:
+                    product = conn.execute('SELECT * FROM products WHERE id=?', (item['product_id'],)).fetchone()
+                    if product:
+                        line_total = item['quantity'] * item['unit_price']
+                        conn.execute('''
+                            INSERT INTO invoice_items (
+                                invoice_id, product_id, product_name, product_sku,
+                                quantity, unit_price, discount_percent, tax_rate, line_total
+                            ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?)
+                        ''', (new_invoice_id, item['product_id'], product['name'], product['sku'],
+                              item['quantity'], item['unit_price'], line_total))
+                
+        elif status == 'annulee':
+            order = conn.execute('SELECT * FROM purchase_orders WHERE id=?', (order_id,)).fetchone()
             
-            # Cancel related supplier invoice
-            supplier_invoice = conn.execute(
-                'SELECT id FROM invoices WHERE notes LIKE ? AND type="fournisseur"', 
-                (f"%Commande: {order['order_number']}%",)).fetchone()
+            if order:
+                if order['received_at']:
+                    items = conn.execute('SELECT * FROM purchase_order_items WHERE order_id=?', (order_id,)).fetchall()
+                    warehouse_id = order['warehouse_id']
+                    
+                    for item in items:
+                        conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?',
+                                   (item['quantity'], item['product_id'], item['quantity']))
+                        
+                        default_location = conn.execute('SELECT id FROM locations WHERE warehouse_id=? LIMIT 1', 
+                                                      (warehouse_id,)).fetchone()
+                        
+                        if default_location:
+                            stock_entry = conn.execute('SELECT id, quantity FROM stock WHERE product_id=? AND location_id=?',
+                                                     (item['product_id'], default_location['id'])).fetchone()
+                            if stock_entry:
+                                new_qty = stock_entry['quantity'] - item['quantity']
+                                if new_qty > 0:
+                                    conn.execute('UPDATE stock SET quantity = quantity - ? WHERE id=? AND quantity >= ?',
+                                               (item['quantity'], stock_entry['id'], item['quantity']))
+                                else:
+                                    conn.execute('DELETE FROM stock WHERE id=?', (stock_entry['id'],))
+                            
+                            conn.execute('''
+                                INSERT INTO stock_movements (product_id, type, quantity, source_location_id, note)
+                                VALUES (?, 'out', ?, ?, ?)
+                            ''', (item['product_id'], item['quantity'], default_location['id'], 
+                                  f"Commande annulée: {order['order_number']}"))
+                
+                if order['status'] == 'paye' and order['total']:
+                    conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', 
+                               (order['total'],))
+                    conn.execute('''
+                        INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
+                        VALUES ('in', ?, 'order_cancelled', ?, ?)
+                    ''', (order['total'], order_id, f"Commande annulée: {order['order_number']}"))
+                
+                supplier_invoice = conn.execute(
+                    'SELECT id FROM invoices WHERE notes LIKE ? AND type="fournisseur"', 
+                    (f"%Commande: {order['order_number']}%",)).fetchone()
+                
+                if supplier_invoice:
+                    conn.execute("UPDATE invoices SET status='annulee', updated_at=CURRENT_TIMESTAMP WHERE id=?", 
+                               (supplier_invoice['id'],))
             
-            if supplier_invoice:
-                conn.execute("UPDATE invoices SET status='annulee', updated_at=CURRENT_TIMESTAMP WHERE id=?", 
-                           (supplier_invoice['id'],))
-        
-        conn.execute("UPDATE purchase_orders SET status='annulee' WHERE id=?", (order_id,))
-    else:
-        conn.execute('UPDATE purchase_orders SET notes=? WHERE id=?', (data.get('notes', ''), order_id))
+            conn.execute("UPDATE purchase_orders SET status='annulee' WHERE id=?", (order_id,))
+        else:
+            conn.execute('UPDATE purchase_orders SET notes=? WHERE id=?', (data.get('notes', ''), order_id))
 
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/orders/<int:order_id>/items', methods=['GET'])
 def get_order_items(order_id):
@@ -909,18 +932,24 @@ def get_order_items(order_id):
 @app.route('/api/orders/<int:order_id>', methods=['DELETE'])
 def delete_order(order_id):
     conn = get_db()
-    conn.execute('DELETE FROM purchase_order_items WHERE order_id=?', (order_id,))
-    conn.execute('DELETE FROM purchase_orders WHERE id=?', (order_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+    try:
+        conn.execute('DELETE FROM purchase_order_items WHERE order_id=?', (order_id,))
+        conn.execute('DELETE FROM purchase_orders WHERE id=?', (order_id,))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/reorder-rules', methods=['GET'])
 def get_reorder_rules():
     warehouse_id = request.args.get('warehouse_id')
     conn = get_db()
     
-    if warehouse_id and warehouse_id.isdigit():
+    wid = validate_id(warehouse_id)
+    if wid:
         rules = conn.execute('''
             SELECT r.*, p.name as product_name, p.quantity as current_qty, p.min_quantity, s.name as supplier_name
             FROM reordering_rules r
@@ -928,7 +957,7 @@ def get_reorder_rules():
             LEFT JOIN suppliers s ON r.supplier_id = s.id
             WHERE r.warehouse_id = ?
             ORDER BY p.name
-        ''', (int(warehouse_id),)).fetchall()
+        ''', (wid,)).fetchall()
     else:
         rules = conn.execute('''
             SELECT r.*, p.name as product_name, p.quantity as current_qty, p.min_quantity, s.name as supplier_name
@@ -962,29 +991,40 @@ def add_reorder_rule():
 def update_reorder_rule(rule_id):
     data = request.json
     conn = get_db()
-    conn.execute('''
-        UPDATE reordering_rules SET min_quantity=?, max_quantity=?, trigger_type=?, supplier_id=?
-        WHERE id=?
-    ''', (data.get('min_quantity', 5), data.get('max_quantity', 100), data.get('trigger_type', 'manual'),
-          data.get('supplier_id'), rule_id))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+    try:
+        conn.execute('''
+            UPDATE reordering_rules SET min_quantity=?, max_quantity=?, trigger_type=?, supplier_id=?
+            WHERE id=?
+        ''', (data.get('min_quantity', 5), data.get('max_quantity', 100), data.get('trigger_type', 'manual'),
+              data.get('supplier_id'), rule_id))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/reorder-rules/<int:rule_id>', methods=['DELETE'])
 def delete_reorder_rule(rule_id):
     conn = get_db()
-    conn.execute('DELETE FROM reordering_rules WHERE id=?', (rule_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+    try:
+        conn.execute('DELETE FROM reordering_rules WHERE id=?', (rule_id,))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/replenishment', methods=['GET'])
 def get_replenishment():
     warehouse_id = request.args.get('warehouse_id')
     conn = get_db()
     
-    if warehouse_id and warehouse_id.isdigit():
+    wid = validate_id(warehouse_id)
+    if wid:
         products = conn.execute('''
             SELECT r.id as rule_id, p.id as product_id, p.name, p.sku, p.quantity as current_qty, r.min_quantity, r.max_quantity, r.trigger_type,
                    r.supplier_id, r.warehouse_id as rule_warehouse_id, s.name as supplier_name,
@@ -994,7 +1034,7 @@ def get_replenishment():
             LEFT JOIN suppliers s ON r.supplier_id = s.id
             WHERE r.warehouse_id = ?
             ORDER BY p.name
-        ''', (int(warehouse_id),)).fetchall()
+        ''', (wid,)).fetchall()
     else:
         products = conn.execute('''
             SELECT r.id as rule_id, p.id as product_id, p.name, p.sku, p.quantity as current_qty, r.min_quantity, r.max_quantity, r.trigger_type,
@@ -1020,9 +1060,10 @@ def get_notifications():
         LEFT JOIN products p ON n.product_id = p.id
     '''
     params = []
-    if warehouse_id and warehouse_id.isdigit():
+    wid = validate_id(warehouse_id)
+    if wid:
         query += ' WHERE n.warehouse_id = ? OR n.warehouse_id IS NULL'
-        params.append(int(warehouse_id))
+        params.append(wid)
     query += ' ORDER BY n.created_at DESC LIMIT 50'
     
     notifications = conn.execute(query, params).fetchall()
@@ -1034,18 +1075,28 @@ def get_notifications():
 @app.route('/api/notifications/<int:notification_id>/read', methods=['POST'])
 def mark_notification_read(notification_id):
     conn = get_db()
-    conn.execute('UPDATE notifications SET is_read = 1 WHERE id=?', (notification_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+    try:
+        conn.execute('UPDATE notifications SET is_read = 1 WHERE id=?', (notification_id,))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/notifications/mark-all-read', methods=['POST'])
 def mark_all_notifications_read():
     conn = get_db()
-    conn.execute('UPDATE notifications SET is_read = 1')
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
+    try:
+        conn.execute('UPDATE notifications SET is_read = 1')
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/reset-data', methods=['POST'])
 def reset_data():
@@ -1097,9 +1148,9 @@ def seed_data():
     for i, (name, desc, sku, barcode, price, qty, min_qty, category) in enumerate(products_data):
         wh = warehouses[i % len(warehouses)]
         c.execute('''
-            INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price, price_base, price_loyal, price_school, price_student, category, warehouse_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (name, desc, sku, barcode, qty, min_qty, qty * 2, price, price * 0.6, price * 0.9, price * 0.85, price * 0.8, category, wh[0], datetime.now().isoformat()))
+            INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price, price_base, price_loyal, price_gros, category, warehouse_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, desc, sku, barcode, qty, min_qty, qty * 2, price, price * 0.6, price * 0.9, price * 0.75, category, wh[0], datetime.now().isoformat()))
         product_ids.append(c.lastrowid)
     
     c.execute('UPDATE products SET purchase_price_avg = price_base WHERE purchase_price_avg IS NULL OR purchase_price_avg = 0')
@@ -1149,9 +1200,10 @@ def get_invoices():
         WHERE 1=1
     '''
     inv_params = []
-    if warehouse_id and warehouse_id.isdigit():
+    wid = validate_id(warehouse_id)
+    if wid:
         inv_query += ' AND i.warehouse_id = ?'
-        inv_params.append(int(warehouse_id))
+        inv_params.append(wid)
     if date_start:
         inv_query += ' AND date(COALESCE(i.paid_at, i.created_at)) >= ?'
         inv_params.append(date_start)
@@ -1202,7 +1254,7 @@ def create_invoice():
             
             p = dict(product)
             if customer:
-                unit_price = get_price_for_customer(p, customer['type'], customer['is_loyal'])
+                unit_price = get_price_by_tier(p, customer['type'])
             else:
                 unit_price = item.get('unit_price', p['price_base'] if p['price_base'] > 0 else p['price'])
             
@@ -1276,49 +1328,119 @@ def get_invoice(invoice_id):
 def update_invoice(invoice_id):
     data = request.json
     conn = get_db()
-    status = data.get('status')
-    
-    if status == 'payee':
+    try:
+        status = data.get('status')
+        
+        if status == 'payee':
+            conn.execute('''
+                UPDATE invoices SET status='payee', amount_paid=total, paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?
+            ''', (invoice_id,))
+        elif status == 'annulee':
+            old_items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+            for item in old_items:
+                conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
+                conn.execute('''
+                    INSERT INTO stock_movements (product_id, type, quantity, note)
+                    VALUES (?, 'in', ?, ?)
+                ''', (item['product_id'], item['quantity'], 'Annulation facture'))
+            conn.execute("UPDATE invoices SET status='annulee', updated_at=CURRENT_TIMESTAMP WHERE id=?", (invoice_id,))
+        else:
+            conn.execute('UPDATE invoices SET notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (data.get('notes', ''), invoice_id))
+        
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/invoices/<int:invoice_id>/pay-credit', methods=['POST'])
+def pay_invoice_credit(invoice_id):
+    """Pay remaining credit on an invoice (partial or full)"""
+    data = request.json or {}
+    amount = float(data.get('amount', 0))
+    payment_method = data.get('payment_method', 'cash')
+
+    if amount <= 0:
+        return jsonify({'error': 'Montant invalide'}), 400
+
+    conn = get_db()
+    try:
+        invoice = conn.execute('SELECT * FROM invoices WHERE id=?', (invoice_id,)).fetchone()
+        if not invoice:
+            return jsonify({'error': 'Facture non trouvée'}), 404
+        if invoice['status'] not in ('envoyee', 'partiellement_payee'):
+            return jsonify({'error': 'Seules les factures en attente ou partiellement payées peuvent recevoir un paiement'}), 400
+
+        old_paid = invoice['amount_paid'] or 0
+        new_paid = old_paid + amount
+        total = invoice['total'] or 0
+
+        if new_paid > total:
+            return jsonify({'error': f'Le montant total à payer est de {total - old_paid:.2f} DH. Montant saisi: {amount:.2f} DH'}), 400
+
+        is_now_fully_paid = new_paid >= total
+
         conn.execute('''
-            UPDATE invoices SET status='payee', paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?
-        ''', (invoice_id,))
-    elif status == 'annulee':
+            UPDATE invoices SET amount_paid=?, status=?, paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP, is_credit_payment=? WHERE id=?
+        ''', (total if is_now_fully_paid else new_paid,
+              'payee' if is_now_fully_paid else 'partiellement_payee',
+              1 if is_now_fully_paid else 0,
+              invoice_id))
+
+        # Record cash movement
+        if payment_method == 'cash':
+            session = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").fetchone()
+            if session:
+                conn.execute('''
+                    INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
+                    VALUES (?, 'in', ?, 'sale', ?)
+                ''', (session['id'], amount, f'Paiement crédit facture {invoice["invoice_number"]}'))
+        elif payment_method == 'card':
+            conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (amount,))
+            conn.execute('''
+                INSERT INTO main_account_transactions (type, amount, reason, note)
+                VALUES ('in', ?, 'card_payment', ?)
+            ''', (amount, f'Paiement carte - crédit facture {invoice["invoice_number"]}'))
+
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'status': 'payee' if is_now_fully_paid else 'partiellement_payee',
+            'amount_paid': total if is_now_fully_paid else new_paid,
+            'remaining': 0 if is_now_fully_paid else total - new_paid
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    finally:
+        conn.close()
+
+@app.route('/api/invoices/<int:invoice_id>', methods=['DELETE'])
+def delete_invoice(invoice_id):
+    conn = get_db()
+    try:
+        invoice = conn.execute('SELECT status FROM invoices WHERE id=?', (invoice_id,)).fetchone()
+        if invoice and invoice['status'] == 'payee':
+            return jsonify({'error': 'Impossible de supprimer une facture payée'}), 400
+        
         old_items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
         for item in old_items:
             conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
             conn.execute('''
                 INSERT INTO stock_movements (product_id, type, quantity, note)
-                VALUES (?, 'in', ?, ?)
-            ''', (item['product_id'], item['quantity'], 'Annulation facture'))
-        conn.execute("UPDATE invoices SET status='annulee', updated_at=CURRENT_TIMESTAMP WHERE id=?", (invoice_id,))
-    else:
-        conn.execute('UPDATE invoices SET notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', (data.get('notes', ''), invoice_id))
-    
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
-
-@app.route('/api/invoices/<int:invoice_id>', methods=['DELETE'])
-def delete_invoice(invoice_id):
-    conn = get_db()
-    invoice = conn.execute('SELECT status FROM invoices WHERE id=?', (invoice_id,)).fetchone()
-    if invoice and invoice['status'] == 'payee':
+                VALUES (?, 'in', ?, 'Rétablissement stock - suppression facture')
+            ''', (item['product_id'], item['quantity']))
+        
+        conn.execute('DELETE FROM invoice_items WHERE invoice_id=?', (invoice_id,))
+        conn.execute('DELETE FROM invoices WHERE id=?', (invoice_id,))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
         conn.close()
-        return jsonify({'error': 'Impossible de supprimer une facture payée'}), 400
-    
-    old_items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
-    for item in old_items:
-        conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
-        conn.execute('''
-            INSERT INTO stock_movements (product_id, type, quantity, note)
-            VALUES (?, 'in', ?, 'Rétablissement stock - suppression facture')
-        ''', (item['product_id'], item['quantity']))
-    
-    conn.execute('DELETE FROM invoice_items WHERE invoice_id=?', (invoice_id,))
-    conn.execute('DELETE FROM invoices WHERE id=?', (invoice_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'success': True})
 
 @app.route('/api/invoices/<int:invoice_id>/items', methods=['GET'])
 def get_invoice_items(invoice_id):
@@ -1347,7 +1469,7 @@ def add_invoice_item(invoice_id):
         customer = conn.execute('SELECT * FROM customers WHERE id=?', (invoice['customer_id'],)).fetchone() if invoice['customer_id'] else None
         
         if customer:
-            unit_price = get_price_for_customer(p, customer['type'], customer['is_loyal'])
+            unit_price = get_price_by_tier(p, customer['type'])
         else:
             unit_price = data.get('unit_price', p['price_base'] if p['price_base'] > 0 else p['price'])
         
@@ -1400,16 +1522,21 @@ def recalculate_invoice(invoice_id, conn):
 @app.route('/api/invoices/<int:invoice_id>/items/<int:item_id>', methods=['DELETE'])
 def delete_invoice_item(invoice_id, item_id):
     conn = get_db()
-    item = conn.execute('SELECT * FROM invoice_items WHERE id=? AND invoice_id=?', (item_id, invoice_id)).fetchone()
-    
-    if item:
-        conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
-        conn.execute('DELETE FROM invoice_items WHERE id=?', (item_id,))
-        recalculate_invoice(invoice_id, conn)
-        conn.commit()
-    
-    conn.close()
-    return jsonify({'success': True})
+    try:
+        item = conn.execute('SELECT * FROM invoice_items WHERE id=? AND invoice_id=?', (item_id, invoice_id)).fetchone()
+        
+        if item:
+            conn.execute('UPDATE products SET quantity = quantity + ? WHERE id=?', (item['quantity'], item['product_id']))
+            conn.execute('DELETE FROM invoice_items WHERE id=?', (item_id,))
+            recalculate_invoice(invoice_id, conn)
+            conn.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/invoices/<int:invoice_id>/pdf', methods=['GET'])
 def generate_invoice_pdf(invoice_id):
@@ -1452,14 +1579,6 @@ def generate_invoice_pdf(invoice_id):
     invoice_data = dict(invoice)
     items_data = [dict(item) for item in items]
     
-    def _esc(d):
-        for k, v in d.items():
-            if v is None:
-                d[k] = ''
-            elif isinstance(v, str):
-                d[k] = html.escape(v)
-    def _n(val, default='-'):
-        return val if val else default
     _esc(invoice_data)
     for item in items_data:
         _esc(item)
@@ -1668,11 +1787,12 @@ def get_receivables():
     conn = get_db()
     
     receivables = conn.execute("""
-        SELECT i.id, i.invoice_number, i.total as montant, i.due_date, i.created_at,
+        SELECT i.id, i.invoice_number, i.total, i.total - i.amount_paid as montant_restant,
+               i.amount_paid as deja_paye, i.status, i.due_date, i.created_at,
                c.id as customer_id, c.name as customer_name, c.client_code
         FROM invoices i
         JOIN customers c ON i.customer_id = c.id
-        WHERE i.status = 'envoyee'
+        WHERE i.status IN ('envoyee', 'partiellement_payee')
         ORDER BY i.due_date ASC
     """).fetchall()
     
@@ -1801,6 +1921,8 @@ def create_pos_transaction():
     items = data.get('items', [])
     payment_method = data.get('payment_method', 'cash')
     tendered_amount = data.get('tendered_amount', 0)
+    pricing_tier = data.get('pricing_tier', 'normal')
+    apply_tax = data.get('apply_tax', True)
     notes = data.get('notes', '')
     is_credit = data.get('is_credit', False)
     
@@ -1828,7 +1950,7 @@ def create_pos_transaction():
         doc_number = f'FAC-{today}-{seq:04d}'
         doc_type = 'facture'
     
-    # Load customer for pricing
+    # Load customer for invoice
     customer_row = None
     if customer_id and not is_client_comptoir:
         cid = _safe_int(customer_id, None)
@@ -1840,20 +1962,32 @@ def create_pos_transaction():
     tax = 0
     discount = 0
     for item in items:
-        if customer_row:
-            product = conn.execute('SELECT * FROM products WHERE id = ?', (item['product_id'],)).fetchone()
-            if product:
-                item['unit_price'] = get_price_for_customer(dict(product), customer_row['type'], customer_row['is_loyal'])
+        product = conn.execute('SELECT * FROM products WHERE id = ?', (item['product_id'],)).fetchone()
+        if product:
+            item['unit_price'] = get_price_by_tier(dict(product), pricing_tier)
         unit_price = item.get('unit_price', 0) or 0
         item['unit_price'] = unit_price
         line_ht = item['quantity'] * unit_price
         line_tax = line_ht * 0.20
         subtotal += line_ht
-        tax += line_tax
+        if apply_tax:
+            tax += line_tax
         discount += line_ht * (item.get('discount_percent', 0) / 100)
     
-    total = subtotal + tax - discount
+    total = subtotal + (tax if apply_tax else 0) - discount
     change_amount = max(0, tendered_amount - total) if payment_method == 'cash' else 0
+    
+    # Determine amount actually paid (credit logic)
+    if is_credit:
+        tendered = float(tendered_amount or 0)
+        if tendered <= 0:
+            amount_paid = 0
+        elif tendered >= total:
+            amount_paid = total
+        else:
+            amount_paid = tendered
+    else:
+        amount_paid = total
     
     # Insert transaction
     conn.execute('''
@@ -1875,12 +2009,16 @@ def create_pos_transaction():
         line_ht = qty * unit_price * (1 - discount_pct / 100)
         line_total = line_ht * 1.20
         
+        prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (product_id,)).fetchone()
+        product_name = prod['name'] if prod else item.get('product_name', '')
+        product_sku = prod['sku'] if prod else item.get('product_sku', '')
+        
         conn.execute('''
             INSERT INTO pos_transaction_items (
                 transaction_id, product_id, product_name, product_sku,
                 quantity, unit_price, discount_percent, tax_rate, line_total
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (trans_id, product_id, item.get('product_name', ''), item.get('product_sku', ''),
+        ''', (trans_id, product_id, product_name, product_sku,
               qty, unit_price, discount_pct, 20, line_total))
         
         cur = conn.execute('''
@@ -1890,19 +2028,19 @@ def create_pos_transaction():
             current = conn.execute('SELECT quantity FROM products WHERE id = ?', (product_id,)).fetchone()
             stock_qty = current['quantity'] if current else 0
             conn.close()
-            return jsonify({'error': f'Stock insuffisant pour {item.get("product_name", "produit")}. Disponible: {stock_qty}, demandé: {qty}'}), 400
+            return jsonify({'error': f'Stock insuffisant pour {product_name}. Disponible: {stock_qty}, demandé: {qty}'}), 400
         
         conn.execute('''
             INSERT INTO stock_movements (product_id, type, quantity, note)
             VALUES (?, 'sale', ?, ?)
         ''', (product_id, qty, f'Vente POS: {doc_number}'))
     
-    # Record cash movement (net sale amount, not tendered)
-    if payment_method == 'cash' and total > 0:
+    # Record cash movement (only the amount actually collected)
+    if payment_method == 'cash' and amount_paid > 0:
         conn.execute('''
             INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
             VALUES (?, 'in', ?, 'sale', ?)
-        ''', (session_id, total, doc_number))
+        ''', (session_id, amount_paid, doc_number))
         
         if change_amount > 0:
             conn.execute('''
@@ -1910,13 +2048,13 @@ def create_pos_transaction():
                 VALUES (?, 'out', ?, 'change', ?)
             ''', (session_id, change_amount, f'Monnaie rendu: {doc_number}'))
     
-    # Record card payment in main account
-    if payment_method == 'card':
-        conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (total,))
+    # Record card payment in main account (only the amount actually collected)
+    if payment_method == 'card' and amount_paid > 0:
+        conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (amount_paid,))
         conn.execute('''
             INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
             VALUES ('in', ?, 'card_payment', ?, ?)
-        ''', (total, trans_id, f'Paiement carte: {doc_number}'))
+        ''', (amount_paid, trans_id, f'Paiement carte: {doc_number}'))
     
     conn.commit()
     
@@ -1936,10 +2074,10 @@ def create_pos_transaction():
             INSERT INTO invoices (
                 invoice_number, customer_id, warehouse_id, status, type,
                 subtotal, discount_total, tax_amount, total, 
-                payment_method, tendered_amount, change_given
-            ) VALUES (?, NULL, 1, 'ticket', 'ticket', ?, ?, ?, ?, ?, ?, ?)
+                payment_method, tendered_amount, change_given, amount_paid
+            ) VALUES (?, NULL, 1, 'ticket', 'ticket', ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (doc_number, subtotal, discount, tax, total,
-              payment_method, tendered_amount, change_amount))
+              payment_method, tendered_amount, change_amount, amount_paid))
         inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
 
@@ -1948,35 +2086,49 @@ def create_pos_transaction():
             uprice = item.get('unit_price', 0) or 0
             dpct = item.get('discount_percent', 0) or 0
             line_ht = qty * uprice * (1 - dpct / 100)
-            line_total = line_ht * 1.20
+            tax_mult = 1.20 if apply_tax else 1.0
+            line_total = line_ht * tax_mult
+            pid = item.get('product_id') or item.get('id')
+            prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (pid,)).fetchone()
+            product_name = prod['name'] if prod else item.get('product_name', '')
+            product_sku = prod['sku'] if prod else item.get('product_sku', '')
             conn.execute('''
                 INSERT INTO invoice_items (
                     invoice_id, product_id, product_name, product_sku,
                     quantity, unit_price, discount_percent, tax_rate, line_total
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 20, ?)
-            ''', (inv_id, item.get('product_id') or item.get('id'), item.get('product_name', ''),
-                  item.get('product_sku', ''), qty, uprice, dpct, line_total))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (inv_id, pid, product_name, product_sku, qty, uprice, dpct, 20 if apply_tax else 0, line_total))
     else:
         inv_type = 'facture'
-        inv_status = 'envoyee' if is_credit else 'payee'
+        if is_credit:
+            tend = float(tendered_amount or 0)
+            if tend <= 0:
+                inv_status = 'envoyee'
+            elif tend >= total:
+                inv_status = 'payee'
+            else:
+                inv_status = 'partiellement_payee'
+        else:
+            inv_status = 'payee'
+        
         if inv_status == 'payee':
             conn.execute('''
                 INSERT INTO invoices (
                     invoice_number, customer_id, warehouse_id, status, type,
                     subtotal, discount_total, tax_amount, total, 
-                    paid_at, payment_method, tendered_amount, change_given
-                ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
+                    paid_at, payment_method, tendered_amount, change_given, amount_paid
+                ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
             ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
-                  payment_method, tendered_amount, change_amount))
+                  payment_method, tendered_amount, change_amount, amount_paid))
         else:
             conn.execute('''
                 INSERT INTO invoices (
                     invoice_number, customer_id, warehouse_id, status, type,
                     subtotal, discount_total, tax_amount, total, 
-                    payment_method, tendered_amount, change_given
-                ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    payment_method, tendered_amount, change_given, amount_paid
+                ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
-                  payment_method, tendered_amount, change_amount))
+                  payment_method, tendered_amount, change_amount, amount_paid))
         inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         
         conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
@@ -1986,14 +2138,19 @@ def create_pos_transaction():
             uprice = item.get('unit_price', 0) or 0
             dpct = item.get('discount_percent', 0) or 0
             line_ht = qty * uprice * (1 - dpct / 100)
-            line_total = line_ht * 1.20
+            tax_mult = 1.20 if apply_tax else 1.0
+            line_total = line_ht * tax_mult
+            pid = item.get('product_id') or item.get('id')
+            prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (pid,)).fetchone()
+            product_name = prod['name'] if prod else item.get('product_name', '')
+            product_sku = prod['sku'] if prod else item.get('product_sku', '')
             conn.execute('''
                 INSERT INTO invoice_items (
                     invoice_id, product_id, product_name, product_sku,
                     quantity, unit_price, discount_percent, tax_rate, line_total
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, 20, ?)
-            ''', (inv_id, item.get('product_id') or item.get('id'), item.get('product_name', ''), item.get('product_sku', ''),
-                  qty, uprice, dpct, line_total))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (inv_id, pid, product_name, product_sku,
+                  qty, uprice, dpct, 20 if apply_tax else 0, line_total))
     
     conn.commit()
     conn.close()
@@ -2061,7 +2218,7 @@ def get_pos_customers():
     """Get customers for POS (with discount info)"""
     conn = get_db()
     customers = conn.execute('''
-        SELECT id, name, client_code, discount_rate
+        SELECT id, name, client_code, discount_rate, type
         FROM customers 
         WHERE is_active = 1
         ORDER BY name
@@ -2083,8 +2240,7 @@ def get_pos_recent_transactions():
             LEFT JOIN customers c ON t.customer_id = c.id
             WHERE t.session_id = ?
             ORDER BY t.created_at DESC
-            LIMIT ?
-        ''', (session_id, limit)).fetchall()
+        ''', (session_id,)).fetchall()
     else:
         transactions = conn.execute('''
             SELECT t.*, c.name as customer_name, 'ticket' as source
@@ -2105,7 +2261,7 @@ def get_pos_best_sellers():
     limit = _safe_int(request.args.get('limit', 5), 5)
     
     products = conn.execute('''
-        SELECT p.id, p.name, p.sku, p.price, p.price_base, 
+        SELECT p.id, p.name, p.sku, p.price, p.price_base, p.quantity,
                COALESCE(SUM(ti.quantity), 0) as total_sold
         FROM products p
         LEFT JOIN pos_transaction_items ti ON p.id = ti.product_id
@@ -2272,14 +2428,6 @@ def generate_pos_ticket_pdf(ticket_number):
                        (transaction['id'],)).fetchall()
     items = [dict(item) for item in items]
     
-    def _esc(d):
-        for k, v in d.items():
-            if v is None:
-                d[k] = ''
-            elif isinstance(v, str):
-                d[k] = html.escape(v)
-    def _n(val, default='-'):
-        return val if val else default
     _esc(transaction)
     for item in items:
         _esc(item)
