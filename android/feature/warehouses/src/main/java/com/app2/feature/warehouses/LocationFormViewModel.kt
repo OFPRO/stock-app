@@ -2,7 +2,7 @@ package com.app2.feature.warehouses
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.LocationApiService
+import com.app2.core.data.repository.LocationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LocationFormViewModel @Inject constructor(
-    private val locationApi: LocationApiService
+    private val locationRepository: LocationRepository
 ) : ViewModel() {
 
     private val _name = MutableStateFlow("")
@@ -63,9 +63,9 @@ class LocationFormViewModel @Inject constructor(
                 }
                 val id = editId
                 if (id != null) {
-                    locationApi.updateLocation(id, body)
+                    locationRepository.updateLocation(id, body)
                 } else {
-                    locationApi.createLocation(body)
+                    locationRepository.createLocation(body)
                 }
                 onSuccess()
             } catch (e: Exception) {

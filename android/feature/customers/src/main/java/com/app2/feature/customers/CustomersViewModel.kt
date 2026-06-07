@@ -2,34 +2,13 @@ package com.app2.feature.customers
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.CustomerApiService
+import com.app2.core.data.repository.CustomerRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 import javax.inject.Inject
-
-private fun JsonElement?.optString(): String? {
-    val prim = this?.jsonPrimitive
-    return if (prim != null && prim !is JsonNull) prim.content else null
-}
-
-private fun JsonElement?.optDouble(): Double? =
-    this?.jsonPrimitive?.doubleOrNull
-
-private fun JsonElement?.optInt(): Int? =
-    this?.jsonPrimitive?.intOrNull
 
 data class CustomerListItem(
     val id: Int,
@@ -48,7 +27,7 @@ data class CustomerListItem(
 
 @HiltViewModel
 class CustomersViewModel @Inject constructor(
-    private val customerApi: CustomerApiService
+    private val customerRepository: CustomerRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ViewState<List<CustomerListItem>>>(ViewState.Loading)
@@ -67,8 +46,22 @@ class CustomersViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ViewState.Loading
             try {
-                val response = customerApi.getCustomers(search = null)
-                allCustomers = parseCustomerList(response)
+                allCustomers = customerRepository.getCustomers().map { dto ->
+                    CustomerListItem(
+                        id = dto.id,
+                        name = dto.name,
+                        type = dto.type,
+                        email = dto.email,
+                        phone = dto.phone,
+                        address = dto.address,
+                        clientCode = dto.clientCode,
+                        discountRate = dto.discountRate,
+                        isLoyal = dto.isLoyal == 1,
+                        isActive = dto.isActive?.let { it != 0 } ?: true,
+                        notes = dto.notes,
+                        createdAt = dto.createdAt
+                    )
+                }
                 applyFilter()
             } catch (e: Exception) {
                 _state.value = ViewState.Error(e.message ?: "Erreur de chargement des clients")
@@ -84,7 +77,7 @@ class CustomersViewModel @Inject constructor(
     fun deleteCustomer(id: Int) {
         viewModelScope.launch {
             try {
-                customerApi.deleteCustomer(id)
+                customerRepository.deleteCustomer(id)
                 loadCustomers()
             } catch (e: Exception) {
                 _state.value = ViewState.Error(e.message ?: "Erreur de suppression")
@@ -113,27 +106,6 @@ class CustomersViewModel @Inject constructor(
             ViewState.Empty
         } else {
             ViewState.Loaded(filtered)
-        }
-    }
-
-    private fun parseCustomerList(json: JsonElement): List<CustomerListItem> {
-        return json.jsonArray.mapNotNull { item ->
-            val obj = item.jsonObject
-            val id = obj["id"].optInt() ?: return@mapNotNull null
-            CustomerListItem(
-                id = id,
-                name = obj["name"].optString() ?: "",
-                type = obj["type"].optString(),
-                email = obj["email"].optString(),
-                phone = obj["phone"].optString(),
-                address = obj["address"].optString(),
-                clientCode = obj["client_code"].optString(),
-                discountRate = obj["discount_rate"].optDouble(),
-                isLoyal = obj["is_loyal"].optInt() == 1,
-                isActive = obj["is_active"]?.optInt() != 0,
-                notes = obj["notes"].optString(),
-                createdAt = obj["created_at"].optString()
-            )
         }
     }
 }

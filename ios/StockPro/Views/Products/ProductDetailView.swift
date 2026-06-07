@@ -207,6 +207,36 @@ struct ProductDetailView: View {
                     Text("Aucun mouvement")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                } else {
+                    ForEach(Array(viewModel.stockMovements.prefix(5))) { movement in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(movement.typeColor.opacity(0.15))
+                                .frame(width: 32, height: 32)
+                                .overlay {
+                                    Image(systemName: movement.typeIcon)
+                                        .font(.caption2)
+                                        .foregroundStyle(movement.typeColor)
+                                }
+
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(movement.typeLabel)
+                                    .font(.caption.weight(.medium))
+                                Text(movement.locationSummary)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+
+                            Spacer()
+
+                            Text(movement.displayQuantity)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(movement.quantityColor)
+                        }
+                        if movement.id != viewModel.stockMovements.prefix(5).last?.id {
+                            Divider()
+                        }
+                    }
                 }
             }
         }

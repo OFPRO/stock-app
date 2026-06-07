@@ -49,7 +49,7 @@ struct CustomerUpdateRequest: Encodable {
     let notes: String?
 }
 
-struct CustomerListItem: Identifiable {
+struct CustomerListItem: Identifiable, Hashable {
     let id: Int
     let name: String
     let clientCode: String

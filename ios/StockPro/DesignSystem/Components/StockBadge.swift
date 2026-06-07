@@ -25,11 +25,15 @@ struct StockBadge: View {
 
     var body: some View {
         Text(text)
-            .font(.caption.weight(.medium))
+            .font(.caption.weight(.semibold))
             .foregroundStyle(variant.color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(variant.color.opacity(0.1))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(variant.color.opacity(0.2))
             .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(variant.color.opacity(0.3), lineWidth: 0.5)
+            )
     }
 }

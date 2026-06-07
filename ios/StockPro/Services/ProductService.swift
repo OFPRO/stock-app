@@ -10,18 +10,22 @@ final class ProductService: ProductServiceProtocol {
     }
 
     func fetchProduct(id: Int) async throws -> ProductDetail {
-        let dto: ProductDetailDTO = try await api.request(.product(id))
-        return dto.toDetail()
+        let response: ProductDetailResponse = try await api.request(.product(id))
+        return response.product.toDetail()
     }
 
     func createProduct(_ request: ProductCreateRequest) async throws -> ProductDetail {
-        let dto: ProductDetailDTO = try await api.request(.createProduct, body: request)
-        return dto.toDetail()
+        let _: SuccessResponse = try await api.request(.createProduct, body: request)
+        let products = try await fetchProducts()
+        guard let created = products.first(where: { $0.sku == request.sku }) else {
+            throw AppError.notFound("Produit créé")
+        }
+        return try await fetchProduct(id: created.id)
     }
 
     func updateProduct(id: Int, _ request: ProductUpdateRequest) async throws -> ProductDetail {
-        let dto: ProductDetailDTO = try await api.request(.updateProduct(id), body: request)
-        return dto.toDetail()
+        let _: SuccessResponse = try await api.request(.updateProduct(id), body: request)
+        return try await fetchProduct(id: id)
     }
 
     func deleteProduct(id: Int) async throws {
@@ -30,6 +34,10 @@ final class ProductService: ProductServiceProtocol {
 
     func fetchCategories() async throws -> [CategoryDTO] {
         try await api.request(.categories)
+    }
+
+    func fetchProductsForSale() async throws -> [ForSaleProductDTO] {
+        try await api.request(.productsForSale)
     }
 
     func fetchProductByBarcode(_ barcode: String) async throws -> ScannedProduct? {
@@ -94,6 +102,24 @@ final class MockProductService: ProductServiceProtocol {
         ]
     }
 
+    func fetchProductsForSale() async throws -> [ForSaleProductDTO] {
+        let all = try await fetchProducts()
+        return all.map {
+            ForSaleProductDTO(
+                id: $0.id, name: $0.name, sku: $0.sku,
+                barcode: nil,
+                price: Double($0.price.replacingOccurrences(of: " MAD", with: "").replacingOccurrences(of: ",", with: ".")) ?? 0,
+                sale_price: nil,
+                price_loyal: nil,
+                price_school: nil,
+                price_student: nil,
+                quantity: $0.stock,
+                min_quantity: 5,
+                category: $0.category, warehouse_id: nil
+            )
+        }
+    }
+
     func fetchProductByBarcode(_ barcode: String) async throws -> ScannedProduct? {
         let all = try await fetchProducts()
         guard let match = all.first(where: { $0.sku == barcode }) else { return nil }
@@ -101,12 +127,20 @@ final class MockProductService: ProductServiceProtocol {
     }
 }
 
+struct ProductDetailResponse: Decodable {
+    let product: ProductDetailDTO
+}
+
+struct SuccessResponse: Decodable {
+    let success: Bool
+}
+
 struct ProductDTO: Decodable {
     let id: Int
     let name: String
     let sku: String
     let price: Double
-    let stock_quantity: Int
+    let quantity: Int
     let category: String?
 
     func toListItem() -> ProductListItem {
@@ -115,7 +149,7 @@ struct ProductDTO: Decodable {
             name: name,
             sku: sku,
             price: String(format: "%.2f MAD", price),
-            stock: stock_quantity,
+            stock: quantity,
             category: category ?? "Général"
         )
     }

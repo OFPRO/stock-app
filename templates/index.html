@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
@@ -16,6 +17,8 @@
     <div class="app">
         <!-- ERROR MESSAGE -->
         <div id="errorMsg"></div>
+        <!-- SUCCESS MESSAGE -->
+        <div id="successMsg"></div>
         
         <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
@@ -28,63 +31,63 @@
             <nav class="nav-menu">
                 <div class="nav-item active" data-click="show-tab" data-arg="dashboard">
                     <i class="fas fa-chart-line"></i>
-                    <span>Dashboard</span>
+                    <span data-i18n="nav.dashboard">Dashboard</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="products">
                     <i class="fas fa-box"></i>
-                    <span>Produits</span>
+                    <span data-i18n="nav.products">Produits</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="warehouses">
                     <i class="fas fa-warehouse"></i>
-                    <span>Entrepôts</span>
+                    <span data-i18n="nav.warehouses">Entrepôts</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="locations">
                     <i class="fas fa-map-marker-alt"></i>
-                    <span>Zones de Stock</span>
+                    <span data-i18n="nav.storageZones">Zones de Stock</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="movements">
                     <i class="fas fa-exchange-alt"></i>
-                    <span>Mouvements</span>
+                    <span data-i18n="nav.movements">Mouvements</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="suppliers">
                     <i class="fas fa-truck"></i>
-                    <span>Fournisseurs</span>
+                    <span data-i18n="nav.suppliers">Fournisseurs</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="orders">
                     <i class="fas fa-clipboard-list"></i>
-                    <span>Commandes</span>
+                    <span data-i18n="nav.orders">Commandes</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="customers">
                     <i class="fas fa-users"></i>
-                    <span>Clients</span>
+                    <span data-i18n="nav.customers">Clients</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="invoices">
                     <i class="fas fa-file-invoice"></i>
-                    <span>Factures</span>
+                    <span data-i18n="nav.invoices">Factures</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="reports">
                     <i class="fas fa-chart-bar"></i>
-                    <span>Rapports</span>
+                    <span data-i18n="nav.reports">Rapports</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="sessions">
                     <i class="fas fa-history"></i>
-                    <span>Historique Sessions</span>
+                    <span data-i18n="nav.sessions">Historique Sessions</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="scanner">
                     <i class="fas fa-qrcode"></i>
-                    <span>Scanner</span>
+                    <span data-i18n="nav.scanner">Scanner</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="pos">
                     <i class="fas fa-cash-register"></i>
-                    <span>Caisse</span>
+                    <span data-i18n="nav.pos">Caisse</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="mainAccount">
                     <i class="fas fa-university"></i>
-                    <span>Compte Principal</span>
+                    <span data-i18n="nav.mainAccount">Compte Principal</span>
                 </div>
                 <div class="nav-item" data-click="show-tab" data-arg="notifications">
                     <i class="fas fa-bell"></i>
-                    <span>Notifications</span>
+                    <span data-i18n="nav.notifications">Notifications</span>
                     <span id="notifBadge" style="display:none;background:var(--danger);color:white;padding:2px 8px;border-radius:10px;font-size:12px;"></span>
                 </div>
             </nav>
@@ -104,6 +107,10 @@
                     </div>
                 </div>
                 <div class="header-actions">
+                    <button class="btn btn-sm btn-outline lang-toggle" id="langToggleBtn" onclick="i18n.setLang(i18n.lang === 'ar' ? 'fr' : 'ar')" title="Langue">
+                        <i class="fas fa-language" id="langToggleIcon"></i>
+                        <span id="langToggleText" style="margin-left:4px;font-size:0.75rem;">Français</span>
+                    </button>
                     <button class="btn btn-sm theme-toggle" data-click="toggle-theme" title="Changer le thème">
                         <i class="fas fa-moon" id="themeIcon"></i>
                     </button>
@@ -115,45 +122,45 @@
                 <div class="tab-content active" id="dashboardTab">
                     <div class="dashboard-header">
                         <div class="dashboard-title">
-                            <h2>Dashboard Commercial</h2>
-                            <p class="dashboard-subtitle">Vue d'ensemble de votre activité</p>
+                            <h2 data-i18n="dashboard.title">Dashboard Commercial</h2>
+                            <p class="dashboard-subtitle" data-i18n="dashboard.subtitle">Vue d'ensemble de votre activité</p>
                         </div>
                         <div class="dashboard-filters">
                             <div class="filter-group">
-                                <label>Du</label>
+                                <label data-i18n="dashboard.filter.from">Du</label>
                                 <input type="date" id="kpiDateStart" class="form-input" data-change="load-dashboard" style="min-width:130px;">
                             </div>
                             <div class="filter-group">
-                                <label>Au</label>
+                                <label data-i18n="dashboard.filter.to">Au</label>
                                 <input type="date" id="kpiDateEnd" class="form-input" data-change="load-dashboard" style="min-width:130px;">
                             </div>
                             <div class="filter-group presets">
-                                <label>Raccourcis</label>
+                                <label data-i18n="dashboard.filter.shortcuts">Raccourcis</label>
                                 <div class="preset-buttons">
-                                    <button class="btn btn-sm btn-outline preset-btn" data-click="preset-period" data-arg="7">7j</button>
-                                    <button class="btn btn-sm btn-outline preset-btn active" data-click="preset-period" data-arg="30">30j</button>
-                                    <button class="btn btn-sm btn-outline preset-btn" data-click="preset-period" data-arg="90">90j</button>
+                                    <button class="btn btn-sm btn-outline preset-btn" data-click="preset-period" data-arg="7"><span data-i18n="dashboard.7days">7j</span></button>
+                                    <button class="btn btn-sm btn-outline preset-btn active" data-click="preset-period" data-arg="30"><span data-i18n="dashboard.30days">30j</span></button>
+                                    <button class="btn btn-sm btn-outline preset-btn" data-click="preset-period" data-arg="90"><span data-i18n="dashboard.90days">90j</span></button>
                                 </div>
                             </div>
                             <input type="hidden" id="kpiPeriod" value="30">
                             <div class="filter-group">
-                                <label>Entrepôt</label>
+                                <label data-i18n="dashboard.filter.warehouse">Entrepôt</label>
                                 <select id="warehouseFilter" class="form-select" data-change="load-dashboard">
-                                    <option value="">Tous</option>
+                                    <option value="" data-i18n="dashboard.filter.all">Tous</option>
                                 </select>
                             </div>
-                            <button class="btn-refresh" data-click="load-dashboard" title="Rafraichir">
+                            <button class="btn-refresh" data-click="load-dashboard" data-i18n="dashboard.refresh" title="Rafraichir">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                             <button class="btn btn-sm btn-outline" data-click="reset-data" style="color:var(--danger);border-color:var(--danger);margin-left:8px;" title="Réinitialiser toutes les données transactionnelles">
-                                <i class="fas fa-undo"></i> Réinitialiser
+                                <i class="fas fa-undo"></i> <span data-i18n="dashboard.reset">Réinitialiser</span>
                             </button>
                         </div>
                     </div>
                     
                     <!-- KPI CARDS - ROW 1: Sales -->
                     <div class="kpi-section">
-                        <div class="kpi-section-title">Performance des Ventes</div>
+                        <div class="kpi-section-title" data-i18n="dashboard.salesPerformance">Performance des Ventes</div>
                         <div class="kpi-cards">
                             <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
                                 <div class="kpi-card-header">
@@ -193,7 +200,7 @@
                     
                     <!-- KPI CARDS - ROW 2: Financial -->
                     <div class="kpi-section">
-                        <div class="kpi-section-title">Situation Financière</div>
+                        <div class="kpi-section-title" data-i18n="dashboard.financialStatus">Situation Financière</div>
                         <div class="kpi-cards">
                             <div class="kpi-card" data-aos="fade-up" data-aos-delay="200">
                                 <div class="kpi-card-header">
@@ -269,23 +276,55 @@
                         </div>
                     </div>
                     
+                    <!-- KPI CARDS - ROW 4: Dépenses -->
+                    <div class="kpi-section">
+                        <div class="kpi-section-title">Dépenses</div>
+                        <div class="kpi-cards">
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon danger"><i class="fas fa-shopping-cart"></i></div>
+                                    <div class="kpi-card-trend" id="depensesTrend"></div>
+                                </div>
+                                <div class="kpi-card-label">Achats Fournisseur</div>
+                                <div class="kpi-card-value danger" id="depensesFournisseur">0</div>
+                                <div class="kpi-card-sub">DH (période)</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="50">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon danger"><i class="fas fa-money-bill-wave"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Total Dépenses</div>
+                                <div class="kpi-card-value danger" id="totalDepenses">0</div>
+                                <div class="kpi-card-sub">DH (période)</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon warning"><i class="fas fa-clock"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Dépenses Aujourd'hui</div>
+                                <div class="kpi-card-value warning" id="depensesJour">0</div>
+                                <div class="kpi-card-sub">DH</div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- CHARTS ROW 1 -->
                     <div class="dashboard-charts">
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3><i class="fas fa-chart-area"></i> Ventes Journalières</h3>
+                                <h3 data-i18n="dashboard.chart.dailySales"><i class="fas fa-chart-area"></i> Ventes Journalières</h3>
                             </div>
                             <div id="chartSalesDaily" class="chart-body"></div>
                         </div>
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3><i class="fas fa-chart-pie"></i> Ventes par Catégorie</h3>
+                                <h3 data-i18n="dashboard.chart.salesByCategory"><i class="fas fa-chart-pie"></i> Ventes par Catégorie</h3>
                             </div>
                             <div id="chartCategories" class="chart-body"></div>
                         </div>
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3><i class="fas fa-chart-bar"></i> Top 10 Produits</h3>
+                                <h3 data-i18n="dashboard.chart.topProducts"><i class="fas fa-chart-bar"></i> Top 10 Produits</h3>
                             </div>
                             <div id="chartTopProducts" class="chart-body"></div>
                         </div>
@@ -295,19 +334,19 @@
                     <div class="dashboard-charts">
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3><i class="fas fa-file-invoice"></i> État des Factures</h3>
+                                <h3 data-i18n="dashboard.chart.invoiceStatus"><i class="fas fa-file-invoice"></i> État des Factures</h3>
                             </div>
                             <div id="chartInvoicesStatus" class="chart-body"></div>
                         </div>
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3><i class="fas fa-exchange-alt"></i> Mouvements Stock</h3>
+                                <h3 data-i18n="dashboard.chart.stockMovements"><i class="fas fa-exchange-alt"></i> Mouvements Stock</h3>
                             </div>
                             <div id="chartMovements" class="chart-body"></div>
                         </div>
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3><i class="fas fa-percentage"></i> Répartition Marge</h3>
+                                <h3 data-i18n="dashboard.chart.marginDistribution"><i class="fas fa-percentage"></i> Répartition Marge</h3>
                             </div>
                             <div id="chartMargins" class="chart-body"></div>
                         </div>
@@ -317,14 +356,14 @@
                     <div class="dashboard-tables">
                         <div class="table-card">
                             <div class="table-header">
-                                <h3><i class="fas fa-shopping-cart"></i> À Commander</h3>
+                                <h3 data-i18n="dashboard.toOrder"><i class="fas fa-shopping-cart"></i> À Commander</h3>
                                 <span class="badge badge-warning" id="toOrderCount">0</span>
                             </div>
                             <div class="table-body" id="tableToOrder"></div>
                         </div>
                         <div class="table-card">
                             <div class="table-header">
-                                <h3><i class="fas fa-money-bill-wave"></i> Créances Clients</h3>
+                                <h3 data-i18n="dashboard.receivables"><i class="fas fa-money-bill-wave"></i> Créances Clients</h3>
                                 <span class="badge badge-danger" id="creancesCount">0</span>
                             </div>
                             <div class="table-body" id="tableCreances"></div>
@@ -358,18 +397,18 @@
                 <div class="tab-content" id="productsTab">
                     <div class="card">
                         <div class="card-header">
-                            <div class="card-title">Produits</div>
+                            <div class="card-title" data-i18n="products.title">Produits</div>
                             <div style="display:flex;gap:0.5rem;align-items:center;">
                                 <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.35rem;cursor:pointer;">
                                     <input type="checkbox" id="showArchivedProducts" data-change="load-products">
-                                    Archivés
+                                    <span data-i18n="common.archived">Archivés</span>
                                 </label>
                                 <button class="btn btn-primary" data-click="open-product-modal">
-                                    <i class="fas fa-plus"></i> Nouveau
+                                    <i class="fas fa-plus"></i> <span data-i18n="products.new">Nouveau</span>
                                 </button>
                             </div>
                         </div>
-                        <input type="text" class="form-input" placeholder="Rechercher..." style="margin-bottom:1rem;max-width:300px;" data-input="filter-products">
+                        <input type="text" class="form-input" data-i18n="common.search" placeholder="Rechercher..." style="margin-bottom:1rem;max-width:300px;" data-input="filter-products">
                         <div id="productsListView"></div>
                     </div>
                 </div>
@@ -378,18 +417,18 @@
                 <div class="tab-content" id="warehousesTab">
                     <div class="card">
                         <div class="card-header">
-                            <div class="card-title">Entrepôts</div>
+                            <div class="card-title" data-i18n="warehouses.title">Entrepôts</div>
                             <button class="btn btn-primary" data-click="open-warehouse-modal">
-                                <i class="fas fa-plus"></i> Nouveau
+                                <i class="fas fa-plus"></i> <span data-i18n="warehouses.new">Nouveau</span>
                             </button>
                         </div>
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Nom</th>
-                                    <th>Adresse</th>
-                                    <th>Gestionnaire</th>
-                                    <th>Actions</th>
+                                    <th data-i18n="common.name">Nom</th>
+                                    <th data-i18n="common.address">Adresse</th>
+                                    <th data-i18n="warehouses.manager">Gestionnaire</th>
+                                    <th data-i18n="common.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="warehousesTable"></tbody>
@@ -401,18 +440,18 @@
                 <div class="tab-content" id="locationsTab">
                     <div class="card">
                         <div class="card-header">
-                            <div class="card-title">Zones de Stock</div>
+                            <div class="card-title" data-i18n="locations.title">Zones de Stock</div>
                             <button class="btn btn-primary" data-click="open-location-modal">
-                                <i class="fas fa-plus"></i> Nouvelle Zone
+                                <i class="fas fa-plus"></i> <span data-i18n="locations.new">Nouvelle Zone</span>
                             </button>
                         </div>
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Nom</th>
-                                    <th>Type</th>
-                                    <th>Capacité</th>
-                                    <th>Actions</th>
+                                    <th data-i18n="common.name">Nom</th>
+                                    <th data-i18n="locations.type">Type</th>
+                                    <th data-i18n="locations.capacity">Capacité</th>
+                                    <th data-i18n="common.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="locationsTable"></tbody>
@@ -424,16 +463,16 @@
                 <div class="tab-content" id="movementsTab">
                     <div class="card">
                         <div class="card-header">
-                            <div class="card-title">Mouvements</div>
+                            <div class="card-title" data-i18n="movements.title">Mouvements</div>
                         </div>
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Produit</th>
-                                    <th>Type</th>
-                                    <th>Quantité</th>
-                                    <th>Note</th>
+                                    <th data-i18n="common.date">Date</th>
+                                    <th data-i18n="movements.product">Produit</th>
+                                    <th data-i18n="movements.type">Type</th>
+                                    <th data-i18n="movements.quantity">Quantité</th>
+                                    <th data-i18n="common.notes">Note</th>
                                 </tr>
                             </thead>
                             <tbody id="movementsTable"></tbody>
@@ -445,18 +484,18 @@
                 <div class="tab-content" id="suppliersTab">
                     <div class="card">
                         <div class="card-header">
-                            <div class="card-title">Fournisseurs</div>
+                            <div class="card-title" data-i18n="suppliers.title">Fournisseurs</div>
                             <button class="btn btn-primary" data-click="open-supplier-modal">
-                                <i class="fas fa-plus"></i> Nouveau
+                                <i class="fas fa-plus"></i> <span data-i18n="suppliers.new">Nouveau</span>
                             </button>
                         </div>
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Nom</th>
-                                    <th>Email</th>
-                                    <th>Téléphone</th>
-                                    <th>Actions</th>
+                                    <th data-i18n="common.name">Nom</th>
+                                    <th data-i18n="common.email">Email</th>
+                                    <th data-i18n="common.phone">Téléphone</th>
+                                    <th data-i18n="common.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="suppliersTable"></tbody>
@@ -468,9 +507,9 @@
                 <div class="tab-content" id="ordersTab">
                     <div class="card">
                         <div class="card-header">
-                            <div class="card-title"><i class="fas fa-truck"></i> Commandes Fournisseurs</div>
+                            <div class="card-title"><i class="fas fa-truck"></i> <span data-i18n="orders.title">Commandes Fournisseurs</span></div>
                             <button class="btn btn-primary" data-click="open-order-modal">
-                                <i class="fas fa-plus"></i> Nouvelle Commande
+                                <i class="fas fa-plus"></i> <span data-i18n="orders.new">Nouvelle Commande</span>
                             </button>
                         </div>
                         <table class="table">
@@ -502,12 +541,12 @@
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>Code</th>
-                                    <th>Nom</th>
-                                    <th>Email</th>
-                                    <th>Téléphone</th>
-                                    <th>Fidèle</th>
-                                    <th>Actions</th>
+                                    <th data-i18n="customers.code">Code</th>
+                                    <th data-i18n="common.name">Nom</th>
+                                    <th data-i18n="common.email">Email</th>
+                                    <th data-i18n="common.phone">Téléphone</th>
+                                    <th data-i18n="customers.typeLoyal">Fidèle</th>
+                                    <th data-i18n="common.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="customersTable"></tbody>
@@ -519,39 +558,40 @@
                 <div class="tab-content" id="invoicesTab">
                     <div class="card">
                         <div class="card-header">
-                            <div class="card-title">Factures</div>
+                            <div class="card-title" data-i18n="invoices.title">Factures</div>
                         </div>
                         <div style="display:flex;gap:1rem;align-items:flex-end;padding:0 1rem 1rem;flex-wrap:wrap;">
                             <div class="filter-group">
-                                <label>Du</label>
+                                <label data-i18n="dashboard.filter.from">Du</label>
                                 <input type="date" id="invoiceDateStart" class="form-input" data-change="load-invoices" style="min-width:130px;">
                             </div>
                             <div class="filter-group">
-                                <label>Au</label>
+                                <label data-i18n="dashboard.filter.to">Au</label>
                                 <input type="date" id="invoiceDateEnd" class="form-input" data-change="load-invoices" style="min-width:130px;">
                             </div>
                             <div class="filter-group">
-                                <label>Statut</label>
+                                <label data-i18n="common.status">Statut</label>
                                 <select id="invoiceStatusFilter" class="form-select" data-change="load-invoices" style="min-width:120px;">
-                                    <option value="all">Tous</option>
+                                    <option value="all" data-i18n="dashboard.filter.all">Tous</option>
                                     <option value="ticket">Ticket de caisse</option>
-                                    <option value="brouillon">Brouillon</option>
-                                    <option value="envoyee">Envoyée</option>
-                                    <option value="payee">Payée</option>
-                                    <option value="annulee">Annulée</option>
+                                    <option value="brouillon" data-i18n="invoices.statusDraft">Brouillon</option>
+                                    <option value="envoyee" data-i18n="invoices.statusSent">Envoyée</option>
+                                    <option value="partiellement_payee" data-i18n="invoices.statusPartial">Partiellement payée</option>
+                                    <option value="payee" data-i18n="invoices.statusPaid">Payée</option>
+                                    <option value="annulee" data-i18n="invoices.statusCancelled">Annulée</option>
                                 </select>
                             </div>
                         </div>
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>N° Facture</th>
-                                    <th>Client</th>
-                                    <th>Créée le</th>
-                                    <th>Payée le</th>
-                                    <th>Total</th>
-                                    <th>Statut</th>
-                                    <th>Actions</th>
+                                    <th data-i18n="invoices.number">N° Facture</th>
+                                    <th data-i18n="invoices.customer">Client</th>
+                                    <th data-i18n="orders.createdOn">Créée le</th>
+                                    <th data-i18n="orders.paidOn">Payée le</th>
+                                    <th data-i18n="common.total">Total / Payé</th>
+                                    <th data-i18n="common.status">Statut</th>
+                                    <th data-i18n="common.actions">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="invoicesTable"></tbody>
@@ -563,11 +603,11 @@
                 <div class="tab-content" id="reportsTab">
                     <!-- Report Navigation -->
                     <div class="reports-nav" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
-                        <button class="btn btn-primary" data-click="load-report" data-arg="overview" id="btnReportOverview"><i class="fas fa-chart-line"></i> Dashboard Business</button>
-                        <button class="btn btn-outline" data-click="load-report" data-arg="sales" id="btnReportSales"><i class="fas fa-cash-register"></i> Ventes POS</button>
-                        <button class="btn btn-outline" data-click="load-report" data-arg="purchases" id="btnReportPurchases"><i class="fas fa-truck"></i> Achats</button>
-                        <button class="btn btn-outline" data-click="load-report" data-arg="stock" id="btnReportStock"><i class="fas fa-boxes"></i> Stocks</button>
-                        <button class="btn btn-outline" data-click="load-report" data-arg="financial" id="btnReportFinancial"><i class="fas fa-chart-pie"></i> Performance</button>
+                        <button class="btn btn-primary" data-click="load-report" data-arg="overview" id="btnReportOverview"><i class="fas fa-chart-line"></i> <span data-i18n="reports.businessDashboard">Dashboard Business</span></button>
+                        <button class="btn btn-outline" data-click="load-report" data-arg="sales" id="btnReportSales"><i class="fas fa-cash-register"></i> <span data-i18n="reports.posSales">Ventes POS</span></button>
+                        <button class="btn btn-outline" data-click="load-report" data-arg="purchases" id="btnReportPurchases"><i class="fas fa-truck"></i> <span data-i18n="reports.purchases">Achats</span></button>
+                        <button class="btn btn-outline" data-click="load-report" data-arg="stock" id="btnReportStock"><i class="fas fa-boxes"></i> <span data-i18n="reports.stock">Stocks</span></button>
+                        <button class="btn btn-outline" data-click="load-report" data-arg="financial" id="btnReportFinancial"><i class="fas fa-chart-pie"></i> <span data-i18n="reports.performance">Performance</span></button>
                     </div>
                     
                     <!-- Report Filters -->
@@ -610,23 +650,27 @@
                 
                 <!-- SESSIONS HISTORY TAB -->
                 <div class="tab-content" id="sessionsTab">
-                    <div class="card" style="margin-bottom:1rem;">
-                        <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
-                            <div>
-                                <label style="font-size:0.75rem;color:var(--text-light);display:block;margin-bottom:0.25rem;">Date Debut</label>
-                                <input type="date" id="sessionDateStart" class="form-input" style="width:150px;">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title"><i class="fas fa-filter"></i> Filtrer les sessions</div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-row" style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label class="form-label">Date Debut</label>
+                                    <input type="date" id="sessionDateStart" class="form-input" style="width:160px;">
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label class="form-label">Date Fin</label>
+                                    <input type="date" id="sessionDateEnd" class="form-input" style="width:160px;">
+                                </div>
+                                <button class="btn btn-primary" data-click="load-sessions"><i class="fas fa-sync"></i> Filtrer</button>
+                                <button class="btn btn-outline" data-click="export-sessions" data-arg="csv"><i class="fas fa-file-csv"></i> Exporter CSV</button>
                             </div>
-                            <div>
-                                <label style="font-size:0.75rem;color:var(--text-light);display:block;margin-bottom:0.25rem;">Date Fin</label>
-                                <input type="date" id="sessionDateEnd" class="form-input" style="width:150px;">
-                            </div>
-                            <button class="btn btn-primary" data-click="load-sessions"><i class="fas fa-sync"></i> Filtrer</button>
-                            <button class="btn btn-outline" data-click="export-sessions" data-arg="csv"><i class="fas fa-file-csv"></i> Exporter CSV</button>
                         </div>
                     </div>
                     
-                    <!-- Sessions Summary -->
-                    <div class="report-kpi-grid" style="margin-bottom:1.5rem;">
+                    <div class="report-kpi-grid">
                         <div class="report-kpi-card">
                             <div class="label">Total Sessions</div>
                             <div class="value primary" id="sessionTotalSessions">0</div>
@@ -645,24 +689,27 @@
                         </div>
                     </div>
                     
-                    <!-- Sessions Table -->
-                    <div class="card">
-                        <table class="data-table">
+                    <div class="card" style="padding:0;overflow:hidden;">
+                        <div class="card-header" style="padding:var(--space-lg);margin:0;">
+                            <div class="card-title"><i class="fas fa-history"></i> Historique des sessions</div>
+                        </div>
+                        <table class="table table-compact" style="border-top:1px solid var(--border);">
                             <thead>
                                 <tr>
                                     <th>Session</th>
                                     <th>Statut</th>
+                                    <th>Caissier</th>
                                     <th>Ouverture</th>
                                     <th>Fermeture</th>
-                                    <th>Ventes</th>
-                                    <th>Transactions</th>
-                                    <th>Esp. Attendu</th>
-                                    <th>Esp. Reel</th>
-                                    <th>Actions</th>
+                                    <th class="text-right">Ventes</th>
+                                    <th class="text-right">Nb</th>
+                                    <th class="text-right">Attendu</th>
+                                    <th class="text-right">Reel</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody id="sessionsTableBody">
-                                <tr><td colspan="9" style="text-align:center;">Chargement...</td></tr>
+                                <tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-light);">Chargement...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -804,7 +851,12 @@
                                         <span id="posSubtotal">0.00 DH</span>
                                     </div>
                                     <div class="pos-summary-row">
-                                        <span>TVA:</span>
+                                        <span>
+                                            <label class="checkbox-label" style="margin-bottom:0;gap:0.35rem;">
+                                                <input type="checkbox" id="posTvaToggle" onchange="renderPosCart()">
+                                                <span>TVA (20%)</span>
+                                            </label>
+                                        </span>
                                         <span id="posTax">0.00 DH</span>
                                     </div>
                                     <div class="pos-summary-row pos-summary-discount">
@@ -829,11 +881,9 @@
                                 <div class="pos-discount-section">
                                     <label>Remise:</label>
                                     <select id="posDiscountType" class="form-select" data-change="apply-pos-discount">
-                                        <option value="auto">Automatique (selon client)</option>
-                                        <option value="price_base">Prix Normal</option>
-                                        <option value="price_loyal">Prix Client Fidèle</option>
-                                        <option value="price_student">Prix Étudiant</option>
-                                        <option value="price_school">Prix École</option>
+                                        <option value="price_base">Normal</option>
+                                        <option value="price_loyal">Fidèle</option>
+                                        <option value="price_gros">Gros</option>
                                     </select>
                                 </div>
                             
@@ -1191,16 +1241,12 @@
                             <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-base" step="0.01" style="width:120px;" data-price-field="price_base"></span>
                         </div>
                         <div class="detail-row">
-                            <span class="detail-label">Prix Client Fidèle</span>
+                            <span class="detail-label">Prix Fidèle</span>
                             <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-loyal" step="0.01" style="width:120px;" data-price-field="price_loyal"></span>
                         </div>
                         <div class="detail-row">
-                            <span class="detail-label">Prix Étudiant</span>
-                            <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-student" step="0.01" style="width:120px;" data-price-field="price_student"></span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Prix École</span>
-                            <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-school" step="0.01" style="width:120px;" data-price-field="price_school"></span>
+                            <span class="detail-label">Prix Gros</span>
+                            <span class="detail-value"><input type="number" class="form-input price-tier-input" id="detail-price-gros" step="0.01" style="width:120px;" data-price-field="price_gros"></span>
                         </div>
                     </div>
                     <div id="custom-price-tiers"></div>
@@ -1295,6 +1341,48 @@
         </div>
     </div>
     
+    <!-- Barcode Scanner Modal (before adding a product) -->
+    <div class="modal" id="barcodeScannerModal">
+        <div class="modal-content" style="max-width:450px;">
+            <div class="modal-header">
+                <div class="modal-title">Scanner le code-barres</div>
+                <button class="modal-close" onclick="cancelBarcodeScan()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                <div class="scanner-video-wrapper" style="position:relative;margin-bottom:1rem;background:#000;border-radius:8px;overflow:hidden;">
+                    <video id="addProductVideo" style="width:100%;max-height:250px;display:block;" autoplay muted playsinline></video>
+                    <canvas id="addProductCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
+                </div>
+                <div id="addProductScannerStatus" style="font-size:0.85rem;color:var(--text-light);margin-bottom:0.75rem;">Positionnez le code-barres devant la caméra</div>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <input type="text" id="addProductBarcodeInput" class="form-input" placeholder="Ou saisir le code-barres manuellement" style="flex:1;" onkeydown="if(event.key==='Enter')onBarcodeEntered()">
+                    <button class="btn btn-primary" onclick="onBarcodeEntered()"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="cancelBarcodeScan()">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barcode Unknown Modal -->
+    <div class="modal" id="barcodeUnknownModal">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header">
+                <div class="modal-title">Code-barres inconnu</div>
+            </div>
+            <div class="modal-body" style="text-align:center;padding:1.5rem;">
+                <div style="font-size:3rem;margin-bottom:0.75rem;color:var(--text-light);"><i class="fas fa-barcode"></i></div>
+                <p style="margin-bottom:0.5rem;font-weight:500;">Ce code-barres n'est associé à aucun produit.</p>
+                <p style="font-size:0.9rem;color:var(--text-light);margin-bottom:1.5rem;">Voulez-vous ajouter ce produit ?</p>
+                <div style="display:flex;gap:0.75rem;justify-content:center;">
+                    <button class="btn btn-outline" onclick="cancelUnknownBarcode()">Annuler</button>
+                    <button class="btn btn-primary" onclick="addUnknownBarcodeProduct()"><i class="fas fa-plus"></i> Ajouter le produit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Product Modal -->
     <div class="modal" id="productModal">
         <div class="modal-content wide">
@@ -1306,7 +1394,7 @@
                 <div class="modal-body">
                     <input type="hidden" id="productId">
                     <div class="form-group">
-                        <label class="form-label">Nom du produit</label>
+                        <label class="form-label">Nom du produit <span style="color:var(--danger);">*</span></label>
                         <input type="text" id="productName" class="form-input" required>
                     </div>
                     <div class="form-group">
@@ -1320,41 +1408,56 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Code-barres</label>
-                            <input type="text" id="productBarcode" class="form-input">
-                        </div>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
-                        <div class="form-group">
-                            <label class="form-label">Prix de vente (DH)</label>
-                            <input type="number" id="productPrice" class="form-input" step="0.01" min="0" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Quantité initiale</label>
-                            <input type="number" id="productQuantity" class="form-input" min="0" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Catégorie</label>
-                            <select id="productCategory" class="form-select">
-                                <option value="Général">Général</option>
-                                <option value="Informatique">Informatique</option>
-                                <option value="Bureautique">Bureautique</option>
-                                <option value="Papeterie">Papeterie</option>
-                                <option value="Fournitures">Fournitures</option>
-                                <option value="Câbles">Câbles</option>
-                                <option value="Accessoires">Accessoires</option>
-                                <option value="Éclairage">Éclairage</option>
-                            </select>
+                            <input type="text" id="productBarcode" class="form-input" readonly>
                         </div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                         <div class="form-group">
-                            <label class="form-label">Stock minimum</label>
-                            <input type="number" id="productMinQty" class="form-input" min="0" value="5">
+                            <label class="form-label">Prix d'achat <span style="color:var(--danger);">*</span></label>
+                            <input type="number" id="productPurchasePrice" class="form-input" step="0.01" min="0" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Stock maximum</label>
-                            <input type="number" id="productMaxQty" class="form-input" min="0" value="100">
+                            <label class="form-label">Prix normal <span style="color:var(--danger);">*</span></label>
+                            <input type="number" id="productPrice" class="form-input" step="0.01" min="0" required>
                         </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Prix fidèle <span style="color:var(--danger);">*</span></label>
+                            <input type="number" id="productLoyalPrice" class="form-input" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Prix gros <span style="color:var(--danger);">*</span></label>
+                            <input type="number" id="productGrosPrice" class="form-input" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Quantité initiale <span style="color:var(--danger);">*</span></label>
+                            <input type="number" id="productQuantity" class="form-input" min="0" value="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Stock minimum <span style="color:var(--danger);">*</span></label>
+                            <input type="number" id="productMinQty" class="form-input" min="0" value="5" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Stock maximum <span style="color:var(--danger);">*</span></label>
+                            <input type="number" id="productMaxQty" class="form-input" min="0" value="100" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Catégorie <span style="color:var(--danger);">*</span></label>
+                        <select id="productCategory" class="form-select" required>
+                            <option value="">-- Sélectionner --</option>
+                            <option value="Général">Général</option>
+                            <option value="Informatique">Informatique</option>
+                            <option value="Bureautique">Bureautique</option>
+                            <option value="Papeterie">Papeterie</option>
+                            <option value="Fournitures">Fournitures</option>
+                            <option value="Câbles">Câbles</option>
+                            <option value="Accessoires">Accessoires</option>
+                            <option value="Éclairage">Éclairage</option>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1463,7 +1566,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" data-click="close-modal" data-arg="supplierModal">Annuler</button>
+                    <button type="button" class="btn btn-outline" data-click="close-modal" data-arg="supplierModal">Annuler</button>
                     <button type="submit" class="btn btn-primary">Enregistrer</button>
                 </div>
             </form>
@@ -1501,7 +1604,16 @@
                     
                     <!-- Products Section -->
                     <div class="products-section" style="background:var(--color-canvas);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><h4 style="margin:0;font-size:0.9rem;"><i class="fas fa-box"></i> Produits</h4><button type="button" class="btn btn-sm btn-success" data-click="add-order-item"><i class="fas fa-plus"></i> Ajouter</button></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;"><h4 style="margin:0;font-size:0.9rem;"><i class="fas fa-box"></i> Produits</h4><div style="display:flex;gap:0.5rem;"><button type="button" class="btn btn-sm btn-outline" id="toggleOrderScannerBtn" data-click="toggle-order-scanner" title="Scanner code-barres"><i class="fas fa-camera"></i></button><button type="button" class="btn btn-sm btn-success" data-click="add-order-item"><i class="fas fa-plus"></i> Ajouter</button></div></div>
+                        
+                        <!-- Scanner inline -->
+                        <div id="orderScannerArea" class="pos-scanner-container" style="display:none;margin-bottom:0.75rem;">
+                            <div class="pos-scanner-video-wrapper">
+                                <video id="orderScannerVideo" class="pos-scanner-video" autoplay muted playsinline></video>
+                                <canvas id="orderScannerCanvas" class="pos-scanner-canvas"></canvas>
+                                <div class="pos-scanner-status" id="orderScannerStatus">Scanner prêt</div>
+                            </div>
+                        </div>
                         
                         <!-- Table Header -->
                         <div class="order-table-header" style="display:grid;grid-template-columns:2fr 80px 100px 100px 40px;gap:0.5rem;padding:0.5rem;font-size:0.7rem;font-weight:600;color:var(--text-light);background:var(--border);border-radius:6px 6px 0 0;">
@@ -1525,11 +1637,12 @@
                 <div class="order-modal-footer" style="padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:0.75rem;justify-content:flex-end;background:var(--color-canvas);flex-shrink:0;">
                     <button type="button" class="btn btn-danger" id="cancelOrderBtn" data-click="cancel-order" style="display:none;padding:0.5rem 1rem;background:var(--danger);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="fas fa-times"></i> Annuler Commande</button>
                     <button type="button" class="btn btn-outline" data-click="close-modal" data-arg="orderModal" style="padding:0.5rem 1rem;border:1px solid var(--border);background:white;border-radius:6px;cursor:pointer;">Annuler</button>
-                    <button type="button" class="btn btn-success" data-click="send-order" style="padding:0.5rem 1rem;background:var(--success);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="fas fa-paper-plane"></i> Envoyer</button>
-                    <button type="submit" class="btn btn-primary" style="padding:0.5rem 1rem;background:var(--primary);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="fas fa-save"></i> Enregistrer</button>
+                    <button type="button" class="btn btn-success" id="sendOrderBtn" data-click="send-order" style="padding:0.5rem 1rem;background:var(--success);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="fas fa-paper-plane"></i> Envoyer</button>
+                    <button type="submit" class="btn btn-primary" id="saveOrderBtn" style="padding:0.5rem 1rem;background:var(--primary);color:white;border:none;border-radius:6px;cursor:pointer;"><i class="fas fa-save"></i> Enregistrer</button>
                 </div>
             </form>
         </div>
+        <div id="orderSuggestions" style="position:fixed;z-index:9999;display:none;"></div>
     </div>
     
     <!-- Convert to Invoice Modal -->
@@ -1606,6 +1719,86 @@
         </div>
     </div>
 
+<!-- MODAL PAIEMENT CREDIT -->
+<div id="modalPayCredit" class="modal">
+    <div class="modal-content" style="max-width:480px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-credit-card"></i> Paiement facture <span id="payCreditInvoiceNumber">-</span></h3>
+            <button class="modal-close" onclick="closeModal('modalPayCredit')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                <div style="padding:0.75rem;background:var(--bg-card);border-radius:8px;text-align:center;">
+                    <div style="font-size:0.75rem;color:var(--text-light);">Total</div>
+                    <div style="font-size:1.1rem;font-weight:700;" id="payCreditTotal">0.00 DH</div>
+                </div>
+                <div style="padding:0.75rem;background:var(--bg-card);border-radius:8px;text-align:center;">
+                    <div style="font-size:0.75rem;color:var(--text-light);">Déjà payé</div>
+                    <div style="font-size:1.1rem;font-weight:700;color:var(--success);" id="payCreditAlreadyPaid">0.00 DH</div>
+                </div>
+                <div style="padding:0.75rem;background:var(--bg-card);border-radius:8px;text-align:center;grid-column:1/3;">
+                    <div style="font-size:0.75rem;color:var(--text-light);">Restant dû</div>
+                    <div style="font-size:1.3rem;font-weight:700;color:var(--warning);" id="payCreditRemaining">0.00 DH</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Montant à payer</label>
+                <input type="number" id="payCreditAmount" class="form-input" step="0.01" min="0.01">
+            </div>
+            <div class="form-group">
+                <label>Moyen de paiement</label>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="btn pay-credit-method-btn active" data-method="cash" onclick="setPayCreditMethod('cash')" style="flex:1;padding:0.6rem;">
+                        <i class="fas fa-money-bill-wave"></i> Espèces
+                    </button>
+                    <button class="btn pay-credit-method-btn" data-method="card" onclick="setPayCreditMethod('card')" style="flex:1;padding:0.6rem;">
+                        <i class="fas fa-credit-card"></i> Carte
+                    </button>
+                </div>
+            </div>
+            <input type="hidden" id="payCreditMethod" value="cash">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('modalPayCredit')">Annuler</button>
+            <button class="btn btn-success" onclick="submitPayCredit()"><i class="fas fa-check"></i> Payer</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="sessionDetailModal">
+    <div class="modal-content" style="max-width:800px;">
+        <div class="modal-header">
+            <div class="modal-title" id="sessionDetailTitle"><i class="fas fa-cash-register"></i> Détails Session</div>
+            <button class="modal-close" onclick="closeModal('sessionDetailModal')">&times;</button>
+        </div>
+        <div class="modal-body" id="sessionDetailBody">
+            <div class="report-kpi-grid" id="sessionDetailKpi"></div>
+            <div id="sessionDetailInfo"></div>
+            <div style="margin-top:1.5rem;">
+                <h4 style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;">
+                    <i class="fas fa-receipt"></i> Transactions
+                </h4>
+                <div id="sessionDetailTransactions"></div>
+            </div>
+            <div style="margin-top:1.5rem;">
+                <h4 style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;">
+                    <i class="fas fa-money-bill-wave"></i> Mouvements de caisse
+                </h4>
+                <div id="sessionDetailCashMovements"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('sessionDetailModal')">Fermer</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.pay-credit-method-btn { border: 2px solid var(--border); background: var(--bg-card); cursor: pointer; border-radius: 6px; font-size: 0.85rem; }
+.pay-credit-method-btn.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+</style>
+
+<script src="/static/js/i18n.js"></script>
 <script src="/static/js/zxing.min.js"></script>
 <script src="/static/js/scanner.js"></script>
 <script src="/static/js/app.js"></script>

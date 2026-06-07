@@ -432,7 +432,7 @@ let sessionsData = [];
 async function loadSessionsHistory() {
     const tbody = document.getElementById('sessionsTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Chargement...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin"></i> Chargement...</td></tr>';
 
     try {
         const [historyRes, summaryRes] = await Promise.all([
@@ -451,7 +451,7 @@ async function loadSessionsHistory() {
         document.getElementById('sessionTotalTransactions').textContent = summary.nb_transactions_period || 0;
 
         if (sessions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Aucune session trouvee</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-light);">Aucune session trouvee</td></tr>';
             return;
         }
 
@@ -464,18 +464,19 @@ async function loadSessionsHistory() {
             html += '<tr>';
             html += '<td><strong>' + s.session_number + '</strong></td>';
             html += '<td><span class="badge badge-' + statusClass + '">' + (s.status === 'closed' ? 'Fermee' : 'Ouverte') + '</span></td>';
+            html += '<td>' + (s.user_name || 'Caissier') + '</td>';
             html += '<td>' + openedAt + '</td>';
             html += '<td>' + closedAt + '</td>';
-            html += '<td><strong>' + (s.total_sales || 0).toLocaleString() + '</strong> DH</td>';
+            html += '<td><strong>' + Number(s.total_sales || 0).toFixed(2) + '</strong></td>';
             html += '<td>' + s.nb_transactions + '</td>';
-            html += '<td>' + (s.expected_cash || 0).toLocaleString() + ' DH</td>';
-            html += '<td>' + (s.closing_cash || 0).toLocaleString() + ' DH</td>';
-            html += '<td><button class="btn btn-sm btn-outline" onclick="viewSessionDetails(' + s.id + ')"><i class="fas fa-eye"></i> Details</button></td>';
+            html += '<td>' + Number(s.expected_cash || 0).toFixed(2) + '</td>';
+            html += '<td>' + Number(s.closing_cash || 0).toFixed(2) + '</td>';
+            html += '<td><button class="btn btn-sm btn-outline" onclick="viewSessionDetails(' + s.id + ')"><i class="fas fa-eye"></i></button></td>';
             html += '</tr>';
         }
         tbody.innerHTML = html;
     } catch(e) {
-        tbody.innerHTML = '<tr><td colspan="9" class="alert alert-danger">Erreur: ' + e.message + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="alert alert-danger">Erreur: ' + e.message + '</td></tr>';
     }
 }
 
@@ -484,28 +485,90 @@ async function viewSessionDetails(sessionId) {
         const res = await fetch('/api/kpis/sessions/' + sessionId + '/details');
         const data = await res.json();
 
-        let detailsHtml = '<div class="card">';
-        detailsHtml += '<h3>Session: ' + data.session.session_number + '</h3>';
-        detailsHtml += '<div class="report-kpi-grid">';
-        detailsHtml += '<div class="report-kpi-card"><div class="label">Ventes Total</div><div class="value primary">' + data.session.total_sales + ' DH</div></div>';
-        detailsHtml += '<div class="report-kpi-card"><div class="label">Transactions</div><div class="value">' + data.transactions.length + '</div></div>';
-        detailsHtml += '<div class="report-kpi-card"><div class="label">Esp. Attendu</div><div class="value">' + (data.session.expected_cash || 0) + ' DH</div></div>';
-        detailsHtml += '<div class="report-kpi-card"><div class="label">Esp. Reel</div><div class="value">' + (data.session.closing_cash || 0) + ' DH</div></div>';
-        detailsHtml += '</div>';
+        document.getElementById('sessionDetailTitle').textContent = 'Session: ' + data.session.session_number;
+
+        const s = data.session;
+        document.getElementById('sessionDetailKpi').innerHTML =
+            '<div class="report-kpi-card"><div class="label">Ventes Total</div><div class="value primary">' + (s.total_sales || 0).toLocaleString() + ' DH</div></div>' +
+            '<div class="report-kpi-card"><div class="label">Transactions</div><div class="value">' + data.transactions.length + '</div></div>' +
+            '<div class="report-kpi-card"><div class="label">Esp. Attendu</div><div class="value">' + (s.expected_cash || 0).toLocaleString() + ' DH</div></div>' +
+            '<div class="report-kpi-card"><div class="label">Esp. Reel</div><div class="value">' + (s.closing_cash || 0).toLocaleString() + ' DH</div></div>';
+
+        const openedAt = s.opened_at ? s.opened_at.substring(0, 16).replace('T', ' ') : '-';
+        const closedAt = s.closed_at ? s.closed_at.substring(0, 16).replace('T', ' ') : '-';
+        const durationHtml = s.opened_at && s.closed_at ? (() => {
+            const diff = new Date(s.closed_at) - new Date(s.opened_at);
+            const mins = Math.floor(diff / 60000);
+            const hrs = Math.floor(mins / 60);
+            return (hrs > 0 ? hrs + 'h ' : '') + (mins % 60) + 'min';
+        })() : '-';
+
+        document.getElementById('sessionDetailKpi').innerHTML =
+            '<div class="report-kpi-card"><div class="label">Ventes</div><div class="value primary">' + Number(s.total_sales || 0).toFixed(2) + ' DH</div></div>' +
+            '<div class="report-kpi-card"><div class="label">Transactions</div><div class="value">' + data.transactions.length + '</div></div>' +
+            '<div class="report-kpi-card"><div class="label">Esp. Attendu</div><div class="value">' + Number(s.expected_cash || 0).toFixed(2) + ' DH</div></div>' +
+            '<div class="report-kpi-card"><div class="label">Esp. Reel</div><div class="value">' + Number(s.closing_cash || 0).toFixed(2) + ' DH</div></div>';
+
+        const infoHtml =
+            '<div style="display:flex;flex-wrap:wrap;gap:0.5rem 2rem;padding:1rem;background:var(--color-canvas);border-radius:8px;margin-bottom:1rem;font-size:0.9rem;">' +
+            '<div><span style="color:var(--text-light);">Status</span><br><strong>' + (s.status === 'closed' ? 'Fermee' : 'Ouverte') + '</strong></div>' +
+            '<div><span style="color:var(--text-light);">Caissier</span><br><strong>' + (s.user_name || 'Caissier') + '</strong></div>' +
+            '<div><span style="color:var(--text-light);">Entrepot</span><br><strong>' + (s.warehouse_name || 'Entrepot ' + (s.warehouse_id || 1)) + '</strong></div>' +
+            '<div><span style="color:var(--text-light);">Ouverture</span><br><strong>' + openedAt + '</strong></div>' +
+            '<div><span style="color:var(--text-light);">Fermeture</span><br><strong>' + closedAt + '</strong></div>' +
+            '<div><span style="color:var(--text-light);">Duree</span><br><strong>' + durationHtml + '</strong></div>' +
+            '<div><span style="color:var(--text-light);">Ouverture Caisse</span><br><strong>' + Number(s.opening_cash || 0).toFixed(2) + ' DH</strong></div>' +
+            '</div>';
+
+        document.getElementById('sessionDetailInfo').innerHTML = infoHtml;
 
         if (data.transactions.length > 0) {
-            detailsHtml += '<h4 style="margin-top:1rem;">Transactions</h4>';
-            detailsHtml += '<table class="report-table"><thead><tr><th>N</th><th>Total</th><th>Mode</th><th>Date</th></tr></thead><tbody>';
+            let html = '<table class="table table-compact" style="width:100%;"><thead><tr>' +
+                '<th>N</th><th>Client</th><th>Total</th><th>Sous-total</th><th>TVA</th><th>Remise</th><th>Mode</th><th>Nb</th><th>Date</th></tr></thead><tbody>';
             for (let i = 0; i < data.transactions.length; i++) {
                 const t = data.transactions[i];
-                detailsHtml += '<tr><td>' + (t.ticket_number || t.transaction_number || '-') + '</td><td>' + t.total + ' DH</td><td>' + t.payment_method + '</td><td>' + t.created_at + '</td></tr>';
+                const methodLabel = t.payment_method === 'cash' ? 'Especes' :
+                                   t.payment_method === 'card' ? 'Carte' : 'Mixte';
+                html += '<tr>' +
+                    '<td><strong>' + (t.ticket_number || t.transaction_number || '-') + '</strong></td>' +
+                    '<td>' + (t.customer_name || 'Comptoir') + '</td>' +
+                    '<td><strong>' + Number(t.total).toFixed(2) + '</strong></td>' +
+                    '<td>' + Number(t.subtotal || 0).toFixed(2) + '</td>' +
+                    '<td>' + Number(t.tax_amount || 0).toFixed(2) + '</td>' +
+                    '<td>' + Number(t.discount_amount || 0).toFixed(2) + '</td>' +
+                    '<td>' + methodLabel + '</td>' +
+                    '<td>' + (t.items_count || '-') + '</td>' +
+                    '<td>' + (t.created_at || '').substring(0, 16) + '</td>' +
+                    '</tr>';
             }
-            detailsHtml += '</tbody></table>';
+            html += '</tbody></table>';
+            document.getElementById('sessionDetailTransactions').innerHTML = html;
+        } else {
+            document.getElementById('sessionDetailTransactions').innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem;">Aucune transaction</p>';
         }
 
-        detailsHtml += '</div>';
+        if (data.cash_movements && data.cash_movements.length > 0) {
+            let html = '<table class="table table-compact" style="width:100%;"><thead><tr>' +
+                '<th>Type</th><th>Montant</th><th>Motif</th><th>Source</th><th>Date</th></tr></thead><tbody>';
+            for (let i = 0; i < data.cash_movements.length; i++) {
+                const m = data.cash_movements[i];
+                const typeLabel = m.type === 'in' ? '<span style="color:var(--success);">Entree</span>' :
+                                 '<span style="color:var(--danger);">Sortie</span>';
+                html += '<tr>' +
+                    '<td>' + typeLabel + '</td>' +
+                    '<td>' + Number(m.amount).toFixed(2) + ' DH</td>' +
+                    '<td>' + (m.reason || '-') + '</td>' +
+                    '<td>' + (m.source || 'pos') + '</td>' +
+                    '<td>' + (m.created_at || '').substring(0, 16) + '</td>' +
+                    '</tr>';
+            }
+            html += '</tbody></table>';
+            document.getElementById('sessionDetailCashMovements').innerHTML = html;
+        } else {
+            document.getElementById('sessionDetailCashMovements').innerHTML = '<p class="text-muted" style="text-align:center;padding:1rem;">Aucun mouvement</p>';
+        }
 
-        document.getElementById('reportContentArea').innerHTML = detailsHtml;
+        openModal('sessionDetailModal');
     } catch(e) {
         showError('Erreur: ' + e.message);
     }
@@ -518,7 +581,8 @@ function exportSessions(format) {
     csv.push('Session,Statut,Ouverture,Fermeture,Ventes,Transactions,Attendu,Reel');
     for (let i = 0; i < sessionsData.length; i++) {
         const s = sessionsData[i];
-        csv.push('"' + s.session_number + '","' + s.status + '","' + s.opened_at + '","' + (s.closed_at || '') + '",' + s.total_sales + ',' + s.nb_transactions + ',' + (s.expected_cash || 0) + ',' + (s.closing_cash || 0));
+        const esc = v => String(v).replace(/"/g, '""');
+        csv.push('"' + esc(s.session_number) + '","' + esc(s.status) + '","' + esc(s.opened_at) + '","' + esc(s.closed_at || '') + '",' + esc(s.total_sales) + ',' + esc(s.nb_transactions) + ',' + esc(s.expected_cash || 0) + ',' + esc(s.closing_cash || 0));
     }
 
     const blob = new Blob([csv.join('\n')], { type: 'text/csv' });

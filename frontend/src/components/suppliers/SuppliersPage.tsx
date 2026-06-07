@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { Plus, Pencil, Trash2, Search } from "lucide-react"
 import {
   type ColumnDef,
@@ -48,49 +49,50 @@ function SupplierForm({
   data: SupplierFormData
   onChange: (d: SupplierFormData) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="grid gap-3">
       <div className="space-y-1">
-        <label className="text-xs font-medium">Nom *</label>
+        <label className="text-xs font-medium">{t("suppliers.form.name")}</label>
         <Input
           value={data.name}
           onChange={(e) => onChange({ ...data, name: e.target.value })}
-          placeholder="Nom du fournisseur"
+          placeholder={t("suppliers.form.name_placeholder")}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium">Email</label>
+          <label className="text-xs font-medium">{t("common.email")}</label>
           <Input
             type="email"
             value={data.email ?? ""}
             onChange={(e) => onChange({ ...data, email: e.target.value })}
-            placeholder="email@exemple.com"
+            placeholder={t("suppliers.form.email_placeholder")}
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium">Téléphone</label>
+          <label className="text-xs font-medium">{t("common.phone")}</label>
           <Input
             value={data.phone ?? ""}
             onChange={(e) => onChange({ ...data, phone: e.target.value })}
-            placeholder="+212 6XX XX XX XX"
+            placeholder={t("suppliers.form.phone_placeholder")}
           />
         </div>
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium">Adresse</label>
+        <label className="text-xs font-medium">{t("common.address")}</label>
         <Input
           value={data.address ?? ""}
           onChange={(e) => onChange({ ...data, address: e.target.value })}
-          placeholder="Adresse complète"
+          placeholder={t("suppliers.form.address_placeholder")}
         />
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium">Personne de contact</label>
+        <label className="text-xs font-medium">{t("suppliers.form.contact_person")}</label>
         <Input
           value={data.contact_person ?? ""}
           onChange={(e) => onChange({ ...data, contact_person: e.target.value })}
-          placeholder="Nom du contact"
+          placeholder={t("suppliers.form.contact_placeholder")}
         />
       </div>
     </div>
@@ -98,6 +100,7 @@ function SupplierForm({
 }
 
 export function SuppliersPage() {
+  const { t } = useTranslation()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -176,11 +179,11 @@ export function SuppliersPage() {
   }, [load])
 
   const columns = useMemo<ColumnDef<Supplier>[]>(() => [
-    { accessorKey: "name", header: "Nom", cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
-    { accessorKey: "email", header: "Email" },
-    { accessorKey: "phone", header: "Téléphone" },
-    { accessorKey: "address", header: "Adresse", cell: ({ getValue }) => { const v = getValue() as string; return v ? <span className="text-xs text-muted-foreground">{v}</span> : null } },
-    { accessorKey: "contact_person", header: "Contact", cell: ({ getValue }) => { const v = getValue() as string; return v ? <span className="text-xs text-muted-foreground">{v}</span> : null } },
+    { accessorKey: "name", header: () => t("common.name"), cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
+    { accessorKey: "email", header: () => t("common.email") },
+    { accessorKey: "phone", header: () => t("common.phone") },
+    { accessorKey: "address", header: () => t("common.address"), cell: ({ getValue }) => { const v = getValue() as string; return v ? <span className="text-xs text-muted-foreground">{v}</span> : null } },
+    { accessorKey: "contact_person", header: () => t("suppliers.contact"), cell: ({ getValue }) => { const v = getValue() as string; return v ? <span className="text-xs text-muted-foreground">{v}</span> : null } },
     {
       id: "actions",
       header: "",
@@ -210,15 +213,15 @@ export function SuppliersPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Fournisseurs</h1>
-          <p className="text-sm text-muted-foreground">{suppliers.length} fournisseur{suppliers.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("suppliers.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("suppliers.count", { count: suppliers.length })}</p>
         </div>
-        <Button onClick={openCreate}><Plus className="size-4" />Nouveau fournisseur</Button>
+        <Button onClick={openCreate}><Plus className="size-4" />{t("suppliers.new")}</Button>
       </div>
 
       <div className="relative flex-1 min-w-[200px] max-w-sm">
         <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input className="pl-8" placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input className="pl-8" placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       {loading ? (
@@ -241,7 +244,7 @@ export function SuppliersPage() {
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows.length === 0 ? (
-                  <TableRow><TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">Aucun fournisseur trouvé</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">{t("suppliers.empty")}</TableCell></TableRow>
                 ) : (
                   table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
@@ -260,14 +263,14 @@ export function SuppliersPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Modifier le fournisseur" : "Nouveau fournisseur"}</DialogTitle>
-            <DialogDescription>Remplissez les informations du fournisseur.</DialogDescription>
+            <DialogTitle>{editingId ? t("suppliers.dialog.edit_title") : t("suppliers.new")}</DialogTitle>
+            <DialogDescription>{t("suppliers.dialog.description")}</DialogDescription>
           </DialogHeader>
           <SupplierForm data={formData} onChange={setFormData} />
           <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Annuler</Button></DialogClose>
+            <DialogClose asChild><Button variant="outline">{t("common.cancel")}</Button></DialogClose>
             <Button onClick={handleSave} disabled={saving || !formData.name.trim()}>
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

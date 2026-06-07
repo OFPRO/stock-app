@@ -36,7 +36,7 @@ struct SupplierUpdateRequest: Encodable {
     let contact_person: String?
 }
 
-struct SupplierListItem: Identifiable {
+struct SupplierListItem: Identifiable, Hashable {
     let id: Int
     let name: String
     let email: String

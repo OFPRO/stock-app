@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -22,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,23 +50,30 @@ import com.app2.core.ui.components.StockErrorView
 import com.app2.core.ui.components.StockSkeletonList
 import com.app2.core.ui.components.StockTextField
 import com.app2.core.ui.components.TextFieldVariant
+import com.app2.core.data.remote.dto.OrderDTO
 import com.app2.core.ui.theme.Error
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrdersScreen(
     viewModel: OrdersViewModel = hiltViewModel(),
-    onOrderClick: (Int) -> Unit = {}
+    onOrderClick: (Int) -> Unit = {},
+    onBack: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
-    var deleteTarget by remember { mutableStateOf<OrderListItem?>(null) }
+    var deleteTarget by remember { mutableStateOf<OrderDTO?>(null) }
     var showCreateForm by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("Commandes fournisseur") },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                }
+            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -184,7 +193,7 @@ fun OrdersScreen(
 
 @Composable
 private fun OrderCard(
-    order: OrderListItem,
+    order: OrderDTO,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -201,7 +210,7 @@ private fun OrderCard(
         "sent", "envoyée" -> "Envoyée"
         "received", "reçue" -> "Reçue"
         "cancelled", "annulée" -> "Annulée"
-        else -> order.status
+        else -> order.status ?: "Inconnu"
     }
 
     StockCard(
@@ -234,7 +243,7 @@ private fun OrderCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (order.orderNumber != null) {
                         Text(
-                            text = order.orderNumber,
+                            text = order.orderNumber ?: "",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

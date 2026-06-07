@@ -45,6 +45,8 @@ import com.app2.core.ui.components.StockBadge
 import com.app2.core.ui.components.StockCard
 import com.app2.core.ui.components.StockErrorView
 import com.app2.core.ui.components.StockSkeletonCard
+import com.app2.core.data.remote.dto.InvoiceDTO
+import com.app2.core.data.remote.dto.InvoiceItemDTO
 import com.app2.core.ui.theme.Accent
 import com.app2.core.ui.theme.Error
 
@@ -184,8 +186,8 @@ fun InvoiceDetailScreen(
 
 @Composable
 private fun InvoiceDetailContent(
-    invoice: InvoiceDetailData,
-    itemsState: ViewState<List<InvoiceItemData>>,
+    invoice: InvoiceDTO,
+    itemsState: ViewState<List<InvoiceItemDTO>>,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -238,7 +240,7 @@ private fun InvoiceDetailContent(
 }
 
 @Composable
-private fun InvoiceInfoCard(invoice: InvoiceDetailData) {
+private fun InvoiceInfoCard(invoice: InvoiceDTO) {
     StockCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -247,13 +249,13 @@ private fun InvoiceInfoCard(invoice: InvoiceDetailData) {
                 fontWeight = FontWeight.Bold
             )
             if (invoice.invoiceNumber != null) {
-                DetailRow("N° facture", invoice.invoiceNumber)
+                DetailRow("N° facture", invoice.invoiceNumber ?: "")
             }
             if (invoice.createdAt != null) {
-                DetailRow("Créée le", invoice.createdAt.take(10))
+                DetailRow("Créée le", (invoice.createdAt ?: "").take(10))
             }
             if (invoice.dueDate != null) {
-                DetailRow("Échéance", invoice.dueDate.take(10))
+                DetailRow("Échéance", (invoice.dueDate ?: "").take(10))
             }
             if (invoice.paymentMethod != null) {
                 val methodLabel = when (invoice.paymentMethod) {
@@ -261,22 +263,22 @@ private fun InvoiceInfoCard(invoice: InvoiceDetailData) {
                     "card" -> "Carte"
                     "mixed" -> "Mixte"
                     "credit" -> "Crédit"
-                    else -> invoice.paymentMethod
+                    else -> invoice.paymentMethod ?: ""
                 }
                 DetailRow("Paiement", methodLabel)
             }
             if (invoice.paidAt != null) {
-                DetailRow("Payée le", invoice.paidAt.take(10))
+                DetailRow("Payée le", (invoice.paidAt ?: "").take(10))
             }
             if (invoice.notes != null) {
-                DetailRow("Notes", invoice.notes)
+                DetailRow("Notes", invoice.notes ?: "")
             }
         }
     }
 }
 
 @Composable
-private fun InvoiceStatusCard(invoice: InvoiceDetailData) {
+private fun InvoiceStatusCard(invoice: InvoiceDTO) {
     val badgeVariant = when (invoice.status) {
         "brouillon" -> BadgeVariant.Neutral
         "finalized", "finalisée" -> BadgeVariant.Info
@@ -291,7 +293,7 @@ private fun InvoiceStatusCard(invoice: InvoiceDetailData) {
         "paid", "payée" -> "Payée"
         "cancelled", "annulée" -> "Annulée"
         "overdue" -> "En retard"
-        else -> invoice.status
+        else -> invoice.status ?: "Inconnu"
     }
     StockCard(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -309,7 +311,7 @@ private fun InvoiceStatusCard(invoice: InvoiceDetailData) {
 }
 
 @Composable
-private fun InvoiceTotalsCard(invoice: InvoiceDetailData) {
+private fun InvoiceTotalsCard(invoice: InvoiceDTO) {
     StockCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (invoice.subtotal != null) {
@@ -343,7 +345,7 @@ private fun InvoiceTotalsCard(invoice: InvoiceDetailData) {
 }
 
 @Composable
-private fun InvoiceItemCard(item: InvoiceItemData) {
+private fun InvoiceItemCard(item: InvoiceItemDTO) {
     StockCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(

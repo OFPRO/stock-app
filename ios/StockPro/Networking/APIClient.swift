@@ -50,6 +50,24 @@ actor APIClient {
         return try handleResponse(data: data, response: response)
     }
 
+    func requestData(_ endpoint: Endpoint) async throws -> Data {
+        let url = URL(string: endpoint.path, relativeTo: baseURL) ?? baseURL
+        var request = URLRequest(url: url)
+        request.httpMethod = endpoint.method.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        Logger.log("\(endpoint.method.rawValue) \(endpoint.path)", category: .networking)
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AppError.server(statusCode: 0, message: "Réponse invalide")
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw AppError.server(statusCode: httpResponse.statusCode, message: nil)
+        }
+        return data
+    }
+
     func requestVoid(_ endpoint: Endpoint) async throws {
         let url = URL(string: endpoint.path, relativeTo: baseURL) ?? baseURL
         var request = URLRequest(url: url)

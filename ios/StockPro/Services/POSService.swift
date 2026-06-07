@@ -105,11 +105,11 @@ final class MockPOSService: POSServiceProtocol {
 
     func fetchBestSellers() async throws -> [BestSellerDTO] {
         [
-            BestSellerDTO(id: 1, name: "Ramette A4", price: 45, price_base: 30, sku: "PAP-A4-001", total_sold: 42),
-            BestSellerDTO(id: 2, name: "Stylo Bleu", price: 3.5, price_base: 2.5, sku: "STY-BLE-002", total_sold: 38),
-            BestSellerDTO(id: 3, name: "Cahier 96p", price: 12, price_base: 8, sku: "CAH-96-003", total_sold: 31),
-            BestSellerDTO(id: 4, name: "Clavier USB", price: 120, price_base: 80, sku: "CLV-USB-004", total_sold: 15),
-            BestSellerDTO(id: 5, name: "Souris Optique", price: 65, price_base: 40, sku: "SRL-OPT-005", total_sold: 12),
+            BestSellerDTO(id: 1, name: "Ramette A4", price: 45, price_base: 30, sku: "PAP-A4-001", quantity: 120, total_sold: 42),
+            BestSellerDTO(id: 2, name: "Stylo Bleu", price: 3.5, price_base: 2.5, sku: "STY-BLE-002", quantity: 500, total_sold: 38),
+            BestSellerDTO(id: 3, name: "Cahier 96p", price: 12, price_base: 8, sku: "CAH-96-003", quantity: 0, total_sold: 31),
+            BestSellerDTO(id: 4, name: "Clavier USB", price: 120, price_base: 80, sku: "CLV-USB-004", quantity: 8, total_sold: 15),
+            BestSellerDTO(id: 5, name: "Souris Optique", price: 65, price_base: 40, sku: "SRL-OPT-005", quantity: 15, total_sold: 12),
         ]
     }
 

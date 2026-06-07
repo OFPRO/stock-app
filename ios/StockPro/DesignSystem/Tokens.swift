@@ -11,8 +11,8 @@ enum Spacing: CGFloat {
 
 enum FontSize: CGFloat {
     case caption = 12
-    case body = 14
-    case bodyLarge = 16
+    case small = 13
+    case body = 15
     case subtitle = 18
     case title = 22
     case largeTitle = 28
@@ -20,20 +20,27 @@ enum FontSize: CGFloat {
 }
 
 enum AppColor {
-    static let brand = Color(hex: "1B2A4A")
-    static let brandLight = Color(hex: "2C3F6B")
-    static let accent = Color(hex: "E8A838")
-    static let accentPressed = Color(hex: "C98F2E")
+    static let brand = Color(hex: "1E3A6F")
+    static let brandLight = Color(hex: "2C5F9E")
+    static let brandGradient = [Color(hex: "1E3A6F"), Color(hex: "2C5F9E")]
 
-    static let success = Color(hex: "2E7D32")
-    static let warning = Color(hex: "F57F17")
-    static let error = Color(hex: "C62828")
-    static let info = Color(hex: "1565C0")
+    static let accent = Color(hex: "F5A623")
+    static let accentPressed = Color(hex: "D4891E")
+    static let accentGradient = [Color(hex: "F5A623"), Color(hex: "FFB84D")]
+
+    static let success = Color(hex: "34A853")
+    static let warning = Color(hex: "FBBC04")
+    static let error = Color(hex: "EA4335")
+    static let info = Color(hex: "4285F4")
 
     static let background = Color(.systemBackground)
     static let surface = Color(.secondarySystemBackground)
+    static let surfaceWarm = Color(hex: "FFF8F0")
     static let surfaceElevated = Color(.tertiarySystemBackground)
     static let border = Color(.separator)
+
+    static let shadow = Color.black.opacity(0.08)
+    static let shadowStrong = Color.black.opacity(0.15)
 }
 
 extension Color {
@@ -64,8 +71,7 @@ enum AppFont {
     static let largeTitle = Font.system(size: FontSize.largeTitle.rawValue, weight: .bold)
     static let title = Font.system(size: FontSize.title.rawValue, weight: .bold)
     static let subtitle = Font.system(size: FontSize.subtitle.rawValue, weight: .semibold)
-    static let bodyLarge = Font.system(size: FontSize.bodyLarge.rawValue, weight: .regular)
     static let body = Font.system(size: FontSize.body.rawValue, weight: .regular)
-    static let caption = Font.system(size: FontSize.caption.rawValue, weight: .medium)
+    static let caption = Font.system(size: FontSize.caption.rawValue, weight: .regular)
     static let posTotal = Font.system(size: FontSize.posTotal.rawValue, weight: .bold)
 }

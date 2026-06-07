@@ -47,6 +47,7 @@ import com.app2.core.ui.components.StockSkeletonList
 import com.app2.core.ui.theme.Accent
 import com.app2.core.ui.theme.Error
 import com.app2.core.ui.theme.Info
+import com.app2.core.data.remote.dto.NotificationDTO
 import com.app2.core.ui.theme.Warning
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,7 +106,7 @@ fun NotificationsScreen(
                             NotificationCard(
                                 notification = notification,
                                 onClick = {
-                                    if (!notification.isRead) {
+                                    if ((notification.isRead ?: 0) == 0) {
                                         viewModel.markRead(notification.id)
                                     }
                                 },
@@ -148,7 +149,7 @@ fun NotificationsScreen(
 
 @Composable
 private fun NotificationCard(
-    notification: NotificationItem,
+    notification: NotificationDTO,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -177,7 +178,7 @@ private fun NotificationCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(
-                    if (!notification.isRead) {
+                    if ((notification.isRead ?: 0) == 0) {
                         Modifier.background(
                             color = Accent.copy(alpha = 0.05f),
                             shape = RoundedCornerShape(12.dp)
@@ -206,12 +207,12 @@ private fun NotificationCard(
                     Text(
                         text = notification.title ?: notification.type,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.SemiBold,
+                        fontWeight = if ((notification.isRead ?: 0) != 0) FontWeight.Normal else FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    if (!notification.isRead) {
+                    if ((notification.isRead ?: 0) == 0) {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
@@ -221,7 +222,7 @@ private fun NotificationCard(
                 }
                 if (notification.message != null) {
                     Text(
-                        text = notification.message,
+                        text = notification.message ?: "",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
@@ -230,7 +231,7 @@ private fun NotificationCard(
                 }
                 if (notification.createdAt != null) {
                     Text(
-                        text = notification.createdAt.take(10),
+                        text = (notification.createdAt ?: "").take(10),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )

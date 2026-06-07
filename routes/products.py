@@ -1,6 +1,6 @@
 import json
 from flask import Blueprint, request, jsonify
-from routes.db import get_db_ctx as get_db, get_price_for_customer, validate_id
+from routes.db import get_db_ctx as get_db, get_price_by_tier, validate_id
 
 products_bp = Blueprint('products', __name__)
 
@@ -114,13 +114,13 @@ def add_product():
             
             conn.execute('''
                 INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price,
-                price_base, price_loyal, price_school, price_student, tax_category, category, warehouse_id, location_id)
+                price_base, price_loyal, price_gros, purchase_price_avg, tax_category, category, warehouse_id, location_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data.get('name', ''), data.get('description', ''), sku, data.get('barcode', ''),
                 data.get('quantity', 0), data.get('min_quantity', 5), data.get('max_quantity', 100),
                 data.get('price', 0), data.get('price_base', 0), data.get('price_loyal', 0),
-                data.get('price_school', 0), data.get('price_student', 0), data.get('tax_category', '20'),
+                data.get('price_gros', 0), data.get('purchase_price_avg', 0), data.get('tax_category', '20'),
                 data.get('category', 'Général'), data.get('warehouse_id', 1), data.get('location_id')
             ))
             conn.commit()
@@ -135,18 +135,18 @@ def update_product(product_id):
         price_base = float(data.get('price_base', 0))
         price = float(data.get('price', price_base))
         price_loyal = float(data.get('price_loyal', 0))
-        price_school = float(data.get('price_school', 0))
-        price_student = float(data.get('price_student', 0))
+        price_gros = float(data.get('price_gros', 0))
 
+        purchase_price_avg = float(data.get('purchase_price_avg', 0))
         conn.execute('''
             UPDATE products SET name=?, description=?, sku=?, barcode=?, quantity=?, min_quantity=?, max_quantity=?, price=?,
-            price_base=?, price_loyal=?, price_school=?, price_student=?, tax_category=?,
+            price_base=?, price_loyal=?, price_gros=?, purchase_price_avg=?, tax_category=?,
             lot_number=?, serial_number=?, expiry_date=?, supplier_id=?, category=?, warehouse_id=?, location_id=?
             WHERE id=?
         ''', (
             data.get('name', ''), data.get('description', ''), data.get('sku', ''), data.get('barcode', ''),
             data.get('quantity', 0), data.get('min_quantity', 5), data.get('max_quantity', 100), price,
-            price_base, price_loyal, price_school, price_student,
+            price_base, price_loyal, price_gros, purchase_price_avg,
             data.get('tax_category', '20'), data.get('lot_number', ''), data.get('serial_number', ''),
             data.get('expiry_date', ''), data.get('supplier_id'), data.get('category', 'Général'),
             data.get('warehouse_id', 1), data.get('location_id'), product_id
@@ -296,7 +296,7 @@ def get_products_for_sale():
     
     with get_db() as conn:
         params = []
-        base_where = 'quantity > 0 AND is_deleted = 0'
+        base_where = 'is_deleted = 0'
         if warehouse_id:
             query = 'SELECT * FROM products WHERE ' + base_where + ' AND warehouse_id = ?'
             params.append(warehouse_id)
@@ -318,7 +318,7 @@ def get_products_for_sale():
         for p in products:
             prod_dict = dict(p)
             if customer:
-                prod_dict['sale_price'] = get_price_for_customer(prod_dict, customer['type'], customer['is_loyal'])
+                prod_dict['sale_price'] = get_price_by_tier(prod_dict, customer['type'])
             else:
                 prod_dict['sale_price'] = prod_dict.get('price_base', prod_dict.get('price', 0))
             result.append(prod_dict)

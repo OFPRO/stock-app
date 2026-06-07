@@ -18,6 +18,7 @@ async function loadPosSession() {
             document.getElementById('btnCloseSession').style.display = 'inline-flex';
             loadPosCashMovements();
             loadPosCustomers();
+            loadPosTransactions();
         } else {
             resetPosSession();
         }
@@ -33,6 +34,7 @@ function resetPosSession() {
     document.getElementById('posSessionStatus').className = 'badge badge-warning';
     document.getElementById('btnOpenSession').style.display = 'inline-flex';
     document.getElementById('btnCloseSession').style.display = 'none';
+    document.getElementById('posTransactionsList').innerHTML = '<p class="text-muted text-center">Aucune transaction</p>';
 }
 
 async function openPosSession() {
@@ -125,23 +127,8 @@ function addPosProductFromSearch() {
 
 function posTierPrice(product, tier, customer) {
     const base = product.price_base > 0 ? product.price_base : (product.price || 0);
-    if (tier === 'auto') {
-        if (customer) {
-            if (customer.is_loyal || customer.type === 'fidele') {
-                return product.price_loyal > 0 ? product.price_loyal : base;
-            }
-            if (customer.type === 'etudiant') {
-                return product.price_student > 0 ? product.price_student : base;
-            }
-            if (customer.type === 'ecole') {
-                return product.price_school > 0 ? product.price_school : base;
-            }
-        }
-        return base;
-    }
     if (tier === 'price_loyal') return product.price_loyal > 0 ? product.price_loyal : base;
-    if (tier === 'price_student') return product.price_student > 0 ? product.price_student : base;
-    if (tier === 'price_school') return product.price_school > 0 ? product.price_school : base;
+    if (tier === 'price_gros') return product.price_gros > 0 ? product.price_gros : base;
     return base;
 }
 
@@ -151,16 +138,9 @@ function addPosProduct(productId) {
     const basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
 
     const discountSelect = document.getElementById('posDiscountType');
-    const selectedValue = discountSelect ? discountSelect.value : 'auto';
+    const selectedValue = discountSelect ? discountSelect.value : 'price_base';
 
-    const customerSelect = document.getElementById('posCustomer');
-    const customerId = customerSelect ? parseInt(customerSelect.value) : null;
-    let customer = null;
-    if (customerId && !isNaN(customerId)) {
-        customer = customers.find(c => c.id === customerId);
-    }
-
-    const unitPrice = posTierPrice(product, selectedValue, customer);
+    const unitPrice = posTierPrice(product, selectedValue, null);
     const discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
 
     const existing = posCart.find(item => item.product_id === productId);
@@ -236,10 +216,11 @@ function renderPosCart() {
     let subtotal = 0;
     let tax = 0;
     let discount = 0;
+    const applyTax = document.getElementById('posTvaToggle').checked;
     posCart.forEach(item => {
         const baseTotal = item.quantity * (item.base_price || item.unit_price);
         const lineHt = item.quantity * item.unit_price;
-        const lineTva = lineHt * 0.20;
+        const lineTva = applyTax ? lineHt * 0.20 : 0;
         subtotal += baseTotal;
         tax += lineTva;
         discount += (item.base_price || item.unit_price) * item.quantity * (item.discount_percent / 100);
@@ -250,11 +231,14 @@ function renderPosCart() {
 }
 
 function updatePosTotals(subtotal, tax, discount) {
+    const applyTax = document.getElementById('posTvaToggle').checked;
     document.getElementById('posSubtotal').textContent = subtotal.toFixed(2) + ' DH';
     document.getElementById('posTax').textContent = tax.toFixed(2) + ' DH';
     document.getElementById('posDiscount').textContent = (discount > 0 ? '-' : '') + Math.abs(discount).toFixed(2) + ' DH';
     const total = subtotal + tax - discount;
     document.getElementById('posTotal').textContent = total.toFixed(2) + ' DH';
+    const totalLabel = document.querySelector('.pos-summary-total span:first-child');
+    if (totalLabel) totalLabel.textContent = applyTax ? 'Total TTC:' : 'Total:';
     if (posPaymentMethod === 'cash' && posTenderedAmount > 0) {
         const change = Math.max(0, posTenderedAmount - total);
         document.getElementById('posChange').textContent = change.toFixed(2) + ' DH';
@@ -317,14 +301,17 @@ async function processPosPayment() {
         posTenderedAmount = total;
         document.getElementById('posTendered').value = total.toFixed(2);
     }
-    if (posPaymentMethod === 'cash' && posTenderedAmount < total) {
+    const creditCheckbox = document.getElementById('posCreditCheckbox');
+    const isCredit = creditCheckbox ? creditCheckbox.checked : false;
+    if (posPaymentMethod === 'cash' && posTenderedAmount < total && !isCredit) {
         showError('Montant insuffisant');
         return;
     }
     try {
         const customerId = document.getElementById('posCustomer').value;
-        const creditCheckbox = document.getElementById('posCreditCheckbox');
-        const isCredit = creditCheckbox ? creditCheckbox.checked : false;
+        const discountSelect = document.getElementById('posDiscountType');
+        const pricingTier = discountSelect ? discountSelect.value : 'price_base';
+        const applyTax = document.getElementById('posTvaToggle').checked;
         const res = await fetch('/api/pos/transactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -334,6 +321,8 @@ async function processPosPayment() {
                 items: posCart,
                 payment_method: posPaymentMethod,
                 tendered_amount: posTenderedAmount,
+                pricing_tier: pricingTier,
+                apply_tax: applyTax,
                 notes: '',
                 is_credit: isCredit
             })
@@ -348,8 +337,10 @@ async function processPosPayment() {
             const docNum = data.document_number;
             const docStatus = data.document_status;
             let msg = (docType === 'facture')
-                ? (docStatus === 'envoyee' ? 'Facture credit generee (en attente): ' : 'Facture generee: ') + docNum
-                : 'Ticket generee: ' + docNum;
+                ? (docStatus === 'envoyee' ? 'Facture credit generee (en attente): '
+                   : docStatus === 'partiellement_payee' ? 'Facture partiellement payee: '
+                   : 'Facture payee: ') + docNum
+                : 'Ticket genere: ' + docNum;
             showError(msg);
             if (data.change_amount > 0) {
                 alert('Monnaie a rendre: ' + data.change_amount.toFixed(2) + ' DH');
@@ -374,6 +365,7 @@ async function loadPosCustomers() {
     try {
         const res = await fetch('/api/customers');
         const data = await res.json();
+        customers = data;
         const select = document.getElementById('posCustomer');
         if (select) {
             select.innerHTML = '<option value="">Client au comptoir (sans facture)</option>' +
@@ -388,42 +380,34 @@ function onCustomerChange() {
     const customerId = customerSelect ? parseInt(customerSelect.value) : null;
     const creditSection = document.getElementById('posCreditSection');
     const creditCheckbox = document.getElementById('posCreditCheckbox');
+    const customer = customerId && !isNaN(customerId) ? customers.find(c => c.id === customerId) : null;
 
-    if (!customerId) {
-        if (discountSelect) {
-            const autoOption = discountSelect.querySelector('option[value="auto"]');
-            if (autoOption) autoOption.disabled = true;
+    if (customer) {
+        if (customer.type === 'fidele') {
+            discountSelect.value = 'price_loyal';
+        } else if (customer.type === 'gros') {
+            discountSelect.value = 'price_gros';
+        } else {
             discountSelect.value = 'price_base';
         }
+        if (creditSection) creditSection.style.display = '';
+    } else {
+        discountSelect.value = 'price_base';
         if (creditSection) creditSection.style.display = 'none';
         if (creditCheckbox) creditCheckbox.checked = false;
-    } else {
-        if (discountSelect) {
-            const autoOption = discountSelect.querySelector('option[value="auto"]');
-            if (autoOption) autoOption.disabled = false;
-            discountSelect.value = 'auto';
-        }
-        if (creditSection) creditSection.style.display = '';
     }
     applyPosDiscount();
 }
 
 function applyPosDiscount() {
     const discountSelect = document.getElementById('posDiscountType');
-    const selectedValue = discountSelect ? discountSelect.value : 'auto';
-
-    const customerSelect = document.getElementById('posCustomer');
-    const customerId = customerSelect ? parseInt(customerSelect.value) : null;
-    let customer = null;
-    if (customerId && !isNaN(customerId)) {
-        customer = customers.find(c => c.id === customerId);
-    }
+    const selectedValue = discountSelect ? discountSelect.value : 'price_base';
 
     posCart.forEach(item => {
         const product = products.find(p => p.id === item.product_id);
         if (!product) return;
         const basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
-        const unitPrice = posTierPrice(product, selectedValue, customer);
+        const unitPrice = posTierPrice(product, selectedValue, null);
         const discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
         item.base_price = basePrice;
         item.unit_price = unitPrice;

@@ -1,0 +1,44 @@
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockBadge.kt:47: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockButton.kt:39: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier,
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockFormRow.kt:22: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier,
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockSkeleton.kt:43: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockSkeleton.kt:64: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockSkeleton.kt:78: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockSkeleton.kt:122: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockSkeleton.kt:148: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockTag.kt:31: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier,
+    ~~~~~~~~
+/Users/mac/Desktop/OpenCode_Projects/glm-project/App2/core/ui/src/main/java/com/app2/core/ui/components/StockTextField.kt:37: Warning: Modifier parameter should be the first optional parameter [ModifierParameter from androidx.compose.ui]
+    modifier: Modifier = Modifier,
+    ~~~~~~~~
+
+   Explanation for issues of type "ModifierParameter":
+   The first (or only) Modifier parameter in a Composable function should
+   follow the following rules:
+   - Be named modifier
+   - Have a type of Modifier
+   - Either have no default value, or have a default value of Modifier
+   - If optional, be the first optional parameter in the parameter list
+
+   Vendor: Jetpack Compose
+   Identifier: androidx.compose.ui
+   Feedback: https://issuetracker.google.com/issues/new?component=612128
+
+0 errors, 10 warnings

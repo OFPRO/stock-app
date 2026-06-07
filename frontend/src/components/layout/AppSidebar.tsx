@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import {
   LayoutDashboard,
   Package,
@@ -32,26 +33,27 @@ import { cn } from "@/lib/utils"
 import { Link, useLocation } from "react-router-dom"
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "Produits", icon: Package, href: "/products" },
-  { label: "Entrepôts", icon: Warehouse, href: "/warehouses" },
-  { label: "Zones de Stock", icon: MapPin, href: "/locations" },
-  { label: "Mouvements", icon: ArrowLeftRight, href: "/movements" },
-  { label: "Fournisseurs", icon: Truck, href: "/suppliers" },
-  { label: "Commandes", icon: ClipboardList, href: "/orders" },
-  { label: "Règles Réap.", icon: RefreshCw, href: "/reorder-rules" },
-  { label: "Réappro.", icon: ClipboardCheck, href: "/replenishment" },
-  { label: "Clients", icon: Users, href: "/customers" },
-  { label: "Factures", icon: FileText, href: "/invoices" },
-  { label: "Rapports", icon: BarChart3, href: "/reports" },
-  { label: "Hist. Sessions", icon: History, href: "/sessions" },
-  { label: "Scanner", icon: QrCode, href: "/scanner" },
-  { label: "Caisse", icon: ShoppingCart, href: "/pos" },
-  { label: "Compte Principal", icon: Landmark, href: "/main-account" },
-  { label: "Notifications", icon: Bell, href: "/notifications" },
+  { key: "nav.dashboard", icon: LayoutDashboard, href: "/" },
+  { key: "nav.products", icon: Package, href: "/products" },
+  { key: "nav.warehouses", icon: Warehouse, href: "/warehouses" },
+  { key: "nav.storageZones", icon: MapPin, href: "/locations" },
+  { key: "nav.movements", icon: ArrowLeftRight, href: "/movements" },
+  { key: "nav.suppliers", icon: Truck, href: "/suppliers" },
+  { key: "nav.orders", icon: ClipboardList, href: "/orders" },
+  { key: "nav.reorderRules", icon: RefreshCw, href: "/reorder-rules" },
+  { key: "nav.replenishment", icon: ClipboardCheck, href: "/replenishment" },
+  { key: "nav.customers", icon: Users, href: "/customers" },
+  { key: "nav.invoices", icon: FileText, href: "/invoices" },
+  { key: "nav.reports", icon: BarChart3, href: "/reports" },
+  { key: "nav.sessionHistory", icon: History, href: "/sessions" },
+  { key: "nav.scanner", icon: QrCode, href: "/scanner" },
+  { key: "nav.pos", icon: ShoppingCart, href: "/pos" },
+  { key: "nav.mainAccount", icon: Landmark, href: "/main-account" },
+  { key: "nav.notifications", icon: Bell, href: "/notifications" },
 ]
 
 export function AppSidebar() {
+  const { t } = useTranslation()
   const location = useLocation()
 
   return (
@@ -69,9 +71,10 @@ export function AppSidebar() {
               {navItems.map((item) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.href
+                const label = t(item.key)
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
                       <Link
                         to={item.href}
                         className={cn(
@@ -80,7 +83,7 @@ export function AppSidebar() {
                         )}
                       >
                         <Icon className="size-4 shrink-0" />
-                        <span>{item.label}</span>
+                        <span>{label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -91,7 +94,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t px-4 py-3 text-xs text-muted-foreground">
-        <span>Bibliothèque Badr — Marrakech</span>
+        <span>{t("footer.company")}</span>
       </SidebarFooter>
     </Sidebar>
   )

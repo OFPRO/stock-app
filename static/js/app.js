@@ -69,6 +69,15 @@ function showError(msg) {
     }
 }
 
+function showSuccess(msg) {
+    const el = document.getElementById('successMsg');
+    if (el) {
+        el.textContent = msg;
+        el.style.display = msg ? 'block' : 'none';
+        if (msg) setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+}
+
 function openModal(modalId) {
     const el = document.getElementById(modalId);
     if (el) {
@@ -94,8 +103,9 @@ function showTab(tab) {
     const titleEl = document.getElementById('pageTitle');
     const breadcrumbEl = document.getElementById('breadcrumbNav');
     if (tabEl) tabEl.classList.add('active');
-    if (titleEl) titleEl.textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
-    if (breadcrumbEl) breadcrumbEl.textContent = tab;
+    if (titleEl) titleEl.textContent = i18n.t('nav.' + tab);
+    if (breadcrumbEl) breadcrumbEl.textContent = i18n.t('nav.' + tab);
+    if (typeof i18n !== 'undefined') i18n.applyDOM();
     if (tab !== 'scanner' && typeof stopScanner === 'function') stopScanner();
     if (tab !== 'pos' && typeof stopPosScanner === 'function') stopPosScanner();
     if (tab === 'products') loadProducts();
@@ -342,6 +352,7 @@ document.addEventListener('click', e => {
         case 'switch-product-tab': switchProductTab(arg); break;
         case 'load-report': loadReport(arg, arg2); break;
         case 'add-order-item': addOrderItem(); break;
+        case 'toggle-order-scanner': toggleOrderScanner(); break;
         case 'cancel-order': cancelOrder(); break;
         case 'send-order': sendOrder(); break;
         case 'confirm-convert-invoice': confirmConvertToInvoice(); break;

@@ -95,8 +95,8 @@ enum Endpoint {
     case salesDaily(days: Int)
     case categoriesDistribution
     case topSellingProducts(limit: Int)
-    case sessionsHistory
-    case sessionsSummary
+    case sessionsHistory(limit: Int, status: String)
+    case sessionsSummary(period: Int)
     case sessionDetails(Int)
     case trends
     case topProducts
@@ -108,8 +108,8 @@ enum Endpoint {
     case evolution
     case paymentMethods
 
-    case report(type: String)
-    case reportExport(type: String)
+    case report(type: String, warehouseId: Int?)
+    case reportExport(type: String, warehouseId: Int?)
 
     case mainAccount
     case mainAccountDeposit
@@ -240,8 +240,8 @@ enum Endpoint {
         case .salesDaily(let days): return "/api/kpis/sales-daily?days=\(days)"
         case .categoriesDistribution: return "/api/kpis/categories-distribution"
         case .topSellingProducts(let limit): return "/api/kpis/top-selling-products?limit=\(limit)"
-        case .sessionsHistory: return "/api/kpis/sessions-history"
-        case .sessionsSummary: return "/api/kpis/sessions-summary"
+        case .sessionsHistory(let limit, let status): return "/api/kpis/sessions-history?limit=\(limit)&status=\(status)"
+        case .sessionsSummary(let period): return "/api/kpis/sessions-summary?period=\(period)"
         case .sessionDetails(let id): return "/api/kpis/sessions/\(id)/details"
         case .trends: return "/api/kpis/trends"
         case .topProducts: return "/api/kpis/top-products"
@@ -253,8 +253,14 @@ enum Endpoint {
         case .evolution: return "/api/kpis/evolution"
         case .paymentMethods: return "/api/kpis/payment-methods"
 
-        case .report(let type): return "/api/reports?type=\(type)"
-        case .reportExport(let type): return "/api/reports/export?type=\(type)"
+        case .report(let type, let wid):
+            var params = "type=\(type)"
+            if let w = wid { params += "&warehouse_id=\(w)" }
+            return "/api/reports?\(params)"
+        case .reportExport(let type, let wid):
+            var params = "type=\(type)&format=csv"
+            if let w = wid { params += "&warehouse_id=\(w)" }
+            return "/api/reports/export?\(params)"
 
         case .mainAccount: return "/api/main-account"
         case .mainAccountDeposit: return "/api/main-account/deposit"

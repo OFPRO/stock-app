@@ -21,31 +21,34 @@ struct MoreMenuView: View {
                     NavigationLink(destination: LocationListView()) {
                         Label("Zones de Stock", systemImage: "square.grid.3x3")
                     }
-                    NavigationLink(destination: EmptyPlaceholderView(title: "Mouvements")) {
+                    NavigationLink(destination: StockMovementListView()) {
                         Label("Mouvements", systemImage: "arrow.triangle.swap")
                     }
                 }
 
                 Section("Commandes & Factures") {
-                    NavigationLink(destination: EmptyPlaceholderView(title: "Commandes")) {
+                    NavigationLink(destination: OrderListView()) {
                         Label("Commandes", systemImage: "doc.text")
                     }
-                    NavigationLink(destination: EmptyPlaceholderView(title: "Factures")) {
+                    NavigationLink(destination: InvoiceListView()) {
                         Label("Factures", systemImage: "doc.plaintext")
                     }
-                    NavigationLink(destination: EmptyPlaceholderView(title: "Notifications")) {
+                    NavigationLink(destination: NotificationListView()) {
                         Label("Notifications", systemImage: "bell")
+                    }
+                    NavigationLink(destination: ReorderRuleListView()) {
+                        Label("Règles de Réappro", systemImage: "slider.horizontal.3")
                     }
                 }
 
                 Section("Rapports") {
-                    NavigationLink(destination: EmptyPlaceholderView(title: "Rapports")) {
+                    NavigationLink(destination: ReportsView()) {
                         Label("Rapports", systemImage: "chart.bar")
                     }
-                    NavigationLink(destination: EmptyPlaceholderView(title: "Historique des Sessions")) {
+                    NavigationLink(destination: SessionHistoryView()) {
                         Label("Historique des Sessions", systemImage: "clock")
                     }
-                    NavigationLink(destination: EmptyPlaceholderView(title: "Compte Principal")) {
+                    NavigationLink(destination: MainAccountView()) {
                         Label("Compte Principal", systemImage: "banknote")
                     }
                 }

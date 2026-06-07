@@ -35,10 +35,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useTranslation } from "react-i18next"
 
 const TRIGGER_LABELS: Record<string, string> = { manual: "Manuel", auto: "Automatique" }
 
 export function ReplenishmentPage() {
+  const { t } = useTranslation()
   const [items, setItems] = useState<ReplenishmentItem[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,11 +80,11 @@ export function ReplenishmentPage() {
   }, [items, search])
 
   const columns = useMemo<ColumnDef<ReplenishmentItem>[]>(() => [
-    { accessorKey: "name", header: "Produit", cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
+    { accessorKey: "name", header: t("products.name"), cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
     { accessorKey: "sku", header: "SKU", cell: ({ getValue }) => <span className="font-mono text-xs text-muted-foreground">{getValue() as string}</span> },
     {
       accessorKey: "current_qty",
-      header: "Stock",
+      header: t("common.stock"),
       cell: ({ getValue, row }) => {
         const qty = getValue() as number
         const min = row.original.min_quantity
@@ -94,7 +96,7 @@ export function ReplenishmentPage() {
     { accessorKey: "max_quantity", header: "Max", cell: ({ getValue }) => <span className="tabular-nums">{getValue() as number}</span> },
     {
       accessorKey: "suggested_qty",
-      header: "À commander",
+      header: t("replenishment.to_order"),
       cell: ({ getValue }) => {
         const qty = getValue() as number
         if (qty === 0) return <span className="text-xs text-muted-foreground">—</span>
@@ -118,11 +120,11 @@ export function ReplenishmentPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Réapprovisionnement</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("replenishment.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {items.length} produit{items.length !== 1 ? "s" : ""} suivis
+            {t("replenishment.count", { count: items.length })}
             {needReorder.length > 0 && (
-              <> — <span className="font-medium text-amber-600">{needReorder.length}</span> à réapprovisionner ({totalSuggested} unités)</>
+              <> — <span className="font-medium text-amber-600">{t("replenishment.to_replenish", { count: needReorder.length })}</span> ({t("replenishment.units", { count: totalSuggested })})</>
             )}
           </p>
         </div>
@@ -131,12 +133,12 @@ export function ReplenishmentPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pl-8" placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">Tous les entrepôts</SelectItem>
+            <SelectItem value="__all__">{t("common.all")}</SelectItem>
             {warehouses.map((w) => (
               <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>
             ))}
@@ -149,8 +151,8 @@ export function ReplenishmentPage() {
           <CardContent className="p-4 flex items-center gap-3">
             <ShoppingCart className="size-5 text-amber-600 shrink-0" />
             <p className="text-sm">
-              <span className="font-medium">{needReorder.length} produit{needReorder.length !== 1 ? "s" : ""}</span> nécessite{needReorder.length === 1 ? "" : "nt"} un réapprovisionnement —
-              <span className="font-semibold tabular-nums"> {totalSuggested} unités</span> à commander au total.
+              <span className="font-medium">{t("replenishment.alert", { count: needReorder.length })}</span> —
+              <span className="font-semibold tabular-nums"> {t("replenishment.total_to_order", { units: totalSuggested })}</span>
             </p>
           </CardContent>
         </Card>
@@ -176,7 +178,7 @@ export function ReplenishmentPage() {
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows.length === 0 ? (
-                  <TableRow><TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">Aucun produit à réapprovisionner</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">{t("replenishment.empty")}</TableCell></TableRow>
                 ) : (
                   table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>

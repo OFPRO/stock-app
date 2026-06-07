@@ -26,6 +26,38 @@ def add_warehouse():
     finally:
         conn.close()
 
+@warehouses_bp.route('/api/warehouses/<int:warehouse_id>', methods=['GET'])
+def get_warehouse(warehouse_id):
+    conn = get_db()
+    warehouse = conn.execute('SELECT * FROM warehouses WHERE id = ?', (warehouse_id,)).fetchone()
+    conn.close()
+    if warehouse is None:
+        return jsonify({'error': 'Entrepôt non trouvé'}), 404
+    return jsonify(dict(warehouse))
+
+@warehouses_bp.route('/api/warehouses/<int:warehouse_id>', methods=['PUT'])
+def update_warehouse(warehouse_id):
+    data = request.json
+    conn = get_db()
+    cursor = conn.execute('UPDATE warehouses SET name=?, address=?, manager=? WHERE id=?', (
+        data.get('name', ''), data.get('address', ''), data.get('manager', ''), warehouse_id
+    ))
+    conn.commit()
+    conn.close()
+    if cursor.rowcount == 0:
+        return jsonify({'error': 'Entrepôt non trouvé'}), 404
+    return jsonify({'success': True})
+
+@warehouses_bp.route('/api/warehouses/<int:warehouse_id>', methods=['DELETE'])
+def delete_warehouse(warehouse_id):
+    conn = get_db()
+    cursor = conn.execute('DELETE FROM warehouses WHERE id = ?', (warehouse_id,))
+    conn.commit()
+    conn.close()
+    if cursor.rowcount == 0:
+        return jsonify({'error': 'Entrepôt non trouvé'}), 404
+    return jsonify({'success': True})
+
 @warehouses_bp.route('/api/stock/<int:product_id>', methods=['POST'])
 def stock_movement(product_id):
     data = request.json

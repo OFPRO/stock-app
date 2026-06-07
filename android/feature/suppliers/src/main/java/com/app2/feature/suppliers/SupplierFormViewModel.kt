@@ -2,7 +2,7 @@ package com.app2.feature.suppliers
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.SupplierApiService
+import com.app2.core.data.repository.SupplierRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SupplierFormViewModel @Inject constructor(
-    private val supplierApi: SupplierApiService
+    private val supplierRepository: SupplierRepository
 ) : ViewModel() {
 
     private val _name = MutableStateFlow("")
@@ -73,9 +73,9 @@ class SupplierFormViewModel @Inject constructor(
                 }
                 if (isEdit) {
                     val id = editId ?: return@launch
-                    supplierApi.updateSupplier(id, body)
+                    supplierRepository.updateSupplier(id, body)
                 } else {
-                    supplierApi.createSupplier(body)
+                    supplierRepository.createSupplier(body)
                 }
                 onSuccess()
             } catch (e: Exception) {

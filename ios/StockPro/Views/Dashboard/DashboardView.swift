@@ -67,7 +67,7 @@ struct DashboardView: View {
     }
 
     private func posSection(_ kpis: DashboardPOSKPIs) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.sm.rawValue) {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.sm.rawValue) {
             StockKPICard(title: "Total Encaissé", value: kpis.total, icon: "eurosign.circle", color: .green)
             StockKPICard(title: "Espèces", value: kpis.especes, icon: "banknote", color: .brown)
             StockKPICard(title: "Carte", value: kpis.carte, icon: "creditcard.fill", color: .blue)

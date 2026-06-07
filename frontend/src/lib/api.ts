@@ -165,6 +165,26 @@ export function getWarehouses(): Promise<Warehouse[]> {
   return fetchJson("/warehouses")
 }
 
+export function createWarehouse(data: { name: string; address?: string; manager?: string }): Promise<{ success: boolean; error?: string }> {
+  return fetch(BASE + "/warehouses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).then((r) => r.json())
+}
+
+export function updateWarehouse(id: number, data: { name?: string; address?: string; manager?: string }): Promise<{ success: boolean; error?: string }> {
+  return fetch(BASE + "/warehouses/" + id, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).then((r) => r.json())
+}
+
+export function deleteWarehouse(id: number): Promise<{ success: boolean; error?: string }> {
+  return fetch(BASE + "/warehouses/" + id, { method: "DELETE" }).then((r) => r.json())
+}
+
 export interface DashboardData {
   sales: KpiSales
   margins: KpiMargins
@@ -242,8 +262,7 @@ export interface Product {
   price: number
   price_base: number
   price_loyal: number
-  price_school: number
-  price_student: number
+  price_gros: number
   purchase_price_avg?: number
   margin_percent?: number
   discount_rate?: number
@@ -284,6 +303,8 @@ export interface ProductFormData {
   max_quantity?: number
   price?: number
   price_base?: number
+  price_loyal?: number
+  price_gros?: number
   category?: string
   tax_category?: string
   warehouse_id?: number
@@ -321,6 +342,17 @@ export function deleteProduct(id: number): Promise<{ success: boolean; message?:
 
 export function getCategories(): Promise<string[]> {
   return fetchJson("/categories")
+}
+
+export function getProductsForSale(params?: string): Promise<unknown[]> {
+  return fetchJson(`/products/for-sale${params ? `?${params}` : ""}`)
+}
+
+export function getProductByBarcode(barcode: string): Promise<unknown | null> {
+  return getProductsForSale(`search=${encodeURIComponent(barcode)}`).then((products) => {
+    const arr = products as unknown as { barcode?: string }[]
+    return arr.find((p) => p.barcode === barcode) ?? null
+  })
 }
 
 export interface StockMovement {
@@ -757,7 +789,9 @@ export interface PosCartItem {
   product_sku: string
   quantity: number
   unit_price: number
-  base_price?: number
+  base_price: number
+  price_loyal: number
+  price_gros: number
   discount_percent?: number
 }
 
@@ -785,6 +819,7 @@ export interface PosCustomer {
   name: string
   client_code: string
   discount_rate: number
+  type: string
 }
 
 export function getActiveSession(): Promise<PosSession[]> {
@@ -813,8 +848,10 @@ export function createPosTransaction(data: {
   items: PosCartItem[]
   payment_method?: string
   tendered_amount?: number
+  pricing_tier?: string
+  apply_tax?: boolean
   notes?: string
-}): Promise<{ success: boolean; document_number?: string; document_type?: string; total?: number; change_amount?: number; customer_name?: string; error?: string }> {
+}): Promise<{ success: boolean; document_number?: string; document_type?: string; document_id?: number; total?: number; change_amount?: number; customer_name?: string; error?: string }> {
   return fetch(BASE + "/pos/transactions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

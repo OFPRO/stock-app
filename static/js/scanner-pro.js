@@ -162,9 +162,8 @@
                 var price = Number(p.price) || 0;
                 if (discountEl) {
                     var dt = discountEl.value;
-                    if (dt === 'fidele-comptoir' && p.price_loyal) price = Number(p.price_loyal);
-                    else if (dt === 'etudiant-comptoir' && p.price_student) price = Number(p.price_student);
-                    else if (dt === 'ecole-comptoir' && p.price_school) price = Number(p.price_school);
+                    if (dt === 'price_loyal' && p.price_loyal) price = Number(p.price_loyal);
+                    else if (dt === 'price_gros' && p.price_gros) price = Number(p.price_gros);
                 }
                 price = Number(price.toFixed(2));
 

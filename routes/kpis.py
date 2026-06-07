@@ -292,8 +292,7 @@ def get_kpis_expenses():
         exp_filter = "AND date(created_at) <= ?"
         date_params = [date_end]
     else:
-        date_filter = "AND date(created_at) >= date('now', ?)"
-        date_filter_i = "AND date(i.created_at) >= date('now', ?)"
+        exp_filter = "AND date(created_at) >= date('now', ?)"
         date_params = ['-' + str(period) + ' days']
 
     with get_db() as conn:

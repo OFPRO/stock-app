@@ -2,32 +2,13 @@ package com.app2.feature.products
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.ProductApiService
+import com.app2.core.data.repository.ProductRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
-
-private fun JsonElement?.optString(): String? {
-    val prim = this?.jsonPrimitive
-    return if (prim != null && prim !is JsonNull) prim.content else null
-}
-
-private fun JsonElement?.optDouble(): Double? =
-    this?.jsonPrimitive?.doubleOrNull
-
-private fun JsonElement?.optInt(): Int? =
-    this?.jsonPrimitive?.intOrNull
 
 data class ProductListItem(
     val id: Int,
@@ -55,7 +36,7 @@ enum class StockStatus(val label: String) {
 
 @HiltViewModel
 class ProductsViewModel @Inject constructor(
-    private val productApi: ProductApiService
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ViewState<List<ProductListItem>>>(ViewState.Loading)
@@ -74,8 +55,18 @@ class ProductsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ViewState.Loading
             try {
-                val response = productApi.getProducts(includeArchived = true)
-                allProducts = parseProductList(response)
+                allProducts = productRepository.getProducts(includeArchived = true).map { dto ->
+                    ProductListItem(
+                        id = dto.id,
+                        name = dto.name,
+                        sku = dto.sku,
+                        price = dto.price,
+                        quantity = dto.quantity,
+                        category = dto.category,
+                        barcode = dto.barcode,
+                        isDeleted = dto.isDeleted == 1
+                    )
+                }
                 applyFilter()
             } catch (e: Exception) {
                 _state.value = ViewState.Error(e.message ?: "Erreur de chargement des produits")
@@ -91,7 +82,7 @@ class ProductsViewModel @Inject constructor(
     fun deleteProduct(id: Int) {
         viewModelScope.launch {
             try {
-                productApi.deleteProduct(id)
+                productRepository.deleteProduct(id)
                 loadProducts()
             } catch (e: Exception) {
                 _state.value = ViewState.Error("Erreur de suppression: ${e.message}")
@@ -115,23 +106,6 @@ class ProductsViewModel @Inject constructor(
             ViewState.Empty
         } else {
             ViewState.Loaded(filtered)
-        }
-    }
-
-    private fun parseProductList(json: JsonElement): List<ProductListItem> {
-        return json.jsonArray.mapNotNull { item ->
-            val obj = item.jsonObject
-            val id = obj["id"].optInt() ?: return@mapNotNull null
-            ProductListItem(
-                id = id,
-                name = obj["name"].optString() ?: "",
-                sku = obj["sku"].optString() ?: "",
-                price = obj["price"].optDouble() ?: 0.0,
-                quantity = obj["quantity"].optInt() ?: 0,
-                category = obj["category"].optString(),
-                barcode = obj["barcode"].optString(),
-                isDeleted = obj["is_deleted"].optInt() == 1
-            )
         }
     }
 }

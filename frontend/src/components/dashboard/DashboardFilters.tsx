@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useTranslation } from "react-i18next"
 import type { Warehouse } from "@/lib/api"
 
 interface DashboardFiltersProps {
@@ -28,24 +29,25 @@ export function DashboardFilters({
   onRefresh,
   loading,
 }: DashboardFiltersProps) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Select value={period} onValueChange={onPeriodChange}>
         <SelectTrigger className="w-28">
-          <SelectValue placeholder="Période" />
+          <SelectValue placeholder={t("dashboard.filters.period")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="7">7 jours</SelectItem>
-          <SelectItem value="30">30 jours</SelectItem>
-          <SelectItem value="90">90 jours</SelectItem>
+          <SelectItem value="7">{t("dashboard.filters.7_days")}</SelectItem>
+          <SelectItem value="30">{t("dashboard.filters.30_days")}</SelectItem>
+          <SelectItem value="90">{t("dashboard.filters.90_days")}</SelectItem>
         </SelectContent>
       </Select>
       <Select value={warehouseId} onValueChange={onWarehouseChange}>
         <SelectTrigger className="w-44">
-          <SelectValue placeholder="Tous les entrepôts" />
+          <SelectValue placeholder={t("dashboard.filters.all_warehouses")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">Tous les entrepôts</SelectItem>
+          <SelectItem value="__all__">{t("dashboard.filters.all_warehouses")}</SelectItem>
           {warehouses.map((w) => (
             <SelectItem key={w.id} value={String(w.id)}>
               {w.name}

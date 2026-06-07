@@ -1,0 +1,613 @@
+{
+  "nav": {
+    "dashboard": "لوحة القيادة",
+    "products": "المنتجات",
+    "warehouses": "المستودعات",
+    "storageZones": "مناطق التخزين",
+    "movements": "الحركات",
+    "suppliers": "الموردون",
+    "orders": "الطلبيات",
+    "reorderRules": "قواعد إعادة الطلب",
+    "replenishment": "التزويد",
+    "customers": "العملاء",
+    "invoices": "الفواتير",
+    "reports": "التقارير",
+    "sessionHistory": "سجل الجلسات",
+    "scanner": "الماسح",
+    "pos": "نقطة البيع",
+    "mainAccount": "الحساب الرئيسي",
+    "notifications": "الإشعارات"
+  },
+  "footer": {
+    "company": "مكتبة بدر — مراكش"
+  },
+  "common": {
+    "search": "بحث...",
+    "all": "الكل",
+    "none": "لا شيء",
+    "yes": "نعم",
+    "no": "لا",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ...",
+    "create": "إنشاء",
+    "close": "إغلاق",
+    "confirm": "تأكيد",
+    "validate": "التحقق",
+    "retry": "إعادة المحاولة",
+    "select": "اختيار",
+    "optional": "اختياري",
+    "loading": "جارٍ التحميل...",
+    "product": "المنتج",
+    "client": "العميل",
+    "total": "المجموع",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "notes": "ملاحظات",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "address": "العنوان",
+    "qty": "الكمية",
+    "amount": "المبلغ",
+    "stock": "المخزون",
+    "min": "الحد الأدنى",
+    "due_date": "تاريخ الاستحقاق",
+    "information": "معلومات",
+    "articles": "المواد",
+    "total_prefix": "المجموع:"
+  },
+  "dashboard": {
+    "title": "لوحة القيادة التجارية",
+    "subtitle": "نظرة عامة على نشاطك",
+    "error_load": "خطأ في تحميل لوحة القيادة",
+    "sales_performance": "أداء المبيعات",
+    "financial_status": "الوضع المالي",
+    "to_order": "للطلب",
+    "customer_receivables": "مستحقات العملاء",
+    "kpi": {
+      "ca_today": "رقم المعاملات اليوم",
+      "sales_today": "المبيعات اليوم",
+      "avg_ticket": "متوسط التذكرة",
+      "gross_margin": "الهامش الإجمالي",
+      "receivables": "المستحقات",
+      "collection_rate": "نسبة التحصيل",
+      "stock_value": "قيمة المخزون",
+      "out_of_stock": "النفاد",
+      "main_account": "الحساب الرئيسي",
+      "vs_previous_period": "مقارنة بالفترة السابقة"
+    },
+    "chart": {
+      "daily_sales": "المبيعات اليومية",
+      "total": "المجموع:",
+      "sales_by_category": "المبيعات حسب الفئة",
+      "category_distribution": "توزيع الكميات المباعة",
+      "top_products": "أفضل 10 منتجات",
+      "best_sellers": "الأكثر مبيعاً",
+      "invoice_status": "حالة الفواتير",
+      "by_status": "حسب الحالة",
+      "stock_movements": "حركات المخزون",
+      "in_out": "وارد / صادر",
+      "margin_distribution": "توزيع الهامش",
+      "by_category": "حسب الفئة"
+    },
+    "filters": {
+      "period": "الفترة",
+      "7_days": "7 أيام",
+      "30_days": "30 يوماً",
+      "90_days": "90 يوماً",
+      "all_warehouses": "جميع المستودعات"
+    },
+    "alerts": {
+      "out_of_stock": "نفاد المخزون",
+      "expired": "منتهية الصلاحية",
+      "expiry_date": "تاريخ الصلاحية",
+      "days": "أيام",
+      "empty_out_of_stock": "لا يوجد نفاد",
+      "empty_expired": "لا توجد منتجات منتهية الصلاحية"
+    },
+    "empty": {
+      "no_products_to_order": "لا توجد منتجات للطلب",
+      "no_receivables": "لا توجد مستحقات"
+    }
+  },
+  "charts": {
+    "series": {
+      "revenue": "رقم المعاملات",
+      "qty_sold": "الكمية المباعة",
+      "entries": "وارد",
+      "exits": "صادر"
+    },
+    "invoice_status": {
+      "paid": "مدفوعة",
+      "sent": "أرسلت",
+      "draft": "مسودة",
+      "cancelled": "ملغاة"
+    }
+  },
+  "products": {
+    "title": "المنتجات",
+    "sku": "رمز التخزين",
+    "category": "الفئة",
+    "price": "السعر",
+    "warehouse": "المستودع",
+    "supplier": "المورد",
+    "barcode": "الباركود",
+    "name": "الاسم",
+    "stock": "المخزون",
+    "registered": "مسجل",
+    "new": "منتج جديد",
+    "search_placeholder": "بحث بالاسم أو رمز التخزين أو الباركود...",
+    "filter_category": "الفئة",
+    "all_categories": "الكل",
+    "count": "منتج",
+    "empty": {
+      "no_results": "لم يتم العثور على منتجات"
+    },
+    "form": {
+      "name": "الاسم *",
+      "name_placeholder": "اسم المنتج",
+      "sku_placeholder": "يُولد تلقائياً إذا كان فارغاً",
+      "description": "الوصف",
+      "description_placeholder": "وصف اختياري",
+      "tax": "الضريبة",
+      "min_qty": "الحد الأدنى",
+      "max_qty": "الحد الأقصى",
+      "price_normal": "السعر العادي",
+      "price_loyal": "سعر العميل المخلص",
+      "price_bulk": "سعر الجملة"
+    },
+    "stock_badge": {
+      "out_of_stock": "نفد",
+      "low_stock": "مخزون منخفض",
+      "ok": "جيد"
+    },
+    "dialog": {
+      "edit_title": "تعديل المنتج",
+      "create_title": "منتج جديد",
+      "edit_description": "قم بتعديل الحقول أدناه.",
+      "create_description": "أدخل معلومات المنتج الجديد."
+    },
+    "select": {
+      "search_placeholder": "ابحث عن منتج...",
+      "loading": "جارٍ تحميل المنتجات...",
+      "no_products": "لا توجد منتجات متاحة",
+      "no_results": "لم يتم العثور على منتجات",
+      "remaining_prefix": "المتبقي:",
+      "stock_prefix": "المخزون:"
+    },
+    "tax": {
+      "20": "20%",
+      "14": "14%",
+      "10": "10%",
+      "7": "7%"
+    }
+  },
+  "product_detail": {
+    "not_found": "المنتج غير موجود.",
+    "back_to_products": "العودة إلى المنتجات",
+    "barcode_prefix": "الباركود:",
+    "in_stock": "في المخزون",
+    "selling_price": "سعر البيع",
+    "status": "الحالة",
+    "arabic_name": "الاسم بالعربية",
+    "general_info": "معلومات عامة",
+    "thresholds_alerts": "الحدود والتنبيهات",
+    "current_stock": "المخزون الحالي",
+    "min_stock": "الحد الأدنى للمخزون",
+    "max_stock": "الحد الأقصى للمخزون",
+    "expiry": "تاريخ الصلاحية",
+    "lot": "رقم الدفعة",
+    "total_purchases": "إجمالي المشتريات",
+    "total_sales": "إجمالي المبيعات",
+    "locations": "المواقع",
+    "stock_by_location": "المخزون حسب الموقع",
+    "sale_price": "سعر البيع",
+    "purchase_price": "سعر الشراء",
+    "margin": "الهامش",
+    "discount": "الخصم",
+    "pricing_by_customer": "أسعار حسب فئة العميل",
+    "taxes_discounts": "الضرائب والخصومات",
+    "tva": "ضريبة القيمة المضافة",
+    "discount_category": "فئة الخصم",
+    "discount_rate": "نسبة الخصم",
+    "no_supplier": "لا يوجد مورد مرتبط بهذا المنتج.",
+    "no_movements": "لا توجد حركات لهذا المنتج.",
+    "more_details": "المزيد من التفاصيل",
+    "dialog": {
+      "title": "تفاصيل المنتج",
+      "load_error": "تعذر تحميل تفاصيل المنتج."
+    },
+    "tab": {
+      "overview": "نظرة عامة",
+      "stock": "المخزون",
+      "pricing": "الأسعار",
+      "supplier": "المورد",
+      "movements": "السجل"
+    }
+  },
+  "invoices": {
+    "title": "الفواتير",
+    "number": "رقم الفاتورة",
+    "new": "فاتورة جديدة",
+    "count": "فاتورة",
+    "counter_customer": "عميل نقدي",
+    "unit_price": "سعر الوحدة",
+    "status": {
+      "draft": "مسودة",
+      "sent": "أرسلت",
+      "paid": "مدفوعة",
+      "cancelled": "ملغاة",
+      "partially_paid": "مدفوعة جزئياً"
+    },
+    "stats": {
+      "total_billed": "إجمالي الفوترة",
+      "paid": "المدفوع",
+      "pending": "قيد الانتظار"
+    },
+    "empty": {
+      "no_invoices": "لا توجد فواتير"
+    },
+    "form": {
+      "customer": "العميل",
+      "select_customer": "اختر (اختياري)",
+      "add_item": "+ إضافة مادة"
+    },
+    "detail": {
+      "customer_prefix": "العميل:",
+      "subtotal": "المجموع الجزئي",
+      "discount": "الخصم",
+      "tva": "ضريبة القيمة المضافة",
+      "items_count": "المواد (X)"
+    },
+    "dialog": {
+      "create_description": "إنشاء فاتورة عميل."
+    },
+    "action": {
+      "mark_sent": "تحديد كمرسلة",
+      "cancel": "إلغاء",
+      "cancel_confirm": "هذا الإجراء لا يمكن التراجع عنه. هل تريد بالتأكيد إلغاء هذه الطلبية؟",
+      "mark_paid": "تحديد كمدفوعة"
+    }
+  },
+  "orders": {
+    "title": "الطلبيات",
+    "number": "رقم الطلبية",
+    "supplier": "المورد",
+    "new": "طلبية جديدة",
+    "count": "طلبية",
+    "unit_price": "سعر الوحدة",
+    "created_on": "أنشئت في",
+    "received_on": "استلمت في",
+    "paid_on": "دفعت في",
+    "status": {
+      "draft": "مسودة",
+      "received": "مستلمة",
+      "paid": "مدفوعة",
+      "cancelled": "ملغاة"
+    },
+    "empty": "لا توجد طلبيات",
+    "empty_items": "لا توجد مواد في هذه الطلبية.",
+    "not_found": "الطلبية غير موجودة.",
+    "back_to_list": "العودة إلى الطلبيات",
+    "detail": {
+      "title": "طلبية",
+      "supplier_prefix": "المورد:"
+    },
+    "action": {
+      "receive": "استلام",
+      "mark_paid": "تحديد كمدفوعة",
+      "convert_to_invoice": "تحويل إلى فاتورة",
+      "cancel": "إلغاء"
+    },
+    "create": {
+      "title": "طلبية جديدة",
+      "description": "إنشاء أمر توريد للمورد.",
+      "supplier": "المورد *",
+      "out_of_stock_label": "نفد:",
+      "notes_placeholder": "ملاحظات إضافية..."
+    },
+    "convert": {
+      "title": "تحويل إلى فاتورة",
+      "description": "اختر العميل وتاريخ الاستحقاق.",
+      "customer": "العميل *",
+      "due_date": "تاريخ الاستحقاق",
+      "submit": "تحويل"
+    },
+    "items_count": "المواد (X)"
+  },
+  "movements": {
+    "title": "حركات المخزون",
+    "in": "وارد",
+    "out": "صادر",
+    "pos_sale": "بيع نقطة البيع",
+    "transfer": "تحويل",
+    "inter_warehouse": "تحويل بين المستودعات",
+    "destruction": "إتلاف",
+    "return": "إرجاع",
+    "other": "آخر",
+    "transfers": "التحويلات",
+    "others": "أخرى",
+    "new": "حركة جديدة",
+    "count": "حركة",
+    "from": "من",
+    "to": "إلى",
+    "type": "النوع",
+    "search_placeholder": "بحث بالمنتج أو الملاحظة...",
+    "empty": "لم يتم العثور على حركات",
+    "dialog": {
+      "description": "تسجيل وارد أو صادر من المخزون."
+    },
+    "form": {
+      "product": "المنتج *",
+      "select_product": "اختر منتجاً",
+      "type": "النوع",
+      "quantity": "الكمية *"
+    }
+  },
+  "suppliers": {
+    "title": "الموردون",
+    "contact": "جهة الاتصال",
+    "new": "مورد جديد",
+    "count": "مورد",
+    "empty": "لم يتم العثور على موردين",
+    "form": {
+      "name": "الاسم *",
+      "name_placeholder": "اسم المورد",
+      "email_placeholder": "email@exemple.com",
+      "phone_placeholder": "+212 6XX XX XX XX",
+      "address_placeholder": "العنوان الكامل",
+      "contact_person": "جهة الاتصال",
+      "contact_placeholder": "اسم جهة الاتصال"
+    },
+    "dialog": {
+      "edit_title": "تعديل المورد",
+      "description": "أدخل معلومات المورد."
+    }
+  },
+  "customers": {
+    "title": "العملاء",
+    "code": "الرمز",
+    "type": "النوع",
+    "loyal": "مخلص",
+    "new": "عميل جديد",
+    "count": "عميل",
+    "empty": "لا يوجد عملاء",
+    "type": {
+      "normal": "عادي",
+      "loyal": "مخلص",
+      "bulk": "جملة",
+      "student": "طالب"
+    },
+    "form": {
+      "name": "الاسم *",
+      "type": "النوع"
+    },
+    "dialog": {
+      "title": "العميل",
+      "description": "أدخل معلومات العميل."
+    }
+  },
+  "warehouses": {
+    "title": "المستودعات",
+    "manager": "المسؤول",
+    "default": "افتراضي",
+    "new": "مستودع جديد",
+    "count": "مستودع",
+    "empty": "لا توجد مستودعات",
+    "form": {
+      "name": "الاسم *",
+      "address": "العنوان",
+      "manager": "المسؤول"
+    },
+    "dialog": {
+      "title": "المستودع",
+      "description": "أدخل معلومات المستودع."
+    }
+  },
+  "locations": {
+    "title": "مناطق التخزين",
+    "capacity": "السعة",
+    "type": "النوع",
+    "new": "منطقة جديدة",
+    "count": "منطقة",
+    "empty": "لا توجد مناطق تخزين",
+    "type": {
+      "rack": "رفوف",
+      "bin": "حاوية",
+      "shelf": "رف",
+      "drawer": "درج",
+      "cold": "غرفة تبريد",
+      "other": "آخر"
+    },
+    "form": {
+      "type": "النوع",
+      "capacity": "السعة القصوى",
+      "warehouse": "المستودع *"
+    },
+    "dialog": {
+      "title": "منطقة تخزين",
+      "description": "إضافة منطقة تخزين جديدة."
+    }
+  },
+  "reorder": {
+    "title": "قواعد إعادة الطلب",
+    "trigger": "التفعيل",
+    "supplier": "المورد",
+    "max": "الحد الأقصى",
+    "new": "قاعدة جديدة",
+    "count": "قاعدة",
+    "empty": "لم يتم العثور على قواعد",
+    "trigger": {
+      "manual": "يدوي",
+      "auto": "تلقائي"
+    },
+    "form": {
+      "product": "المنتج *",
+      "select_product": "اختر منتجاً",
+      "trigger_type": "نوع التفعيل",
+      "min_qty": "الحد الأدنى للكمية",
+      "max_qty": "الحد الأقصى للكمية"
+    },
+    "dialog": {
+      "title": "قاعدة إعادة الطلب",
+      "description": "حدد معايير إعادة الطلب."
+    }
+  },
+  "replenishment": {
+    "title": "التزويد",
+    "count": "منتج متابع",
+    "to_replenish": "للتزويد",
+    "units": "وحدة",
+    "to_order": "للطلب",
+    "empty": "لا توجد منتجات للتزويد",
+    "alert": "منتج يحتاج إلى تزويد",
+    "total_to_order": "الإجمالي للطلب"
+  },
+  "pos": {
+    "title": "نقطة البيع",
+    "opened_at": "افتتحت في",
+    "cash_movement": "حركة نقدية",
+    "close_session": "إغلاق الجلسة",
+    "cart": "سلة المشتريات",
+    "cart_empty": "السلة فارغة. أضف منتجات من القائمة.",
+    "subtotal_full_price": "المجموع الجزئي (السعر الكامل)",
+    "discount": "الخصم",
+    "net": "الصافي",
+    "tva": "ضريبة القيمة المضافة (20%)",
+    "counter_customer": "عميل نقدي",
+    "pricing_category": "فئة السعر",
+    "payment_method": "طريقة الدفع",
+    "tendered_amount": "المبلغ المدفوع",
+    "change": "الباقي",
+    "complete_sale": "إتمام البيع",
+    "search_product": "ابحث عن منتج...",
+    "stock_prefix": "المخزون:",
+    "no_product_found": "لم يتم العثور على منتجات",
+    "best_sellers": "الأكثر مبيعاً",
+    "cash_summary": "ملخص النقدية",
+    "opening_funds": "رصيد الافتتاح",
+    "cash_in": "وارد",
+    "cash_out": "صادر",
+    "expected": "المتوقع",
+    "recent_transactions": "آخر المعاملات",
+    "ticket_number": "رقم التذكرة",
+    "payment": "الدفع",
+    "no_transactions": "لا توجد معاملات",
+    "no_session": "لا توجد جلسة مفتوحة",
+    "no_session_description": "افتح جلسة لبدء البيع.",
+    "open_session": "فتح جلسة",
+    "open_session_description": "أدخل مبلغ افتتاح النقدية.",
+    "opening_funds_label": "رصيد الافتتاح (درهم)",
+    "open": "فتح",
+    "close_session_title": "إغلاق الجلسة",
+    "close_session_description": "احسب النقدية الفعلية وأدخل المبلغ.",
+    "actual_cash": "النقدية الفعلية (درهم)",
+    "cash_movement_title": "حركة نقدية",
+    "cash_movement_description": "إضافة أو سحب أموال من النقدية.",
+    "cash_movement_type": "النوع",
+    "cash_movement_amount": "المبلغ (درهم)",
+    "cash_movement_reason": "السبب",
+    "sale_error": "خطأ في إتمام البيع",
+    "pricing_tier": {
+      "normal": "عادي",
+      "loyal": "مخلص",
+      "bulk": "جملة"
+    },
+    "payment": {
+      "cash": "نقداً",
+      "card": "بطاقة"
+    },
+    "cash_movement": {
+      "in": "وارد",
+      "out": "صادر"
+    }
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "unread_count": "غير مقروء",
+    "mark_all_read": "تحديد الكل كمقروء",
+    "empty": "لا توجد إشعارات"
+  },
+  "main_account": {
+    "title": "الحساب الرئيسي",
+    "current_balance": "الرصيد الحالي",
+    "transaction_history": "سجل المعاملات",
+    "empty": "لا توجد معاملات",
+    "load_error": "خطأ في التحميل",
+    "reason": {
+      "initial": "الرصيد الافتتاحي",
+      "session_close": "إغلاق الجلسة",
+      "supplier_order": "شراء من مورد",
+      "refund": "استرجاع",
+      "adjustment": "تسوية",
+      "deposit": "إيداع",
+      "withdrawal": "سحب"
+    },
+    "dialog": {
+      "title": "عملية",
+      "description": "المبلغ وسبب العملية."
+    },
+    "form": {
+      "amount": "المبلغ *",
+      "reason": "السبب *"
+    }
+  },
+  "sessions": {
+    "title": "سجل الجلسات",
+    "session": "الجلسة",
+    "opening": "الافتتاح",
+    "closing": "الإغلاق",
+    "opening_cash": "نقدية الافتتاح",
+    "sales": "المبيعات",
+    "transactions": "المعاملات",
+    "count": "جلسة",
+    "empty": "لا توجد جلسات",
+    "status": {
+      "open": "مفتوحة",
+      "closed": "مغلقة"
+    },
+    "summary": {
+      "closed": "الجلسات المغلقة",
+      "open": "قيد التشغيل",
+      "total_sales": "إجمالي المبيعات"
+    }
+  },
+  "reports": {
+    "title": "التقارير",
+    "subtitle": "ملخص وجرد",
+    "total_products": "إجمالي المنتجات",
+    "stock_value": "قيمة المخزون",
+    "low_stock": "مخزون منخفض",
+    "out_of_stock": "نفاد المخزون",
+    "inventory_title": "جرد المنتجات",
+    "value": "القيمة",
+    "load_error": "خطأ في التحميل"
+  },
+  "app": {
+    "title": "StockPro — إدارة المخزون"
+  },
+  "scanner": {
+    "title": "الماسح",
+    "subtitle": "ماسح الباركود",
+    "placeholder": "امسح باركوداً للبحث عن منتج",
+    "help_text": "استخدم الكاميرا لمسح باركود المنتج",
+    "start": "تشغيل الماسح",
+    "stop": "إيقاف",
+    "code_found": "الرمز الممسوح: {{code}}",
+    "scanned": "تم المسح",
+    "found": "تم العثور على المنتج: {{name}}",
+    "camera_error": "خطأ في الوصول إلى الكاميرا",
+    "scan_again": "مسح رمز آخر",
+    "not_found": "لم يتم العثور على منتج للرمز: {{code}}",
+    "lookup_error": "خطأ في البحث عن المنتج",
+    "searching": "جارٍ البحث...",
+    "found_short": "موجود",
+    "not_found_short": "غير موجود",
+    "not_found_hint": "لم يتم العثور على منتج لهذا الرمز. جرب رمزاً آخر أو تأكد من تسجيل المنتج.",
+    "uncategorized": "غير مصنف",
+    "stock": "المخزون",
+    "price": "السعر",
+    "view_product": "عرض المنتج"
+  }
+}

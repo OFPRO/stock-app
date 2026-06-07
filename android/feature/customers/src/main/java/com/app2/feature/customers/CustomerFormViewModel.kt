@@ -2,7 +2,7 @@ package com.app2.feature.customers
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.CustomerApiService
+import com.app2.core.data.repository.CustomerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CustomerFormViewModel @Inject constructor(
-    private val customerApi: CustomerApiService
+    private val customerRepository: CustomerRepository
 ) : ViewModel() {
 
     private val _name = MutableStateFlow("")
@@ -86,9 +86,9 @@ class CustomerFormViewModel @Inject constructor(
                 }
                 if (isEdit) {
                     val id = editId ?: return@launch
-                    customerApi.updateCustomer(id, body)
+                    customerRepository.updateCustomer(id, body)
                 } else {
-                    customerApi.createCustomer(body)
+                    customerRepository.createCustomer(body)
                 }
                 onSuccess()
             } catch (e: Exception) {

@@ -739,6 +739,21 @@ def get_orders():
     conn.close()
     return jsonify([dict(o) for o in orders])
 
+@app.route('/api/orders/<int:order_id>', methods=['GET'])
+def get_order(order_id):
+    conn = get_db()
+    order = conn.execute('''
+        SELECT o.*, s.name as supplier_name, w.name as warehouse_name
+        FROM purchase_orders o
+        LEFT JOIN suppliers s ON o.supplier_id = s.id
+        LEFT JOIN warehouses w ON o.warehouse_id = w.id
+        WHERE o.id = ?
+    ''', (order_id,)).fetchone()
+    conn.close()
+    if order is None:
+        return jsonify({'error': 'Commande introuvable'}), 404
+    return jsonify(dict(order))
+
 @app.route('/api/orders', methods=['POST'])
 def create_order():
     data = request.json

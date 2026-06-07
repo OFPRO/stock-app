@@ -18,6 +18,10 @@ struct CartItem: Identifiable, Equatable {
     let productSku: String
     var quantity: Int
     var unitPrice: Double
+    var baseUnitPrice: Double
+    var priceLoyal: Double?
+    var priceSchool: Double?
+    var priceStudent: Double?
     var discountPercent: Double
 
     var lineTotal: Double {
@@ -36,7 +40,13 @@ struct BestSellerDTO: Decodable, Identifiable {
     let price: Double
     let price_base: Double
     let sku: String
+    let quantity: Int?
     let total_sold: Int
+
+    var stockStatus: StockStatus {
+        guard let q = quantity, q > 0 else { return .outOfStock }
+        return .inStock
+    }
 }
 
 struct POSSessionDTO: Decodable, Identifiable {
@@ -124,6 +134,40 @@ struct POSTransactionResponse: Decodable {
     let customer_name: String?
 }
 
+enum DiscountTier: String, CaseIterable {
+    case normal = "normal"
+    case loyal = "loyal"
+    case student = "student"
+    case school = "school"
+
+    var label: String {
+        switch self {
+        case .normal: "Normal"
+        case .loyal: "Fidèle"
+        case .student: "Étudiant"
+        case .school: "École"
+        }
+    }
+
+    private var fallbackRate: Double {
+        switch self {
+        case .normal: return 0
+        case .loyal: return 0.15
+        case .student: return 0.15
+        case .school: return 0.20
+        }
+    }
+
+    func priceFor(item: CartItem) -> Double {
+        switch self {
+        case .normal: return item.baseUnitPrice
+        case .loyal: return item.priceLoyal ?? item.baseUnitPrice * (1 - 0.15)
+        case .student: return item.priceStudent ?? item.baseUnitPrice * (1 - 0.15)
+        case .school: return item.priceSchool ?? item.baseUnitPrice * (1 - 0.20)
+        }
+    }
+}
+
 enum PaymentMethod: String, CaseIterable {
     case cash = "cash"
     case card = "card"
@@ -133,7 +177,7 @@ enum PaymentMethod: String, CaseIterable {
         switch self {
         case .cash: "Espèces"
         case .card: "Carte bancaire"
-        case .mixed: "Mixte (espèces + carte)"
+        case .mixed: "Mixte"
         }
     }
 

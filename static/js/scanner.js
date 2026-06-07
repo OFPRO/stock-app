@@ -395,9 +395,8 @@ function displayScanResult(product, code, format) {
     let price = Number(product.price) || 0;
     if (discountEl) {
         const discountType = discountEl.value;
-        if (discountType === 'fidele-comptoir' && product.price_loyal) price = Number(product.price_loyal);
-        else if (discountType === 'etudiant-comptoir' && product.price_student) price = Number(product.price_student);
-        else if (discountType === 'ecole-comptoir' && product.price_school) price = Number(product.price_school);
+        if (discountType === 'price_loyal' && product.price_loyal) price = Number(product.price_loyal);
+        else if (discountType === 'price_gros' && product.price_gros) price = Number(product.price_gros);
     }
     price = Number(price.toFixed(2));
 
@@ -545,9 +544,8 @@ function handleRescanFromHistory(e) {
     var discountEl = id('posDiscountType');
     if (discountEl) {
         var dt = discountEl.value;
-        if (dt === 'fidele-comptoir' && product.price_loyal) price = Number(product.price_loyal);
-        else if (dt === 'etudiant-comptoir' && product.price_student) price = Number(product.price_student);
-        else if (dt === 'ecole-comptoir' && product.price_school) price = Number(product.price_school);
+        if (dt === 'price_loyal' && product.price_loyal) price = Number(product.price_loyal);
+        else if (dt === 'price_gros' && product.price_gros) price = Number(product.price_gros);
     }
     addPosProduct(productId);
 }

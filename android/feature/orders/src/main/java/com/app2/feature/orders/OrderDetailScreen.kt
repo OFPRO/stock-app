@@ -46,6 +46,8 @@ import com.app2.core.ui.components.StockBadge
 import com.app2.core.ui.components.StockCard
 import com.app2.core.ui.components.StockErrorView
 import com.app2.core.ui.components.StockSkeletonCard
+import com.app2.core.data.remote.dto.OrderDTO
+import com.app2.core.data.remote.dto.OrderItemDTO
 import com.app2.core.ui.theme.Accent
 import com.app2.core.ui.theme.Error
 
@@ -186,8 +188,8 @@ fun OrderDetailScreen(
 
 @Composable
 private fun OrderDetailContent(
-    order: OrderDetailData,
-    itemsState: ViewState<List<OrderItemData>>,
+    order: OrderDTO,
+    itemsState: ViewState<List<OrderItemDTO>>,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -239,7 +241,7 @@ private fun OrderDetailContent(
 }
 
 @Composable
-private fun InfoCard(order: OrderDetailData) {
+private fun InfoCard(order: OrderDTO) {
     StockCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
@@ -248,29 +250,29 @@ private fun InfoCard(order: OrderDetailData) {
                 fontWeight = FontWeight.Bold
             )
             if (order.orderNumber != null) {
-                DetailRow("N° commande", order.orderNumber)
+                DetailRow("N° commande", order.orderNumber ?: "")
             }
             if (order.total != null) {
                 DetailRow("Total", "${order.total} DH")
             }
             if (order.createdAt != null) {
-                DetailRow("Créée le", order.createdAt.take(10))
+                DetailRow("Créée le", (order.createdAt ?: "").take(10))
             }
             if (order.sentAt != null) {
-                DetailRow("Envoyée le", order.sentAt.take(10))
+                DetailRow("Envoyée le", (order.sentAt ?: "").take(10))
             }
             if (order.receivedAt != null) {
-                DetailRow("Reçue le", order.receivedAt.take(10))
+                DetailRow("Reçue le", (order.receivedAt ?: "").take(10))
             }
             if (order.notes != null) {
-                DetailRow("Notes", order.notes)
+                DetailRow("Notes", order.notes ?: "")
             }
         }
     }
 }
 
 @Composable
-private fun StatusCard(order: OrderDetailData) {
+private fun StatusCard(order: OrderDTO) {
     val badgeVariant = when (order.status) {
         "brouillon" -> BadgeVariant.Neutral
         "sent", "envoyée" -> BadgeVariant.Info
@@ -283,7 +285,7 @@ private fun StatusCard(order: OrderDetailData) {
         "sent", "envoyée" -> "Envoyée"
         "received", "reçue" -> "Reçue"
         "cancelled", "annulée" -> "Annulée"
-        else -> order.status
+        else -> order.status ?: "Inconnu"
     }
     StockCard(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -301,7 +303,7 @@ private fun StatusCard(order: OrderDetailData) {
 }
 
 @Composable
-private fun ItemCard(item: OrderItemData) {
+private fun ItemCard(item: OrderItemDTO) {
     StockCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(

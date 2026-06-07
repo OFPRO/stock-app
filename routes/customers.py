@@ -29,7 +29,7 @@ def add_customer():
         conn.execute('''
             INSERT INTO customers (name, type, email, phone, address, client_code, discount_rate, is_loyal, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (data['name'], data.get('type', 'particulier'), data.get('email', ''),
+        ''', (data['name'], data.get('type', 'normal'), data.get('email', ''),
               data.get('phone', ''), data.get('address', ''), client_code,
               data.get('discount_rate', 0), data.get('is_loyal', 0), data.get('notes', '')))
         conn.commit()
@@ -56,7 +56,7 @@ def update_customer(customer_id):
         conn.execute('''
             UPDATE customers SET name=?, type=?, email=?, phone=?, address=?, discount_rate=?, is_loyal=?, notes=?, updated_at=CURRENT_TIMESTAMP
             WHERE id=?
-        ''', (data['name'], data.get('type', 'particulier'), data.get('email', ''),
+        ''', (data['name'], data.get('type', 'normal'), data.get('email', ''),
               data.get('phone', ''), data.get('address', ''), data.get('discount_rate', 0),
               data.get('is_loyal', 0), data.get('notes', ''), customer_id))
         conn.commit()

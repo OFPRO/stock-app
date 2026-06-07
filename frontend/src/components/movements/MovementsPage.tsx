@@ -48,17 +48,7 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NativeSelect } from "@/components/ui/native-select"
-
-const TYPE_LABELS: Record<string, string> = {
-  in: "Entrée",
-  out: "Sortie",
-  sale: "Vente POS",
-  transfer: "Transfert",
-  inter_warehouse: "Transf. inter-entrepôt",
-  destruction: "Destruction",
-  retour: "Retour",
-  other: "Autre",
-}
+import { useTranslation } from "react-i18next"
 
 const TYPE_COLORS: Record<string, string> = {
   in: "text-emerald-600 dark:text-emerald-400",
@@ -72,6 +62,17 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 function TypeBadge({ type }: { type: string }) {
+  const { t } = useTranslation()
+  const TYPE_LABELS: Record<string, string> = {
+    in: t("movements.in"),
+    out: t("movements.out"),
+    sale: t("movements.pos_sale"),
+    transfer: t("movements.transfer"),
+    inter_warehouse: t("movements.inter_warehouse"),
+    destruction: t("movements.destruction"),
+    retour: t("movements.return"),
+    other: t("movements.other"),
+  }
   const label = TYPE_LABELS[type] ?? type
   const color = TYPE_COLORS[type] ?? "text-muted-foreground"
   return (
@@ -82,6 +83,7 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 export function MovementsPage() {
+  const { t } = useTranslation()
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -162,7 +164,7 @@ export function MovementsPage() {
   const columns = useMemo<ColumnDef<StockMovement>[]>(() => [
     {
       accessorKey: "created_at",
-      header: "Date",
+      header: t("common.date"),
       cell: ({ getValue }) => {
         const d = getValue() as string
         return <span className="text-xs tabular-nums text-muted-foreground">{d.slice(0, 16)}</span>
@@ -170,19 +172,19 @@ export function MovementsPage() {
     },
     {
       accessorKey: "product_name",
-      header: "Produit",
+      header: t("common.product"),
       cell: ({ getValue }) => (
         <span className="font-medium">{getValue() as string}</span>
       ),
     },
     {
       accessorKey: "type",
-      header: "Type",
+      header: t("movements.type"),
       cell: ({ getValue }) => <TypeBadge type={getValue() as string} />,
     },
     {
       accessorKey: "quantity",
-      header: "Quantité",
+      header: t("common.qty"),
       cell: ({ row }) => {
         const qty = row.original.quantity
         const isOut = ["out", "sale", "destruction"].includes(row.original.type)
@@ -195,7 +197,7 @@ export function MovementsPage() {
     },
     {
       accessorKey: "source_location",
-      header: "De",
+      header: t("movements.from"),
       cell: ({ getValue }) => {
         const v = getValue() as string | null
         return v ? <span className="text-xs text-muted-foreground">{v}</span> : <span className="text-xs text-muted-foreground">-</span>
@@ -203,7 +205,7 @@ export function MovementsPage() {
     },
     {
       accessorKey: "dest_location",
-      header: "Vers",
+      header: t("movements.to"),
       cell: ({ getValue }) => {
         const v = getValue() as string | null
         return v ? <span className="text-xs text-muted-foreground">{v}</span> : <span className="text-xs text-muted-foreground">-</span>
@@ -211,7 +213,7 @@ export function MovementsPage() {
     },
     {
       accessorKey: "note",
-      header: "Note",
+      header: t("common.notes"),
       cell: ({ getValue }) => {
         const v = getValue() as string
         return v ? <span className="text-xs text-muted-foreground max-w-[200px] truncate block">{v}</span> : null
@@ -232,14 +234,14 @@ export function MovementsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Mouvements de Stock</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("movements.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {movements.length} mouvement{movements.length !== 1 ? "s" : ""}
+            {t("movements.count", { count: movements.length })}
           </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="size-4" />
-          Nouveau mouvement
+          {t("movements.new")}
         </Button>
       </div>
 
@@ -248,21 +250,21 @@ export function MovementsPage() {
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder="Rechercher par produit ou note..."
+            placeholder={t("movements.search_placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-36">
-            <SelectValue placeholder="Type" />
+            <SelectValue placeholder={t("movements.type")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">Tous</SelectItem>
-            <SelectItem value="in">Entrées</SelectItem>
-            <SelectItem value="out">Sorties</SelectItem>
-            <SelectItem value="transfer">Transferts</SelectItem>
-            <SelectItem value="other">Autres</SelectItem>
+            <SelectItem value="__all__">{t("common.all")}</SelectItem>
+            <SelectItem value="in">{t("movements.in")}</SelectItem>
+            <SelectItem value="out">{t("movements.out")}</SelectItem>
+            <SelectItem value="transfer">{t("movements.transfers")}</SelectItem>
+            <SelectItem value="other">{t("movements.others")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -297,7 +299,7 @@ export function MovementsPage() {
                 {table.getRowModel().rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
-                      Aucun mouvement trouvé
+                      {t("movements.empty")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -320,32 +322,32 @@ export function MovementsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nouveau mouvement</DialogTitle>
+            <DialogTitle>{t("movements.new")}</DialogTitle>
             <DialogDescription>
-              Enregistrer une entrée ou sortie de stock.
+              {t("movements.dialog.description")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium">Produit *</label>
+              <label className="text-xs font-medium">{t("movements.form.product")}</label>
               <NativeSelect
                 value={String(formData.product_id)}
                 onChange={(v) => setFormData({ ...formData, product_id: parseInt(v) })}
-                placeholder="Sélectionner un produit"
+                placeholder={t("movements.form.select_product")}
                 options={products.map((p) => ({ value: String(p.id), label: `${p.name} (${p.sku}) — Stock: ${p.quantity}` }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-medium">Type</label>
+                <label className="text-xs font-medium">{t("movements.form.type")}</label>
                 <NativeSelect
                   value={formData.type}
                   onChange={(v) => setFormData({ ...formData, type: v as "in" | "out" })}
-                  options={[{ value: "in", label: "Entrée" }, { value: "out", label: "Sortie" }]}
+                  options={[{ value: "in", label: t("movements.in") }, { value: "out", label: t("movements.out") }]}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium">Quantité *</label>
+                <label className="text-xs font-medium">{t("movements.form.quantity")}</label>
                 <Input
                   type="number"
                   min={1}
@@ -355,7 +357,7 @@ export function MovementsPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium">Note</label>
+              <label className="text-xs font-medium">{t("common.notes")}</label>
               <Input
                 value={formData.note ?? ""}
                 onChange={(e) => setFormData({ ...formData, note: e.target.value })}
@@ -365,10 +367,10 @@ export function MovementsPage() {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Annuler</Button>
+              <Button variant="outline">{t("common.cancel")}</Button>
             </DialogClose>
             <Button onClick={handleSave} disabled={saving || !formData.product_id || formData.quantity <= 0}>
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

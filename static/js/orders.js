@@ -61,7 +61,7 @@ function addOrderItem() {
     const row = document.createElement('div');
     row.className = 'order-item-row';
     row.style = 'display:grid;grid-template-columns:2fr 80px 100px 100px 40px;gap:0.5rem;padding:0.5rem;border-bottom:1px solid var(--border);align-items:center;';
-    row.innerHTML = '<div class="product-search-wrapper" style="position:relative;"><input type="text" class="form-input product-search-input" placeholder="Rechercher..." oninput="filterProductSuggestions(this)" onfocus="filterProductSuggestions(this)" autocomplete="off" style="width:100%;"><div class="product-suggestions"></div><input type="hidden" class="order-product-id"></div>' +
+    row.innerHTML = '<div class="product-search-wrapper" style="position:relative;"><input type="text" class="form-input product-search-input" placeholder="Rechercher..." oninput="filterProductSuggestions(this)" onfocus="filterProductSuggestions(this)" autocomplete="off" style="width:100%;"><input type="hidden" class="order-product-id"></div>' +
         '<input type="number" class="form-input order-qty" value="1" min="1" onchange="updateOrderItemTotal(this)" style="width:80px;">' +
         '<input type="number" class="form-input order-price" step="0.01" value="0" onchange="updateOrderItemTotal(this)" style="width:100px;">' +
         '<span class="order-item-total" style="font-weight:600;">0.00 DH</span>' +
@@ -144,43 +144,40 @@ function addRuptureProduct(productId) {
 }
 
 function filterProductSuggestions(input) {
-    const wrapper = input.closest('.product-search-wrapper');
-    const suggestionsEl = wrapper.querySelector('.product-suggestions');
-    const hiddenId = wrapper.querySelector('.order-product-id');
+    const hiddenId = input.closest('.product-search-wrapper').querySelector('.order-product-id');
     const filter = input.value.toLowerCase().trim();
+    const container = document.getElementById('orderSuggestions');
 
-    console.log('filterProductSuggestions: filter =', filter, 'products.length =', products ? products.length : 'undefined');
+    activeOrderSearchInput = input;
 
     if (!products || products.length === 0) {
-        suggestionsEl.innerHTML = '<div class="product-suggestion-item" style="color:var(--text-light);font-style:italic;">Aucun produit charge</div>';
-        suggestionsEl.classList.add('show');
+        container.innerHTML = '<div class="product-suggestion-item" style="color:var(--text-light);font-style:italic;">Aucun produit charge</div>';
+        positionSuggestions(container, input);
         return;
     }
 
     if (!filter) {
-        suggestionsEl.classList.remove('show');
+        container.style.display = 'none';
         return;
     }
 
     const outOfStock = products.filter(p => p.quantity <= p.min_quantity || p.quantity < 0);
     const inStock = products.filter(p => p.quantity > p.min_quantity && p.quantity >= 0);
 
-    console.log('outOfStock.length =', outOfStock.length, 'inStock.length =', inStock.length);
-
     const filteredOutOfStock = outOfStock.filter(p => {
-        return p.name.toLowerCase().indexOf(filter) !== -1 || (p.sku && p.sku.toLowerCase().indexOf(filter) !== -1);
+        return p.name.toLowerCase().indexOf(filter) !== -1 || (p.sku && p.sku.toLowerCase().indexOf(filter) !== -1) || (p.barcode && p.barcode.toLowerCase().indexOf(filter) !== -1);
     }).slice(0, 5);
 
     const filteredInStock = inStock.filter(p => {
-        return p.name.toLowerCase().indexOf(filter) !== -1 || (p.sku && p.sku.toLowerCase().indexOf(filter) !== -1);
+        return p.name.toLowerCase().indexOf(filter) !== -1 || (p.sku && p.sku.toLowerCase().indexOf(filter) !== -1) || (p.barcode && p.barcode.toLowerCase().indexOf(filter) !== -1);
     }).slice(0, 5);
 
     const topRupture = outOfStock.slice(0, 5);
     const allResults = filteredOutOfStock.concat(filteredInStock).slice(0, 5);
 
     if (allResults.length === 0 && topRupture.length === 0) {
-        suggestionsEl.innerHTML = '<div class="product-suggestion-item" style="color:var(--text-light);font-style:italic;">Aucun produit trouve</div>';
-        suggestionsEl.classList.add('show');
+        container.innerHTML = '<div class="product-suggestion-item" style="color:var(--text-light);font-style:italic;">Aucun produit trouve</div>';
+        positionSuggestions(container, input);
         return;
     }
 
@@ -188,9 +185,11 @@ function filterProductSuggestions(input) {
         const stockClass = p.quantity <= 0 ? 'danger' : (p.quantity <= p.min_quantity ? 'warning' : 'success');
         const stockLabel = p.quantity <= 0 ? 'Rupture' : (p.quantity <= p.min_quantity ? 'Restant: ' + p.quantity : 'Stock: ' + p.quantity);
         const outOfStockClass = p.quantity <= p.min_quantity ? 'out-of-stock' : '';
+        const barcodeLabel = p.barcode ? p.barcode : '';
         return '<div class="product-suggestion-item ' + outOfStockClass + '" data-id="' + p.id + '" data-price="' + (p.purchase_price_avg || p.price || 0) + '">' +
             '<span class="product-name">' + p.name + '</span>' +
             '<span class="product-sku">' + (p.sku || '-') + '</span>' +
+            '<span class="product-barcode">' + barcodeLabel + '</span>' +
             '<span class="stock-badge ' + stockClass + '">' + stockLabel + '</span>' +
         '</div>';
     }).join('');
@@ -198,22 +197,33 @@ function filterProductSuggestions(input) {
     if (topRupture.length > 0) {
         html += '<div style="padding:0.5rem 0.75rem;font-size:0.7rem;color:var(--danger);font-weight:600;border-top:1px solid var(--border);margin-top:0.5rem;">🚨 Also in rupture (click to add):</div>' +
             topRupture.map(p => {
+                const barcodeLabel = p.barcode ? p.barcode : '';
                 return '<div class="product-suggestion-item out-of-stock" data-id="' + p.id + '" data-price="' + (p.purchase_price_avg || p.price || 0) + '">' +
                     '<span class="product-name">' + p.name + '</span>' +
                     '<span class="product-sku">' + (p.sku || '-') + '</span>' +
+                    '<span class="product-barcode">' + barcodeLabel + '</span>' +
                     '<span class="stock-badge danger">Rupture</span>' +
                 '</div>';
             }).join('');
     }
 
-    suggestionsEl.innerHTML = html;
-    suggestionsEl.classList.add('show');
-    attachSuggestionListeners(suggestionsEl, input, hiddenId);
+    container.innerHTML = html;
+    positionSuggestions(container, input);
+    attachSuggestionListeners(container, input, hiddenId);
+}
+
+function positionSuggestions(container, input) {
+    const rect = input.getBoundingClientRect();
+    container.style.left = rect.left + 'px';
+    container.style.top = rect.bottom + 'px';
+    container.style.width = Math.max(rect.width, 280) + 'px';
+    container.style.display = 'block';
 }
 
 function attachSuggestionListeners(suggestionsEl, input, hiddenId) {
     suggestionsEl.querySelectorAll('.product-suggestion-item').forEach(item => {
-        item.onclick = function() {
+        item.onclick = function(e) {
+            e.stopPropagation();
             const productId = this.dataset.id;
             const productPrice = parseFloat(this.dataset.price) || 0;
             const productName = this.querySelector('.product-name').textContent;
@@ -221,7 +231,8 @@ function attachSuggestionListeners(suggestionsEl, input, hiddenId) {
             hiddenId.value = productId;
             const row = input.closest('.order-item-row');
             row.querySelector('.order-price').value = productPrice;
-            suggestionsEl.classList.remove('show');
+            suggestionsEl.style.display = 'none';
+            activeOrderSearchInput = null;
             updateOrderItemTotal(input);
         };
     });
@@ -263,8 +274,8 @@ function disableOrderFormForPaidOrder() {
     modal.querySelectorAll('.order-item-row .btn').forEach(btn => {
         btn.disabled = true;
     });
-    document.querySelector('#orderModal .btn-success[onclick="sendOrder()"]').style.display = 'none';
-    document.querySelector('#orderModal .btn-primary').style.display = 'none';
+    document.getElementById('sendOrderBtn').style.display = 'none';
+    document.getElementById('saveOrderBtn').style.display = 'none';
     document.getElementById('cancelOrderBtn').style.display = 'inline-block';
 }
 
@@ -276,8 +287,8 @@ function enableOrderForm() {
     modal.querySelectorAll('.order-item-row .btn').forEach(btn => {
         btn.disabled = false;
     });
-    document.querySelector('#orderModal .btn-success[onclick="sendOrder()"]').style.display = 'inline-block';
-    document.querySelector('#orderModal .btn-primary').style.display = 'inline-block';
+    document.getElementById('sendOrderBtn').style.display = 'inline-block';
+    document.getElementById('saveOrderBtn').style.display = 'inline-block';
     document.getElementById('cancelOrderBtn').style.display = 'none';
 }
 
@@ -316,7 +327,7 @@ async function loadOrderItems(orderId) {
         items.forEach(item => {
             const row = document.createElement('tr');
             row.className = 'order-item-row';
-            row.innerHTML = '<td><div class="product-search-wrapper"><input type="text" class="form-input product-search-input" placeholder="Rechercher un produit..." oninput="filterProductSuggestions(this)" onfocus="filterProductSuggestions(this)" autocomplete="off"><div class="product-suggestions"></div><input type="hidden" class="order-product-id"></div></td>' +
+            row.innerHTML = '<td><div class="product-search-wrapper"><input type="text" class="form-input product-search-input" placeholder="Rechercher un produit..." oninput="filterProductSuggestions(this)" onfocus="filterProductSuggestions(this)" autocomplete="off"><input type="hidden" class="order-product-id"></div></td>' +
                 '<td><input type="number" class="form-input order-qty" value="' + item.quantity + '" min="1" onchange="updateOrderItemTotal(this)"></td>' +
                 '<td><input type="number" class="form-input order-price" step="0.01" value="' + item.unit_price + '" onchange="updateOrderItemTotal(this)"></td>' +
                 '<td class="order-item-total">' + (item.quantity * item.unit_price).toFixed(2) + ' DH</td>' +
@@ -370,7 +381,8 @@ function openOrderForProduct(productId, suggestedQty) {
     }, 200);
 }
 
-async function sendOrder(orderId) {
+async function sendOrder() {
+    var orderId = document.getElementById('orderId').value;
     if (!orderId) {
         showError('Enregistrez d\'abord la commande');
         return;
@@ -621,3 +633,117 @@ function viewSupplierInvoice(orderId) {
     if (!order) return;
     alert('Facture Fournisseur: ' + order.order_number + '\nTotal: ' + (order.total || 0).toFixed(2) + ' DH\nDate paiement: ' + (order.paid_at || '-'));
 }
+
+// --- Order barcode scanner ---
+let orderScannerStream = null;
+let orderScannerReader = null;
+
+function stopOrderScanner() {
+    if (orderScannerReader) {
+        try { orderScannerReader.reset(); } catch(e) {}
+        orderScannerReader = null;
+    }
+    if (orderScannerStream) {
+        orderScannerStream.getTracks().forEach(function(t) { t.stop(); });
+        orderScannerStream = null;
+    }
+}
+
+async function toggleOrderScanner() {
+    const area = document.getElementById('orderScannerArea');
+    if (!area) return;
+    if (area.style.display !== 'none') {
+        stopOrderScanner();
+        area.style.display = 'none';
+        return;
+    }
+    area.style.display = 'block';
+    const video = document.getElementById('orderScannerVideo');
+    if (!video) return;
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+        });
+        orderScannerStream = stream;
+        video.srcObject = stream;
+        video.play();
+        const hints = new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+            ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+            ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39,
+            ZXing.BarcodeFormat.QR_CODE,
+        ]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        const reader = new ZXing.BrowserMultiFormatReader(hints, 150);
+        orderScannerReader = reader;
+        reader.decodeFromVideoDevice(null, video, function(result, err) {
+            if (result) {
+                handleOrderScanResult(result.text);
+                stopOrderScanner();
+                var area = document.getElementById('orderScannerArea');
+                if (area) area.style.display = 'none';
+            }
+        });
+    } catch(e) {
+        showError('Erreur d\'accès à la caméra: ' + e.message);
+        area.style.display = 'none';
+    }
+}
+
+function handleOrderScanResult(barcode) {
+    const product = products.find(function(p) { return String(p.barcode) === String(barcode); });
+    if (!product) {
+        showError('Produit avec le code-barres ' + barcode + ' non trouvé');
+        return;
+    }
+    var rows = document.querySelectorAll('#orderItemsBody .order-item-row');
+    var targetRow = null;
+    for (var i = 0; i < rows.length; i++) {
+        var hiddenId = rows[i].querySelector('.order-product-id');
+        if (!hiddenId || !hiddenId.value) {
+            targetRow = rows[i];
+            break;
+        }
+    }
+    if (!targetRow) {
+        addOrderItem();
+        var allRows = document.querySelectorAll('#orderItemsBody .order-item-row');
+        targetRow = allRows[allRows.length - 1];
+    }
+    var input = targetRow.querySelector('.product-search-input');
+    var hiddenId = targetRow.querySelector('.order-product-id');
+    var priceInput = targetRow.querySelector('.order-price');
+    if (input) input.value = product.name;
+    if (hiddenId) hiddenId.value = product.id;
+    if (priceInput) priceInput.value = product.purchase_price_avg || product.price || 0;
+    if (priceInput) updateOrderItemTotal(priceInput);
+    else if (input) updateOrderItemTotal(input);
+}
+
+let activeOrderSearchInput = null;
+
+document.addEventListener('click', function(e) {
+    const container = document.getElementById('orderSuggestions');
+    const input = activeOrderSearchInput;
+    if (container && container.style.display === 'block' && input && !container.contains(e.target) && e.target !== input) {
+        container.style.display = 'none';
+        activeOrderSearchInput = null;
+    }
+});
+
+(function() {
+    const observer = new MutationObserver(function() {
+        const body = document.querySelector('.order-modal-body');
+        if (body && !body._orderSuggestScrollAttached) {
+            body._orderSuggestScrollAttached = true;
+            body.addEventListener('scroll', function() {
+                const container = document.getElementById('orderSuggestions');
+                if (container && container.style.display === 'block') {
+                    container.style.display = 'none';
+                    activeOrderSearchInput = null;
+                }
+            }, { passive: true });
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();

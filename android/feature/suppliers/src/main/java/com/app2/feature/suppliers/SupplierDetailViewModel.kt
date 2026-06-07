@@ -2,28 +2,13 @@ package com.app2.feature.suppliers
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.SupplierApiService
+import com.app2.core.data.repository.SupplierRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
-
-private fun JsonElement?.optString(): String? {
-    val prim = this?.jsonPrimitive
-    return if (prim != null && prim !is JsonNull) prim.content else null
-}
-
-private fun JsonElement?.optInt(): Int? =
-    this?.jsonPrimitive?.intOrNull
 
 data class SupplierDetailData(
     val id: Int,
@@ -37,7 +22,7 @@ data class SupplierDetailData(
 
 @HiltViewModel
 class SupplierDetailViewModel @Inject constructor(
-    private val supplierApi: SupplierApiService
+    private val supplierRepository: SupplierRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ViewState<SupplierDetailData>>(ViewState.Loading)
@@ -51,11 +36,20 @@ class SupplierDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ViewState.Loading
             try {
-                val response = supplierApi.getSuppliers()
-                val items = response.jsonArray
-                val obj = items.firstOrNull { it.jsonObject["id"]?.optInt() == id }?.jsonObject
-                if (obj != null) {
-                    _state.value = ViewState.Loaded(parseSupplierDetail(obj))
+                val items = supplierRepository.getSuppliers()
+                val dto = items.firstOrNull { it.id == id }
+                if (dto != null) {
+                    _state.value = ViewState.Loaded(
+                        SupplierDetailData(
+                            id = dto.id,
+                            name = dto.name,
+                            email = dto.email,
+                            phone = dto.phone,
+                            address = dto.address,
+                            contactPerson = dto.contactPerson,
+                            createdAt = dto.createdAt
+                        )
+                    )
                 } else {
                     _state.value = ViewState.Error("Fournisseur introuvable")
                 }
@@ -69,23 +63,10 @@ class SupplierDetailViewModel @Inject constructor(
         val id = lastLoadedId ?: return
         viewModelScope.launch {
             try {
-                supplierApi.deleteSupplier(id)
+                supplierRepository.deleteSupplier(id)
             } catch (e: Exception) {
                 _state.value = ViewState.Error(e.message ?: "Erreur de suppression")
             }
         }
-    }
-
-    private fun parseSupplierDetail(obj: JsonElement): SupplierDetailData {
-        val o = obj.jsonObject
-        return SupplierDetailData(
-            id = o["id"].optInt() ?: 0,
-            name = o["name"].optString() ?: "",
-            email = o["email"].optString(),
-            phone = o["phone"].optString(),
-            address = o["address"].optString(),
-            contactPerson = o["contact_person"].optString(),
-            createdAt = o["created_at"].optString()
-        )
     }
 }
