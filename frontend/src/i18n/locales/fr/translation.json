@@ -1,0 +1,613 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "products": "Produits",
+    "warehouses": "Entrepôts",
+    "storageZones": "Zones de Stock",
+    "movements": "Mouvements",
+    "suppliers": "Fournisseurs",
+    "orders": "Commandes",
+    "reorderRules": "Règles Réap.",
+    "replenishment": "Réappro.",
+    "customers": "Clients",
+    "invoices": "Factures",
+    "reports": "Rapports",
+    "sessionHistory": "Hist. Sessions",
+    "scanner": "Scanner",
+    "pos": "Caisse",
+    "mainAccount": "Compte Principal",
+    "notifications": "Notifications"
+  },
+  "footer": {
+    "company": "Bibliothèque Badr — Marrakech"
+  },
+  "common": {
+    "search": "Rechercher...",
+    "all": "Tous",
+    "none": "Aucune",
+    "yes": "Oui",
+    "no": "Non",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "saving": "Enregistrement...",
+    "create": "Créer",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "validate": "Valider",
+    "retry": "Réessayer",
+    "select": "Sélectionner",
+    "optional": "Optionnel",
+    "loading": "Chargement...",
+    "product": "Produit",
+    "client": "Client",
+    "total": "Total",
+    "status": "Statut",
+    "date": "Date",
+    "notes": "Notes",
+    "name": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "address": "Adresse",
+    "qty": "Qté",
+    "amount": "Montant",
+    "stock": "Stock",
+    "min": "Min",
+    "due_date": "Échéance",
+    "information": "Informations",
+    "articles": "Articles",
+    "total_prefix": "Total :"
+  },
+  "dashboard": {
+    "title": "Dashboard Commercial",
+    "subtitle": "Vue d'ensemble de votre activité",
+    "error_load": "Erreur lors du chargement du tableau de bord",
+    "sales_performance": "Performance des Ventes",
+    "financial_status": "Situation Financière",
+    "to_order": "À Commander",
+    "customer_receivables": "Créances Clients",
+    "kpi": {
+      "ca_today": "CA Aujourd'hui",
+      "sales_today": "Ventes Aujourd'hui",
+      "avg_ticket": "Ticket Moyen",
+      "gross_margin": "Marge Brute",
+      "receivables": "Créances",
+      "collection_rate": "Taux d'Encaissement",
+      "stock_value": "Valeur Stock",
+      "out_of_stock": "Ruptures",
+      "main_account": "Compte Principal",
+      "vs_previous_period": "vs période précédente"
+    },
+    "chart": {
+      "daily_sales": "Ventes Journalières",
+      "total": "Total :",
+      "sales_by_category": "Ventes par Catégorie",
+      "category_distribution": "Répartition des quantités vendues",
+      "top_products": "Top 10 Produits",
+      "best_sellers": "Les plus vendus",
+      "invoice_status": "État des Factures",
+      "by_status": "Par statut",
+      "stock_movements": "Mouvements Stock",
+      "in_out": "Entrées / Sorties",
+      "margin_distribution": "Répartition Marge",
+      "by_category": "Par catégorie"
+    },
+    "filters": {
+      "period": "Période",
+      "7_days": "7 jours",
+      "30_days": "30 jours",
+      "90_days": "90 jours",
+      "all_warehouses": "Tous les entrepôts"
+    },
+    "alerts": {
+      "out_of_stock": "Ruptures de Stock",
+      "expired": "Périmés",
+      "expiry_date": "DLC",
+      "days": "Jours",
+      "empty_out_of_stock": "Aucune rupture",
+      "empty_expired": "Aucun produit périmé"
+    },
+    "empty": {
+      "no_products_to_order": "Aucun produit à commander",
+      "no_receivables": "Aucune créance"
+    }
+  },
+  "charts": {
+    "series": {
+      "revenue": "CA",
+      "qty_sold": "Qté vendue",
+      "entries": "Entrées",
+      "exits": "Sorties"
+    },
+    "invoice_status": {
+      "paid": "Payée",
+      "sent": "Envoyée",
+      "draft": "Brouillon",
+      "cancelled": "Annulée"
+    }
+  },
+  "products": {
+    "title": "Produits",
+    "sku": "SKU",
+    "category": "Catégorie",
+    "price": "Prix",
+    "warehouse": "Entrepôt",
+    "supplier": "Fournisseur",
+    "barcode": "Code-barres",
+    "name": "Nom",
+    "stock": "Stock",
+    "registered": "enregistré(s)",
+    "new": "Nouveau produit",
+    "search_placeholder": "Rechercher par nom, SKU ou code-barres...",
+    "filter_category": "Catégorie",
+    "all_categories": "Toutes",
+    "count": "produit(s)",
+    "empty": {
+      "no_results": "Aucun produit trouvé"
+    },
+    "form": {
+      "name": "Nom *",
+      "name_placeholder": "Nom du produit",
+      "sku_placeholder": "Auto-généré si vide",
+      "description": "Description",
+      "description_placeholder": "Description optionnelle",
+      "tax": "Taxe",
+      "min_qty": "Qté Min",
+      "max_qty": "Qté Max",
+      "price_normal": "Prix Normal",
+      "price_loyal": "Prix Fidèle",
+      "price_bulk": "Prix Gros"
+    },
+    "stock_badge": {
+      "out_of_stock": "Rupture",
+      "low_stock": "Stock bas",
+      "ok": "OK"
+    },
+    "dialog": {
+      "edit_title": "Modifier le produit",
+      "create_title": "Nouveau produit",
+      "edit_description": "Modifiez les champs ci-dessous.",
+      "create_description": "Remplissez les informations du nouveau produit."
+    },
+    "select": {
+      "search_placeholder": "Rechercher un produit...",
+      "loading": "Chargement des produits...",
+      "no_products": "Aucun produit disponible",
+      "no_results": "Aucun produit trouvé",
+      "remaining_prefix": "Restant :",
+      "stock_prefix": "Stock :"
+    },
+    "tax": {
+      "20": "20%",
+      "14": "14%",
+      "10": "10%",
+      "7": "7%"
+    }
+  },
+  "product_detail": {
+    "not_found": "Produit introuvable.",
+    "back_to_products": "Retour aux produits",
+    "barcode_prefix": "Code-barres :",
+    "in_stock": "en stock",
+    "selling_price": "Prix de vente",
+    "status": "Statut",
+    "arabic_name": "Nom Arabe",
+    "general_info": "Informations Générales",
+    "thresholds_alerts": "Seuils & Alertes",
+    "current_stock": "Stock Actuel",
+    "min_stock": "Stock Minimum",
+    "max_stock": "Stock Maximum",
+    "expiry": "Expiry",
+    "lot": "Lot",
+    "total_purchases": "Achats totaux",
+    "total_sales": "Ventes totales",
+    "locations": "Emplacements",
+    "stock_by_location": "Stock par Emplacement",
+    "sale_price": "Prix vente",
+    "purchase_price": "Prix achat",
+    "margin": "Marge",
+    "discount": "Remise",
+    "pricing_by_customer": "Tarifs par Catégorie Client",
+    "taxes_discounts": "Taxes & Remises",
+    "tva": "TVA",
+    "discount_category": "Catégorie Remise",
+    "discount_rate": "Taux Remise",
+    "no_supplier": "Aucun fournisseur associé à ce produit.",
+    "no_movements": "Aucun mouvement pour ce produit.",
+    "more_details": "Plus de détails",
+    "dialog": {
+      "title": "Détails produit",
+      "load_error": "Impossible de charger les détails du produit."
+    },
+    "tab": {
+      "overview": "Aperçu",
+      "stock": "Stock",
+      "pricing": "Prix",
+      "supplier": "Fournisseur",
+      "movements": "Historique"
+    }
+  },
+  "invoices": {
+    "title": "Factures",
+    "number": "N° Facture",
+    "new": "Nouvelle facture",
+    "count": "facture(s)",
+    "counter_customer": "Client comptoir",
+    "unit_price": "P.U.",
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoyée",
+      "paid": "Payée",
+      "cancelled": "Annulée",
+      "partially_paid": "Partiellement payée"
+    },
+    "stats": {
+      "total_billed": "Total facturé",
+      "paid": "Payé",
+      "pending": "En attente"
+    },
+    "empty": {
+      "no_invoices": "Aucune facture"
+    },
+    "form": {
+      "customer": "Client",
+      "select_customer": "Sélectionner (optionnel)",
+      "add_item": "+ Ajouter un article"
+    },
+    "detail": {
+      "customer_prefix": "Client :",
+      "subtotal": "Sous-total",
+      "discount": "Remise",
+      "tva": "TVA",
+      "items_count": "Articles (X)"
+    },
+    "dialog": {
+      "create_description": "Créer une facture client."
+    },
+    "action": {
+      "mark_sent": "Marquer envoyée",
+      "cancel": "Annuler",
+      "cancel_confirm": "Cette action est irréversible. Voulez-vous vraiment annuler cette commande ?",
+      "mark_paid": "Marquer payée"
+    }
+  },
+  "orders": {
+    "title": "Commandes",
+    "number": "N° Commande",
+    "supplier": "Fournisseur",
+    "new": "Nouvelle commande",
+    "count": "commande(s)",
+    "unit_price": "Prix unitaire",
+    "created_on": "Créée le",
+    "received_on": "Reçue le",
+    "paid_on": "Payée le",
+    "status": {
+      "draft": "Brouillon",
+      "received": "Reçue",
+      "paid": "Payée",
+      "cancelled": "Annulée"
+    },
+    "empty": "Aucune commande",
+    "empty_items": "Aucun article dans cette commande.",
+    "not_found": "Commande introuvable.",
+    "back_to_list": "Retour aux commandes",
+    "detail": {
+      "title": "Commande",
+      "supplier_prefix": "Fournisseur :"
+    },
+    "action": {
+      "receive": "Réceptionner",
+      "mark_paid": "Marquer payée",
+      "convert_to_invoice": "Convertir en facture",
+      "cancel": "Annuler"
+    },
+    "create": {
+      "title": "Nouvelle commande",
+      "description": "Créer un bon de commande fournisseur.",
+      "supplier": "Fournisseur *",
+      "out_of_stock_label": "RUPTURE :",
+      "notes_placeholder": "Notes complémentaires..."
+    },
+    "convert": {
+      "title": "Convertir en facture",
+      "description": "Sélectionner le client et la date d'échéance.",
+      "customer": "Client *",
+      "due_date": "Date échéance",
+      "submit": "Convertir"
+    },
+    "items_count": "Articles (X)"
+  },
+  "movements": {
+    "title": "Mouvements de Stock",
+    "in": "Entrée",
+    "out": "Sortie",
+    "pos_sale": "Vente POS",
+    "transfer": "Transfert",
+    "inter_warehouse": "Transf. inter-entrepôt",
+    "destruction": "Destruction",
+    "return": "Retour",
+    "other": "Autre",
+    "transfers": "Transferts",
+    "others": "Autres",
+    "new": "Nouveau mouvement",
+    "count": "mouvement(s)",
+    "from": "De",
+    "to": "Vers",
+    "type": "Type",
+    "search_placeholder": "Rechercher par produit ou note...",
+    "empty": "Aucun mouvement trouvé",
+    "dialog": {
+      "description": "Enregistrer une entrée ou sortie de stock."
+    },
+    "form": {
+      "product": "Produit *",
+      "select_product": "Sélectionner un produit",
+      "type": "Type",
+      "quantity": "Quantité *"
+    }
+  },
+  "suppliers": {
+    "title": "Fournisseurs",
+    "contact": "Contact",
+    "new": "Nouveau fournisseur",
+    "count": "fournisseur(s)",
+    "empty": "Aucun fournisseur trouvé",
+    "form": {
+      "name": "Nom *",
+      "name_placeholder": "Nom du fournisseur",
+      "email_placeholder": "email@exemple.com",
+      "phone_placeholder": "+212 6XX XX XX XX",
+      "address_placeholder": "Adresse complète",
+      "contact_person": "Personne de contact",
+      "contact_placeholder": "Nom du contact"
+    },
+    "dialog": {
+      "edit_title": "Modifier le fournisseur",
+      "description": "Remplissez les informations du fournisseur."
+    }
+  },
+  "customers": {
+    "title": "Clients",
+    "code": "Code",
+    "type": "Type",
+    "loyal": "Fidèle",
+    "new": "Nouveau client",
+    "count": "client(s)",
+    "empty": "Aucun client",
+    "type": {
+      "normal": "Normal",
+      "loyal": "Fidèle",
+      "bulk": "Gros",
+      "student": "Étudiant"
+    },
+    "form": {
+      "name": "Nom *",
+      "type": "Type"
+    },
+    "dialog": {
+      "title": "Client",
+      "description": "Remplissez les informations."
+    }
+  },
+  "warehouses": {
+    "title": "Entrepôts",
+    "manager": "Responsable",
+    "default": "Défaut",
+    "new": "Nouvel entrepôt",
+    "count": "entrepôt(s)",
+    "empty": "Aucun entrepôt",
+    "form": {
+      "name": "Nom *",
+      "address": "Adresse",
+      "manager": "Responsable"
+    },
+    "dialog": {
+      "title": "Entrepôt",
+      "description": "Remplissez les informations."
+    }
+  },
+  "locations": {
+    "title": "Zones de Stock",
+    "capacity": "Capacité",
+    "type": "Type",
+    "new": "Nouvelle zone",
+    "count": "zone(s)",
+    "empty": "Aucune zone de stock",
+    "type": {
+      "rack": "Rayonnage",
+      "bin": "Bac",
+      "shelf": "Étagère",
+      "drawer": "Tiroir",
+      "cold": "Chambre froide",
+      "other": "Autre"
+    },
+    "form": {
+      "type": "Type",
+      "capacity": "Capacité max",
+      "warehouse": "Entrepôt *"
+    },
+    "dialog": {
+      "title": "Zone de stock",
+      "description": "Ajouter une nouvelle zone de stock."
+    }
+  },
+  "reorder": {
+    "title": "Règles de Réapprovisionnement",
+    "trigger": "Déclenchement",
+    "supplier": "Fournisseur",
+    "max": "Max",
+    "new": "Nouvelle règle",
+    "count": "règle(s)",
+    "empty": "Aucune règle trouvée",
+    "trigger": {
+      "manual": "Manuel",
+      "auto": "Automatique"
+    },
+    "form": {
+      "product": "Produit *",
+      "select_product": "Sélectionner un produit",
+      "trigger_type": "Type de déclenchement",
+      "min_qty": "Quantité minimale",
+      "max_qty": "Quantité maximale"
+    },
+    "dialog": {
+      "title": "Règle de réapprovisionnement",
+      "description": "Définissez les paramètres de réapprovisionnement."
+    }
+  },
+  "replenishment": {
+    "title": "Réapprovisionnement",
+    "count": "produit(s) suivis",
+    "to_replenish": "à réapprovisionner",
+    "units": "unités",
+    "to_order": "À commander",
+    "empty": "Aucun produit à réapprovisionner",
+    "alert": "produit(s) nécessite(nt) un réapprovisionnement",
+    "total_to_order": "à commander au total"
+  },
+  "pos": {
+    "title": "Caisse",
+    "opened_at": "Ouvert à",
+    "cash_movement": "Mouv. caisse",
+    "close_session": "Fermer la session",
+    "cart": "Panier",
+    "cart_empty": "Panier vide. Ajoutez des produits depuis la liste.",
+    "subtotal_full_price": "Sous-total (prix fort)",
+    "discount": "Remise",
+    "net": "Net",
+    "tva": "TVA (20%)",
+    "counter_customer": "Client comptoir",
+    "pricing_category": "Catégorie prix",
+    "payment_method": "Paiement",
+    "tendered_amount": "Montant donné",
+    "change": "Monnaie à rendre",
+    "complete_sale": "Valider la vente",
+    "search_product": "Rechercher un produit...",
+    "stock_prefix": "Stock :",
+    "no_product_found": "Aucun produit trouvé",
+    "best_sellers": "Meilleures ventes",
+    "cash_summary": "Résumé caisse",
+    "opening_funds": "Fonds ouverture",
+    "cash_in": "Entrées",
+    "cash_out": "Sorties",
+    "expected": "Attendu",
+    "recent_transactions": "Transactions récentes",
+    "ticket_number": "N° Ticket",
+    "payment": "Paiement",
+    "no_transactions": "Aucune transaction",
+    "no_session": "Aucune session ouverte",
+    "no_session_description": "Ouvrez une session pour commencer à vendre.",
+    "open_session": "Ouvrir une session",
+    "open_session_description": "Saisissez le montant d'ouverture de caisse.",
+    "opening_funds_label": "Fonds d'ouverture (DH)",
+    "open": "Ouvrir",
+    "close_session_title": "Fermer la session",
+    "close_session_description": "Comptez le fonds de caisse et saisissez le montant.",
+    "actual_cash": "Fonds de caisse réel (DH)",
+    "cash_movement_title": "Mouvement de caisse",
+    "cash_movement_description": "Ajouter ou retirer de l'argent de la caisse.",
+    "cash_movement_type": "Type",
+    "cash_movement_amount": "Montant (DH)",
+    "cash_movement_reason": "Motif",
+    "sale_error": "Erreur lors de l'encaissement",
+    "pricing_tier": {
+      "normal": "Normal",
+      "loyal": "Fidèle",
+      "bulk": "Gros"
+    },
+    "payment": {
+      "cash": "Espèces",
+      "card": "Carte"
+    },
+    "cash_movement": {
+      "in": "Entrée",
+      "out": "Sortie"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "unread_count": "non lue(s)",
+    "mark_all_read": "Tout marquer comme lu",
+    "empty": "Aucune notification"
+  },
+  "main_account": {
+    "title": "Compte Principal",
+    "current_balance": "Solde actuel",
+    "transaction_history": "Historique des transactions",
+    "empty": "Aucune transaction",
+    "load_error": "Erreur de chargement",
+    "reason": {
+      "initial": "Solde initial",
+      "session_close": "Clôture de caisse",
+      "supplier_order": "Achat fournisseur",
+      "refund": "Remboursement",
+      "adjustment": "Ajustement",
+      "deposit": "Dépôt",
+      "withdrawal": "Retrait"
+    },
+    "dialog": {
+      "title": "Opération",
+      "description": "Montant et motif de l'opération."
+    },
+    "form": {
+      "amount": "Montant *",
+      "reason": "Motif *"
+    }
+  },
+  "sessions": {
+    "title": "Historique des Sessions",
+    "session": "Session",
+    "opening": "Ouverture",
+    "closing": "Fermeture",
+    "opening_cash": "Fond. caisse",
+    "sales": "Ventes",
+    "transactions": "Transactions",
+    "count": "session(s)",
+    "empty": "Aucune session",
+    "status": {
+      "open": "Ouverte",
+      "closed": "Fermée"
+    },
+    "summary": {
+      "closed": "Sessions fermées",
+      "open": "En cours",
+      "total_sales": "Total ventes"
+    }
+  },
+  "reports": {
+    "title": "Rapports",
+    "subtitle": "Synthèse et inventaire",
+    "total_products": "Total Produits",
+    "stock_value": "Valeur Stock",
+    "low_stock": "Stock Bas",
+    "out_of_stock": "Ruptures",
+    "inventory_title": "Inventaire des Produits",
+    "value": "Valeur",
+    "load_error": "Erreur de chargement"
+  },
+  "app": {
+    "title": "StockPro — Gestion de Stock"
+  },
+  "scanner": {
+    "title": "Scanner",
+    "subtitle": "Scanner de codes-barres",
+    "placeholder": "Scannez un code-barres pour rechercher un produit",
+    "help_text": "Utilisez l'appareil photo pour scanner le code-barres d'un produit",
+    "start": "Activer le scanner",
+    "stop": "Arrêter",
+    "code_found": "Code scanné : {{code}}",
+    "scanned": "Code scanné",
+    "found": "Produit trouvé : {{name}}",
+    "camera_error": "Erreur d'accès à la caméra",
+    "scan_again": "Scanner un autre code",
+    "not_found": "Aucun produit trouvé pour : {{code}}",
+    "lookup_error": "Erreur lors de la recherche du produit",
+    "searching": "Recherche...",
+    "found_short": "Trouvé",
+    "not_found_short": "Introuvable",
+    "not_found_hint": "Aucun produit trouvé pour ce code. Essayez un autre code ou vérifiez que le produit est bien enregistré.",
+    "uncategorized": "Non catégorisé",
+    "stock": "Stock",
+    "price": "Prix",
+    "view_product": "Voir le produit"
+  }
+}

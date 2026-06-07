@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { Plus, Pencil, Trash2, Search, MapPin } from "lucide-react"
 import { type ColumnDef, type SortingState, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
 import { getLocations, createLocation, updateLocation, deleteLocation, getWarehouses, type Location as StockLocation, type LocationFormData, type Warehouse } from "@/lib/api"
@@ -11,21 +12,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
-const TYPE_LABELS: Record<string, string> = { rack: "Rayonnage", bin: "Bac", shelf: "Étagère", drawer: "Tiroir", cold: "Chambre froide", other: "Autre" }
-
 function LocationForm({ data, onChange }: { data: LocationFormData & { type: string }; onChange: (d: LocationFormData & { type: string }) => void }) {
+  const { t } = useTranslation()
   return (
     <div className="grid gap-3">
-      <div className="space-y-1"><label className="text-xs font-medium">Nom *</label><Input value={data.name} onChange={(e) => onChange({ ...data, name: e.target.value })} /></div>
+      <div className="space-y-1"><label className="text-xs font-medium">{t("common.name")} *</label><Input value={data.name} onChange={(e) => onChange({ ...data, name: e.target.value })} /></div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1"><label className="text-xs font-medium">Type</label><NativeSelect value={data.type} onChange={(v) => onChange({ ...data, type: v })} options={[{ value: "rack", label: "Rayonnage" }, { value: "bin", label: "Bac" }, { value: "shelf", label: "Étagère" }, { value: "drawer", label: "Tiroir" }, { value: "cold", label: "Chambre froide" }, { value: "other", label: "Autre" }]} /></div>
-        <div className="space-y-1"><label className="text-xs font-medium">Capacité max</label><Input type="number" value={data.capacity ?? ""} onChange={(e) => onChange({ ...data, capacity: e.target.value ? parseInt(e.target.value) : null })} /></div>
+        <div className="space-y-1"><label className="text-xs font-medium">{t("locations.form.type")}</label><NativeSelect value={data.type} onChange={(v) => onChange({ ...data, type: v })} options={[{ value: "rack", label: t("locations.type.rack") }, { value: "bin", label: t("locations.type.bin") }, { value: "shelf", label: t("locations.type.shelf") }, { value: "drawer", label: t("locations.type.drawer") }, { value: "cold", label: t("locations.type.cold") }, { value: "other", label: t("locations.type.other") }]} /></div>
+        <div className="space-y-1"><label className="text-xs font-medium">{t("locations.form.capacity")}</label><Input type="number" value={data.capacity ?? ""} onChange={(e) => onChange({ ...data, capacity: e.target.value ? parseInt(e.target.value) : null })} /></div>
       </div>
     </div>
   )
 }
 
 export function LocationsPage() {
+  const { t } = useTranslation()
   const [locations, setLocations] = useState<StockLocation[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,10 +90,10 @@ export function LocationsPage() {
   }, [load])
 
   const columns = useMemo<ColumnDef<StockLocation>[]>(() => [
-    { accessorKey: "name", header: "Nom" },
-    { accessorKey: "warehouse_name", header: "Entrepôt", cell: ({ getValue }) => <span>{(getValue() as string) ?? "—"}</span> },
-    { accessorKey: "type", header: "Type", cell: ({ getValue }) => { const v = getValue() as string; return <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 px-2 py-0.5 text-xs font-medium">{TYPE_LABELS[v] ?? v}</span> } },
-    { accessorKey: "capacity", header: "Capacité", cell: ({ getValue }) => { const v = getValue() as number | null; return <span className="tabular-nums">{v != null ? v : "—"}</span> } },
+    { accessorKey: "name", header: () => t("common.name") },
+    { accessorKey: "warehouse_name", header: () => t("locations.form.warehouse"), cell: ({ getValue }) => <span>{(getValue() as string) ?? "—"}</span> },
+    { accessorKey: "type", header: () => t("locations.type"), cell: ({ getValue }) => { const v = getValue() as string; return <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 px-2 py-0.5 text-xs font-medium">{({ rack: t("locations.type.rack"), bin: t("locations.type.bin"), shelf: t("locations.type.shelf"), drawer: t("locations.type.drawer"), cold: t("locations.type.cold"), other: t("locations.type.other") })[v] ?? v}</span> } },
+    { accessorKey: "capacity", header: () => t("locations.capacity"), cell: ({ getValue }) => { const v = getValue() as number | null; return <span className="tabular-nums">{v != null ? v : "—"}</span> } },
     { id: "actions", header: "", cell: ({ row }) => {
       const loc = row.original
       return <div className="flex justify-end gap-1">
@@ -107,24 +108,24 @@ export function LocationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div><h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><MapPin className="size-5" />Zones de Stock</h1><p className="text-sm text-muted-foreground">{locations.length} zone{locations.length !== 1 ? "s" : ""}</p></div>
-        <Button onClick={openCreate}><Plus className="size-4" />Nouvelle zone</Button>
+        <div><h1 className="text-2xl font-bold tracking-tight flex items-center gap-2"><MapPin className="size-5" />{t("locations.title")}</h1><p className="text-sm text-muted-foreground">{t("locations.count", { count: locations.length })}</p></div>
+        <Button onClick={openCreate}><Plus className="size-4" />{t("locations.new")}</Button>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm"><Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-8" placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-        <Select value={warehouseFilter} onValueChange={setWarehouseFilter}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__all__">Tous les entrepôts</SelectItem>{warehouses.map(w => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}</SelectContent></Select>
+        <div className="relative flex-1 min-w-[200px] max-w-sm"><Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-8" placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <Select value={warehouseFilter} onValueChange={setWarehouseFilter}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__all__">{t("common.all")}</SelectItem>{warehouses.map(w => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}</SelectContent></Select>
       </div>
       {loading ? <div className="space-y-3">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}</div>
-      : <Card><CardContent className="p-0"><Table><TableHeader>{table.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()} className={h.column.getCanSort() ? "cursor-pointer select-none" : ""}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: " ▲", desc: " ▼" }[h.column.getIsSorted() as string] ?? ""}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{table.getRowModel().rows.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucune zone de stock</TableCell></TableRow> : table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}</TableBody></Table></CardContent></Card>}
+      : <Card><CardContent className="p-0"><Table><TableHeader>{table.getHeaderGroups().map(hg => <TableRow key={hg.id}>{hg.headers.map(h => <TableHead key={h.id} onClick={h.column.getToggleSortingHandler()} className={h.column.getCanSort() ? "cursor-pointer select-none" : ""}>{flexRender(h.column.columnDef.header, h.getContext())}{{ asc: " ▲", desc: " ▼" }[h.column.getIsSorted() as string] ?? ""}</TableHead>)}</TableRow>)}</TableHeader><TableBody>{table.getRowModel().rows.length === 0 ? <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">{t("locations.empty")}</TableCell></TableRow> : table.getRowModel().rows.map(row => <TableRow key={row.id}>{row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}</TableRow>)}</TableBody></Table></CardContent></Card>}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{editingId ? "Modifier la zone" : "Nouvelle zone de stock"}</DialogTitle><DialogDescription>{editingId ? "Modifier les informations de la zone." : "Ajouter une nouvelle zone de stock à un entrepôt."}</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? t("locations.dialog.title") : t("locations.new")}</DialogTitle><DialogDescription>{t("locations.dialog.description")}</DialogDescription></DialogHeader>
           <div className="grid gap-3">
-            <div className="space-y-1"><label className="text-xs font-medium">Entrepôt *</label><NativeSelect value={String(formData.warehouse_id)} onChange={(v) => setFormData({ ...formData, warehouse_id: parseInt(v) })} placeholder="Sélectionner" options={warehouses.map(w => ({ value: String(w.id), label: w.name }))} /></div>
+            <div className="space-y-1"><label className="text-xs font-medium">{t("locations.form.warehouse")}</label><NativeSelect value={String(formData.warehouse_id)} onChange={(v) => setFormData({ ...formData, warehouse_id: parseInt(v) })} placeholder={t("common.select")} options={warehouses.map(w => ({ value: String(w.id), label: w.name }))} /></div>
             <LocationForm data={formData} onChange={setFormData} />
           </div>
-          <DialogFooter><DialogClose asChild><Button variant="outline">Annuler</Button></DialogClose><Button onClick={handleSave} disabled={saving || !formData.name || !formData.warehouse_id}>{saving ? "..." : editingId ? "Enregistrer" : "Créer"}</Button></DialogFooter>
+          <DialogFooter><DialogClose asChild><Button variant="outline">{t("common.cancel")}</Button></DialogClose><Button onClick={handleSave} disabled={saving || !formData.name || !formData.warehouse_id}>{saving ? t("common.saving") : editingId ? t("common.save") : t("common.create")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

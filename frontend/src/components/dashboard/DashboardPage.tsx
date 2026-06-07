@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import {
   DollarSign,
   Receipt,
@@ -40,6 +41,7 @@ import {
 } from "@/components/dashboard/charts"
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +74,7 @@ export function DashboardPage() {
   if (!data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 text-muted-foreground">
-        <p>Erreur lors du chargement du tableau de bord</p>
+        <p>{t("dashboard.error_load")}</p>
         {error && (
           <p className="text-xs max-w-md text-center text-destructive bg-destructive/10 px-4 py-2 rounded-md">
             {error}
@@ -84,7 +86,7 @@ export function DashboardPage() {
           className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline disabled:opacity-50"
         >
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-          Réessayer
+          {t("common.retry")}
         </button>
       </div>
     )
@@ -98,9 +100,9 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard Commercial</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("dashboard.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Vue d&apos;ensemble de votre activité
+            {t("dashboard.subtitle")}
           </p>
         </div>
         <DashboardFilters
@@ -116,30 +118,30 @@ export function DashboardPage() {
 
       <section>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Performance des Ventes
+          {t("dashboard.sales_performance")}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
-            label="CA Aujourd'hui"
+            label={t("dashboard.kpi.ca_today")}
             value={`${sales.ca_jour.toFixed(2)} DH`}
             icon={DollarSign}
             color="primary"
             trend={{ value: sales.ca_trend, direction: sales.ca_trend >= 0 ? "up" : "down" }}
           />
           <KpiCard
-            label="Ventes Aujourd'hui"
+            label={t("dashboard.kpi.sales_today")}
             value={sales.nb_ventes_jour}
             icon={Receipt}
             color="success"
           />
           <KpiCard
-            label="Ticket Moyen"
+            label={t("dashboard.kpi.avg_ticket")}
             value={`${sales.ticket_moyen.toFixed(2)} DH`}
             icon={Calculator}
             color="primary"
           />
           <KpiCard
-            label="Marge Brute"
+            label={t("dashboard.kpi.gross_margin")}
             value={`${margins.marge_globale.toFixed(1)}%`}
             icon={TrendingUp}
             color="success"
@@ -149,35 +151,35 @@ export function DashboardPage() {
 
       <section>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Situation Financière
+          {t("dashboard.financial_status")}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <KpiCard
-            label="Créances"
+            label={t("dashboard.kpi.receivables")}
             value={`${receivables.total_creances.toFixed(2)} DH`}
             icon={AlertTriangle}
             color="warning"
           />
           <KpiCard
-            label="Taux d'Encaissement"
+            label={t("dashboard.kpi.collection_rate")}
             value={`${receivables.taux_encaissement.toFixed(1)}%`}
             icon={CheckCircle}
             color="success"
           />
           <KpiCard
-            label="Valeur Stock"
+            label={t("dashboard.kpi.stock_value")}
             value={`${dashboard.total_value.toFixed(2)} DH`}
             icon={Package}
             color="primary"
           />
           <KpiCard
-            label="Ruptures"
+            label={t("dashboard.kpi.out_of_stock")}
             value={dashboard.out_of_stock}
             icon={XCircle}
             color="danger"
           />
           <KpiCard
-            label="Compte Principal"
+            label={t("dashboard.kpi.main_account")}
             value={`${mainAccount.account.current_balance.toFixed(2)} DH`}
             icon={Landmark}
             color="primary"
@@ -186,25 +188,25 @@ export function DashboardPage() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <ChartCard title="Ventes Journalières" description={`Total: ${totalSalesAmount.toFixed(2)} DH`}>
+        <ChartCard title={t("dashboard.chart.daily_sales")} description={`${t("common.total_prefix")} ${totalSalesAmount.toFixed(2)} DH`}>
           <SalesDailyChart data={salesDaily} />
         </ChartCard>
-        <ChartCard title="Ventes par Catégorie" description="Répartition des quantités vendues">
+        <ChartCard title={t("dashboard.chart.sales_by_category")} description={t("dashboard.chart.category_distribution")}>
           <CategoriesChart data={categoriesDistribution} />
         </ChartCard>
-        <ChartCard title="Top 10 Produits" description="Les plus vendus">
+        <ChartCard title={t("dashboard.chart.top_products")} description={t("dashboard.chart.best_sellers")}>
           <TopProductsChart data={topSelling} />
         </ChartCard>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <ChartCard title="État des Factures" description="Par statut">
+        <ChartCard title={t("dashboard.chart.invoice_status")} description={t("dashboard.chart.by_status")}>
           <InvoicesStatusChart data={invoicesStatus} />
         </ChartCard>
-        <ChartCard title="Mouvements Stock" description="Entrées / Sorties">
+        <ChartCard title={t("dashboard.chart.stock_movements")} description={t("dashboard.chart.in_out")}>
           <MovementsChart data={trends} />
         </ChartCard>
-        <ChartCard title="Répartition Marge" description="Par catégorie">
+        <ChartCard title={t("dashboard.chart.margin_distribution")} description={t("dashboard.chart.by_category")}>
           <MarginsChart data={margins} />
         </ChartCard>
       </div>
@@ -214,19 +216,19 @@ export function DashboardPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Package className="size-4" />
-              À Commander
+              {t("dashboard.to_order")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <MiniTable
-              columns={["Produit", "Stock", "Min", "À cmd"]}
+              columns={[t("common.product"), t("common.stock"), t("common.min"), t("dashboard.to_order")]}
               rows={dashboard.products_to_order.slice(0, 8).map((p) => [
                 p.name,
                 <span key={`s-${p.id}`} className={p.quantity <= 0 ? "text-red-600 font-medium" : ""}>{p.quantity}</span>,
                 p.min_quantity,
                 p.needed,
               ])}
-              emptyText="Aucun produit à commander"
+              emptyText={t("dashboard.empty.no_products_to_order")}
             />
           </CardContent>
         </Card>
@@ -234,18 +236,18 @@ export function DashboardPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <AlertTriangle className="size-4" />
-              Créances Clients
+              {t("dashboard.customer_receivables")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <MiniTable
-              columns={["Client", "Montant", "Échéance"]}
+              columns={[t("common.client"), t("common.amount"), t("common.due_date")]}
               rows={receivables.clients.slice(0, 8).map((c) => [
                 c.name,
                 `${c.montant.toFixed(2)} DH`,
                 c.premiere_echeance?.slice(0, 10) ?? "-",
               ])}
-              emptyText="Aucune créance"
+              emptyText={t("dashboard.empty.no_receivables")}
             />
           </CardContent>
         </Card>
@@ -258,18 +260,18 @@ export function DashboardPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <XCircle className="size-4 text-red-600" />
-                  Ruptures de Stock
+                  {t("dashboard.alerts.out_of_stock")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <MiniTable
-                  columns={["Produit", "Stock", "Min"]}
+                  columns={[t("common.product"), t("common.stock"), t("common.min")]}
                   rows={alertes.out_of_stock.slice(0, 8).map((p) => [
                     p.name,
                     <span key={`r-${p.id}`} className="text-red-600 font-medium">0</span>,
                     p.min_quantity,
                   ])}
-                  emptyText="Aucune rupture"
+                  emptyText={t("dashboard.alerts.empty_out_of_stock")}
                 />
               </CardContent>
             </Card>
@@ -279,12 +281,12 @@ export function DashboardPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <Package className="size-4" />
-                  Périmés
+                  {t("dashboard.alerts.expired")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <MiniTable
-                  columns={["Produit", "DLC", "Jours"]}
+                  columns={[t("common.product"), t("dashboard.alerts.expiry_date"), t("dashboard.alerts.days")]}
                   rows={alertes.expiring.slice(0, 8).map((p) => [
                     p.name,
                     p.expiry_date ?? "-",
@@ -292,7 +294,7 @@ export function DashboardPage() {
                       {p.days_left != null ? `${p.days_left} j` : "-"}
                     </span>,
                   ])}
-                  emptyText="Aucun produit périmé"
+                  emptyText={t("dashboard.alerts.empty_expired")}
                 />
               </CardContent>
             </Card>

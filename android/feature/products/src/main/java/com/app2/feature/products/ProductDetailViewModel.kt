@@ -2,8 +2,7 @@ package com.app2.feature.products
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.ProductApiService
-import com.app2.core.data.remote.MovementApiService
+import com.app2.core.data.repository.ProductRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,8 +55,7 @@ data class ProductDetailDisplayData(
 
 @HiltViewModel
 class ProductDetailViewModel @Inject constructor(
-    private val productApi: ProductApiService,
-    private val movementApi: MovementApiService
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ViewState<ProductDetailDisplayData>>(ViewState.Loading)
@@ -71,7 +69,7 @@ class ProductDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ViewState.Loading
             try {
-                val response = productApi.getProduct(id)
+                val response = productRepository.getProductRaw(id)
                 _state.value = ViewState.Loaded(parseProductDetail(response))
             } catch (e: Exception) {
                 _state.value = ViewState.Error(e.message ?: "Erreur de chargement du produit")

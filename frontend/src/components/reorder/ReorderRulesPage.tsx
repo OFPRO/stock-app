@@ -54,8 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-const TRIGGER_LABELS: Record<string, string> = { manual: "Manuel", auto: "Automatique" }
+import { useTranslation } from "react-i18next"
 
 function ReorderRuleForm({
   data,
@@ -70,14 +69,15 @@ function ReorderRuleForm({
   suppliers: Supplier[]
   warehouses: Warehouse[]
 }) {
+  const { t } = useTranslation()
   return (
     <div className="grid gap-3">
       <div className="space-y-1">
-        <label className="text-xs font-medium">Produit *</label>
+        <label className="text-xs font-medium">{t("reorder.form.product")}</label>
         <NativeSelect
           value={String(data.product_id)}
           onChange={(v) => onChange({ ...data, product_id: parseInt(v) })}
-          placeholder="Sélectionner un produit"
+          placeholder={t("reorder.form.select_product")}
           options={products.map((p) => ({ value: String(p.id), label: `${p.name} (${p.sku})` }))}
         />
       </div>
@@ -91,20 +91,20 @@ function ReorderRuleForm({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium">Type de déclenchement</label>
+          <label className="text-xs font-medium">{t("reorder.form.trigger_type")}</label>
           <NativeSelect
             value={data.trigger_type ?? "manual"}
             onChange={(v) => onChange({ ...data, trigger_type: v })}
             options={[
-              { value: "manual", label: "Manuel" },
-              { value: "auto", label: "Automatique" },
+              { value: "manual", label: t("reorder.trigger.manual") },
+              { value: "auto", label: t("reorder.trigger.auto") },
             ]}
           />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium">Quantité minimale</label>
+          <label className="text-xs font-medium">{t("reorder.form.min_qty")}</label>
           <Input
             type="number"
             min={0}
@@ -113,7 +113,7 @@ function ReorderRuleForm({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium">Quantité maximale</label>
+          <label className="text-xs font-medium">{t("reorder.form.max_qty")}</label>
           <Input
             type="number"
             min={0}
@@ -123,7 +123,7 @@ function ReorderRuleForm({
         </div>
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium">Fournisseur</label>
+        <label className="text-xs font-medium">{t("reorder.supplier")}</label>
         <NativeSelect
           value={String(data.supplier_id ?? "")}
           onChange={(v) => onChange({ ...data, supplier_id: v ? parseInt(v) : null })}
@@ -148,6 +148,7 @@ export function ReorderRulesPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState<ReorderRuleFormData>({ product_id: 0 })
   const [saving, setSaving] = useState(false)
+  const { t } = useTranslation()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -228,10 +229,10 @@ export function ReorderRulesPage() {
   }, [load])
 
   const columns = useMemo<ColumnDef<ReorderRule>[]>(() => [
-    { accessorKey: "product_name", header: "Produit", cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
+    { accessorKey: "product_name", header: t("common.product"), cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
     {
       accessorKey: "current_qty",
-      header: "Stock",
+      header: t("common.stock"),
       cell: ({ getValue, row }) => {
         const qty = getValue() as number
         const min = row.original.min_quantity
@@ -240,9 +241,9 @@ export function ReorderRulesPage() {
       },
     },
     { accessorKey: "min_quantity", header: "Min", cell: ({ getValue }) => <span className="tabular-nums">{getValue() as number}</span> },
-    { accessorKey: "max_quantity", header: "Max", cell: ({ getValue }) => <span className="tabular-nums">{getValue() as number}</span> },
-    { accessorKey: "trigger_type", header: "Déclenchement", cell: ({ getValue }) => { const v = getValue() as string; return <span className="text-xs">{TRIGGER_LABELS[v] ?? v}</span> } },
-    { accessorKey: "supplier_name", header: "Fournisseur", cell: ({ getValue }) => { const v = getValue() as string | null; return v ? <span className="text-xs text-muted-foreground">{v}</span> : <span className="text-xs text-muted-foreground">—</span> } },
+    { accessorKey: "max_quantity", header: t("reorder.max"), cell: ({ getValue }) => <span className="tabular-nums">{getValue() as number}</span> },
+    { accessorKey: "trigger_type", header: t("reorder.trigger"), cell: ({ getValue }) => { const v = getValue() as string; return <span className="text-xs">{t(v === "manual" ? "reorder.trigger.manual" : "reorder.trigger.auto")}</span> } },
+    { accessorKey: "supplier_name", header: t("reorder.supplier"), cell: ({ getValue }) => { const v = getValue() as string | null; return v ? <span className="text-xs text-muted-foreground">{v}</span> : <span className="text-xs text-muted-foreground">—</span> } },
     {
       id: "actions",
       header: "",
@@ -272,21 +273,21 @@ export function ReorderRulesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Règles de Réapprovisionnement</h1>
-          <p className="text-sm text-muted-foreground">{rules.length} règle{rules.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("reorder.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("reorder.count", { count: rules.length })}</p>
         </div>
-        <Button onClick={openCreate}><Plus className="size-4" />Nouvelle règle</Button>
+        <Button onClick={openCreate}><Plus className="size-4" />{t("reorder.new")}</Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pl-8" placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">Tous les entrepôts</SelectItem>
+            <SelectItem value="__all__">{t("common.all")}</SelectItem>
             {warehouses.map((w) => (
               <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>
             ))}
@@ -314,7 +315,7 @@ export function ReorderRulesPage() {
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows.length === 0 ? (
-                  <TableRow><TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">Aucune règle trouvée</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">{t("reorder.empty")}</TableCell></TableRow>
                 ) : (
                   table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
@@ -333,14 +334,14 @@ export function ReorderRulesPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Modifier la règle" : "Nouvelle règle"}</DialogTitle>
-            <DialogDescription>Définissez les paramètres de réapprovisionnement.</DialogDescription>
+            <DialogTitle>{editingId ? t("reorder.dialog.title") : t("reorder.new")}</DialogTitle>
+            <DialogDescription>{t("reorder.dialog.description")}</DialogDescription>
           </DialogHeader>
           <ReorderRuleForm data={formData} onChange={setFormData} products={products} suppliers={suppliers} warehouses={warehouses} />
           <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Annuler</Button></DialogClose>
+            <DialogClose asChild><Button variant="outline">{t("common.cancel")}</Button></DialogClose>
             <Button onClick={handleSave} disabled={saving || !formData.product_id}>
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

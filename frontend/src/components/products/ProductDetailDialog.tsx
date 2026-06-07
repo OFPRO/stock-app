@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { Package, Info, Boxes, DollarSign, Truck, History, MapPin, ShoppingCart, AlertTriangle, ExternalLink } from "lucide-react"
 import { getProduct, type ProductDetail } from "@/lib/api"
@@ -45,6 +46,7 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
 }
 
 export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [data, setData] = useState<ProductDetail | null>(null)
   const [loading, setLoading] = useState(false)
@@ -67,10 +69,10 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="size-4" />
-            {loading ? "Chargement..." : p?.name ?? "Détails produit"}
+            {loading ? t("common.loading") : p?.name ?? t("product_detail.dialog.title")}
           </DialogTitle>
           <DialogDescription>
-            {p ? <>SKU: <span className="font-mono">{p.sku}</span>{p.barcode ? <> &middot; Code-barres: {p.barcode}</> : null}</> : ""}
+            {p ? <>SKU: <span className="font-mono">{p.sku}</span>{p.barcode ? <> &middot; {t("product_detail.barcode_prefix")} {p.barcode}</> : null}</> : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -81,15 +83,15 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
             <Skeleton className="h-32 w-full" />
           </div>
         ) : !data ? (
-          <p className="text-center py-8 text-muted-foreground">Impossible de charger les détails du produit.</p>
+          <p className="text-center py-8 text-muted-foreground">{t("product_detail.dialog.load_error")}</p>
         ) : (
           <Tabs defaultValue="overview" className="mt-2">
             <TabsList className="grid grid-cols-5 mb-4">
-              <TabsTrigger value="overview"><Info className="size-3.5" /><span className="hidden sm:inline ml-1">Aperçu</span></TabsTrigger>
-              <TabsTrigger value="stock"><Boxes className="size-3.5" /><span className="hidden sm:inline ml-1">Stock</span></TabsTrigger>
-              <TabsTrigger value="pricing"><DollarSign className="size-3.5" /><span className="hidden sm:inline ml-1">Prix</span></TabsTrigger>
-              <TabsTrigger value="supplier"><Truck className="size-3.5" /><span className="hidden sm:inline ml-1">Fournisseur</span></TabsTrigger>
-              <TabsTrigger value="movements"><History className="size-3.5" /><span className="hidden sm:inline ml-1">Historique</span></TabsTrigger>
+              <TabsTrigger value="overview"><Info className="size-3.5" /><span className="hidden sm:inline ml-1">{t("product_detail.tab.overview")}</span></TabsTrigger>
+              <TabsTrigger value="stock"><Boxes className="size-3.5" /><span className="hidden sm:inline ml-1">{t("product_detail.tab.stock")}</span></TabsTrigger>
+              <TabsTrigger value="pricing"><DollarSign className="size-3.5" /><span className="hidden sm:inline ml-1">{t("product_detail.tab.pricing")}</span></TabsTrigger>
+              <TabsTrigger value="supplier"><Truck className="size-3.5" /><span className="hidden sm:inline ml-1">{t("product_detail.tab.supplier")}</span></TabsTrigger>
+              <TabsTrigger value="movements"><History className="size-3.5" /><span className="hidden sm:inline ml-1">{t("product_detail.tab.movements")}</span></TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
@@ -97,23 +99,23 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Card>
                   <CardContent className="p-4">
-                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><Info className="size-3.5" />Informations Générales</h4>
-                    <DetailRow label="Nom" value={p?.name} />
-                    <DetailRow label="Nom Arabe" value={p?.name_ar} />
-                    <DetailRow label="Catégorie" value={p?.category} />
-                    <DetailRow label="Barcode" value={p?.barcode} />
-                    <DetailRow label="Entrepôt" value={p?.warehouse_name} />
-                    <DetailRow label="Emplacement" value={p?.location_name} />
+                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><Info className="size-3.5" />{t("product_detail.general_info")}</h4>
+                    <DetailRow label={t("common.name")} value={p?.name} />
+                    <DetailRow label={t("product_detail.arabic_name")} value={p?.name_ar} />
+                    <DetailRow label={t("products.category")} value={p?.category} />
+                    <DetailRow label={t("products.barcode")} value={p?.barcode} />
+                    <DetailRow label={t("products.warehouse")} value={p?.warehouse_name} />
+                    <DetailRow label={t("product_detail.locations")} value={p?.location_name} />
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><AlertTriangle className="size-3.5" />Seuils & Alertes</h4>
-                    <DetailRow label="Stock Actuel" value={p?.quantity} highlight />
-                    <DetailRow label="Stock Minimum" value={p?.min_quantity} />
-                    <DetailRow label="Stock Maximum" value={p?.max_quantity} />
-                    <DetailRow label="Expiry" value={p?.expiry_date} />
-                    <DetailRow label="Lot" value={p?.lot_number} />
+                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><AlertTriangle className="size-3.5" />{t("product_detail.thresholds_alerts")}</h4>
+                    <DetailRow label={t("product_detail.current_stock")} value={p?.quantity} highlight />
+                    <DetailRow label={t("product_detail.min_stock")} value={p?.min_quantity} />
+                    <DetailRow label={t("product_detail.max_stock")} value={p?.max_quantity} />
+                    <DetailRow label={t("product_detail.expiry")} value={p?.expiry_date} />
+                    <DetailRow label={t("product_detail.lot")} value={p?.lot_number} />
                   </CardContent>
                 </Card>
               </div>
@@ -122,15 +124,15 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
             {/* Stock Tab */}
             <TabsContent value="stock" className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatCard icon={<Boxes className="size-4" />} label="Stock actuel" value={String(p?.quantity ?? 0)} color="text-primary" />
-                <StatCard icon={<ShoppingCart className="size-4" />} label="Achats totaux" value={`${data.purchase_stats.total_qty} (${data.purchase_stats.total_purchases.toFixed(2)} DH)`} />
-                <StatCard icon={<DollarSign className="size-4" />} label="Ventes totales" value={`${data.sales_stats.total_qty} (${data.sales_stats.total_sales.toFixed(2)} DH)`} />
-                <StatCard icon={<MapPin className="size-4" />} label="Emplacements" value={String(data.stock_locations.length)} />
+                <StatCard icon={<Boxes className="size-4" />} label={t("product_detail.current_stock")} value={String(p?.quantity ?? 0)} color="text-primary" />
+                <StatCard icon={<ShoppingCart className="size-4" />} label={t("product_detail.total_purchases")} value={`${data.purchase_stats.total_qty} (${data.purchase_stats.total_purchases.toFixed(2)} DH)`} />
+                <StatCard icon={<DollarSign className="size-4" />} label={t("product_detail.total_sales")} value={`${data.sales_stats.total_qty} (${data.sales_stats.total_sales.toFixed(2)} DH)`} />
+                <StatCard icon={<MapPin className="size-4" />} label={t("product_detail.locations")} value={String(data.stock_locations.length)} />
               </div>
               {data.stock_locations.length > 0 && (
                 <Card>
                   <CardContent className="p-4">
-                    <h4 className="text-sm font-semibold mb-2">Stock par Emplacement</h4>
+                    <h4 className="text-sm font-semibold mb-2">{t("product_detail.stock_by_location")}</h4>
                     {data.stock_locations.map((loc, i) => (
                       <DetailRow key={i} label={loc.location_name} value={loc.quantity} />
                     ))}
@@ -142,28 +144,27 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
             {/* Pricing Tab */}
             <TabsContent value="pricing" className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatCard icon={<DollarSign className="size-4" />} label="Prix vente" value={`${p?.price.toFixed(2)} DH`} color="text-primary" />
-                <StatCard icon={<DollarSign className="size-4" />} label="Prix achat" value={`${(p?.purchase_price_avg ?? 0).toFixed(2)} DH`} />
-                <StatCard icon={<DollarSign className="size-4" />} label="Marge" value={`${p?.margin_percent ?? 0}%`} color="text-emerald-600" />
-                <StatCard icon={<DollarSign className="size-4" />} label="Remise" value={`${p?.discount_rate ?? 0}%`} color="text-amber-600" />
+                <StatCard icon={<DollarSign className="size-4" />} label={t("product_detail.sale_price")} value={`${p?.price.toFixed(2)} DH`} color="text-primary" />
+                <StatCard icon={<DollarSign className="size-4" />} label={t("product_detail.purchase_price")} value={`${(p?.purchase_price_avg ?? 0).toFixed(2)} DH`} />
+                <StatCard icon={<DollarSign className="size-4" />} label={t("product_detail.margin")} value={`${p?.margin_percent ?? 0}%`} color="text-emerald-600" />
+                <StatCard icon={<DollarSign className="size-4" />} label={t("product_detail.discount")} value={`${p?.discount_rate ?? 0}%`} color="text-amber-600" />
               </div>
               <Card>
                 <CardContent className="p-4">
-                  <h4 className="text-sm font-semibold mb-3">Tarifs par Catégorie Client</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <PriceTier label="Normal" value={p?.price_base ?? p?.price ?? 0} />
-                    <PriceTier label="Étudiant (-15%)" value={p?.price_student ?? p?.price ?? 0} />
-                    <PriceTier label="École (-20%)" value={p?.price_school ?? p?.price ?? 0} />
-                    <PriceTier label="Fidèle (-15%)" value={p?.price_loyal ?? p?.price ?? 0} />
+                  <h4 className="text-sm font-semibold mb-3">{t("product_detail.pricing_by_customer")}</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <PriceTier label={t("pos.pricing_tier.normal")} value={p?.price_base ?? p?.price ?? 0} />
+                    <PriceTier label={t("pos.pricing_tier.loyal")} value={p?.price_loyal ?? p?.price ?? 0} />
+                    <PriceTier label={t("pos.pricing_tier.bulk")} value={p?.price_gros ?? p?.price ?? 0} />
                   </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <h4 className="text-sm font-semibold mb-3">Taxes & Remises</h4>
-                  <DetailRow label="TVA" value={`${p?.tax_category ?? 0}%`} />
-                  <DetailRow label="Catégorie Remise" value={p?.discount_category ?? "Aucune"} />
-                  <DetailRow label="Taux Remise" value={p?.discount_rate ? `${p.discount_rate}%` : "0%"} />
+                  <h4 className="text-sm font-semibold mb-3">{t("product_detail.taxes_discounts")}</h4>
+                  <DetailRow label={t("product_detail.tva")} value={`${p?.tax_category ?? 0}%`} />
+                  <DetailRow label={t("product_detail.discount_category")} value={p?.discount_category ?? t("common.none")} />
+                  <DetailRow label={t("product_detail.discount_rate")} value={p?.discount_rate ? `${p.discount_rate}%` : "0%"} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -180,12 +181,12 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
                         {p.supplier_email && <p className="text-xs text-muted-foreground">{p.supplier_email}</p>}
                       </div>
                     </div>
-                    <DetailRow label="Email" value={p.supplier_email} />
-                    <DetailRow label="Téléphone" value={p.supplier_phone} />
+                    <DetailRow label={t("common.email")} value={p.supplier_email} />
+                    <DetailRow label={t("common.phone")} value={p.supplier_phone} />
                   </CardContent>
                 </Card>
               ) : (
-                <p className="text-center py-8 text-muted-foreground">Aucun fournisseur associé à ce produit.</p>
+                <p className="text-center py-8 text-muted-foreground">{t("product_detail.no_supplier")}</p>
               )}
             </TabsContent>
 
@@ -200,7 +201,7 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
                           <div className="flex items-center gap-2">
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                               m.type === "in" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                            }`}>{m.type === "in" ? "Entrée" : "Sortie"}</span>
+                            }`}>{m.type === "in" ? t("movements.in") : t("movements.out")}</span>
                             <span className="text-muted-foreground text-xs">{m.note}</span>
                           </div>
                           <div className="flex items-center gap-3">
@@ -213,7 +214,7 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
                   </CardContent>
                 </Card>
               ) : (
-                <p className="text-center py-8 text-muted-foreground">Aucun mouvement pour ce produit.</p>
+                <p className="text-center py-8 text-muted-foreground">{t("product_detail.no_movements")}</p>
               )}
             </TabsContent>
           </Tabs>
@@ -222,10 +223,10 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
         <div className="flex justify-between pt-2 border-t">
           <Button variant="link" size="sm" onClick={() => navigate(`/product/${productId}`)}>
             <ExternalLink className="size-3.5 mr-1" />
-            Plus de détails
+            {t("product_detail.more_details")}
           </Button>
           <DialogClose asChild>
-            <Button variant="outline">Fermer</Button>
+            <Button variant="outline">{t("common.close")}</Button>
           </DialogClose>
         </div>
       </DialogContent>

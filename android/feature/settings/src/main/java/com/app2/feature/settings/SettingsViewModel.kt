@@ -2,8 +2,8 @@ package com.app2.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.AdminApiService
 import com.app2.core.data.network.ApiConstants
+import com.app2.core.data.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +20,7 @@ data class SettingsState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val adminApi: AdminApiService
+    private val adminRepository: AdminRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -30,7 +30,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isResetting = true, message = null, error = null)
             try {
-                adminApi.resetData()
+                adminRepository.resetData()
                 _state.value = _state.value.copy(isResetting = false, message = "Données réinitialisées avec succès")
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isResetting = false, error = "Erreur: ${e.message}")
@@ -42,7 +42,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isSeeding = true, message = null, error = null)
             try {
-                adminApi.seedData()
+                adminRepository.seedData()
                 _state.value = _state.value.copy(isSeeding = false, message = "Données de test générées avec succès")
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isSeeding = false, error = "Erreur: ${e.message}")

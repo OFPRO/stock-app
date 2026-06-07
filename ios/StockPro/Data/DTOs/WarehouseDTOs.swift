@@ -27,7 +27,7 @@ struct WarehouseCreateRequest: Encodable {
     let manager: String?
 }
 
-struct WarehouseListItem: Identifiable {
+struct WarehouseListItem: Identifiable, Hashable {
     let id: Int
     let name: String
     let address: String

@@ -1,0 +1,26 @@
+═══════════════════════════════════════════
+ StockPro — Gestion de Stock  v0.7
+ Bibliotheque Badr, Marrakech
+═══════════════════════════════════════════
+
+INSTALLATEUR WINDOWS :
+  StockPro-Setup.exe  (14 Mo)
+  Lancez-le pour installer StockPro.
+  Nécessite Windows 10/11, 64-bit.
+  Administrateur requis.
+
+PORTABLE (macOS / Linux) :
+  StockPro-Portable.zip  (version source)
+  Décompressez et lancez start.command (Mac)
+  ou start.bat (Windows sans install).
+
+NOUVEAUTÉS v0.7 :
+  • 22 correctifs de qualité (audit gstack + bmad)
+  • 3 correctifs critiques (sécurité données)
+  • 5 correctifs hautes (fuites connexions, caisse)
+  • 8 correctifs moyens (race conditions, SQL)
+  • 3+ correctifs bas (tri, nettoyage)
+  • Tests : 114/114 OK
+
+Plus d'infos :
+  https://github.com/OFPRO/stock-app

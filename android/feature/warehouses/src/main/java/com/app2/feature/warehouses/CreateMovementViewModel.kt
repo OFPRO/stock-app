@@ -2,38 +2,19 @@ package com.app2.feature.warehouses
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.LocationApiService
-import com.app2.core.data.remote.MovementApiService
-import com.app2.core.data.remote.ProductApiService
-import com.app2.core.data.remote.WarehouseApiService
+import com.app2.core.data.repository.LocationRepository
+import com.app2.core.data.repository.MovementRepository
+import com.app2.core.data.repository.ProductRepository
+import com.app2.core.data.repository.WarehouseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import javax.inject.Inject
-
-private fun JsonElement?.optString(): String? {
-    val prim = this?.jsonPrimitive
-    return if (prim != null && prim !is JsonNull) prim.content else null
-}
-
-private fun JsonElement?.optInt(): Int? =
-    this?.jsonPrimitive?.intOrNull
-
-private fun JsonElement?.optDouble(): Double? =
-    this?.jsonPrimitive?.doubleOrNull
 
 data class ProductSearchItem(
     val id: Int,
@@ -44,10 +25,10 @@ data class ProductSearchItem(
 
 @HiltViewModel
 class CreateMovementViewModel @Inject constructor(
-    private val movementApi: MovementApiService,
-    private val productApi: ProductApiService,
-    private val locationApi: LocationApiService,
-    private val warehouseApi: WarehouseApiService
+    private val movementRepository: MovementRepository,
+    private val productRepository: ProductRepository,
+    private val locationRepository: LocationRepository,
+    private val warehouseRepository: WarehouseRepository
 ) : ViewModel() {
 
     private val _movementType = MutableStateFlow("in")
@@ -106,10 +87,29 @@ class CreateMovementViewModel @Inject constructor(
         dataLoaded = true
         viewModelScope.launch {
             try {
-                _locations.value = parseLocationList(locationApi.getLocations(warehouseId = null))
+                _locations.value = locationRepository.getLocations(warehouseId = null).map { dto ->
+                    LocationListItem(
+                        id = dto.id,
+                        warehouseId = dto.warehouseId,
+                        name = dto.name,
+                        type = dto.type,
+                        capacity = dto.capacity,
+                        createdAt = dto.createdAt
+                    )
+                }
             } catch (_: Exception) {}
             try {
-                _warehouses.value = parseWarehouseList(warehouseApi.getWarehouses())
+                _warehouses.value = warehouseRepository.getWarehouses().map { dto ->
+                    WarehouseListItem(
+                        id = dto.id,
+                        name = dto.name,
+                        address = dto.address,
+                        manager = dto.manager,
+                        phone = dto.phone,
+                        isDefault = dto.isDefault == 1,
+                        createdAt = dto.createdAt
+                    )
+                }
             } catch (_: Exception) {}
         }
     }
@@ -134,8 +134,14 @@ class CreateMovementViewModel @Inject constructor(
         searchJob = viewModelScope.launch {
             delay(300)
             try {
-                val response = productApi.getProductsForSale(search = query)
-                _productSearchResults.value = parseProductSearchResults(response)
+                _productSearchResults.value = productRepository.getProductsForSale(search = query).map {
+                    ProductSearchItem(
+                        id = it.id,
+                        name = it.name,
+                        sku = it.sku,
+                        quantity = it.quantity
+                    )
+                }
             } catch (_: Exception) {}
         }
     }
@@ -207,7 +213,7 @@ class CreateMovementViewModel @Inject constructor(
                             put("note", _note.value.ifBlank { "" })
                             _selectedLocationId.value?.let { put("location_id", it) }
                         }
-                        movementApi.createMovement(product.id, body)
+                        movementRepository.createMovement(product.id, body)
                     }
                     "transfer" -> {
                         val body = buildJsonObject {
@@ -217,7 +223,7 @@ class CreateMovementViewModel @Inject constructor(
                             _toLocationId.value?.let { put("to_location_id", it) }
                             put("note", _note.value.ifBlank { "Transfert" })
                         }
-                        movementApi.transferStock(body)
+                        movementRepository.transferStock(body)
                     }
                     "inter_warehouse" -> {
                         val body = buildJsonObject {
@@ -227,7 +233,7 @@ class CreateMovementViewModel @Inject constructor(
                             _toWarehouseId.value?.let { put("to_warehouse_id", it) }
                             put("note", _note.value.ifBlank { "Transfert inter-entrepôt" })
                         }
-                        movementApi.interWarehouseTransfer(body)
+                        movementRepository.interWarehouseTransfer(body)
                     }
                 }
                 onSuccess()
@@ -236,50 +242,6 @@ class CreateMovementViewModel @Inject constructor(
             } finally {
                 _isLoading.value = false
             }
-        }
-    }
-
-    private fun parseProductSearchResults(json: JsonElement): List<ProductSearchItem> {
-        return json.jsonArray.mapNotNull { item ->
-            val obj = item.jsonObject
-            val id = obj["id"].optInt() ?: return@mapNotNull null
-            ProductSearchItem(
-                id = id,
-                name = obj["name"].optString() ?: "",
-                sku = obj["sku"].optString() ?: "",
-                quantity = obj["quantity"].optInt() ?: 0
-            )
-        }
-    }
-
-    private fun parseLocationList(json: JsonElement): List<LocationListItem> {
-        return json.jsonArray.mapNotNull { item ->
-            val obj = item.jsonObject
-            val id = obj["id"].optInt() ?: return@mapNotNull null
-            LocationListItem(
-                id = id,
-                warehouseId = obj["warehouse_id"].optInt() ?: 0,
-                name = obj["name"].optString() ?: "",
-                type = obj["type"].optString(),
-                capacity = obj["capacity"].optInt(),
-                createdAt = obj["created_at"].optString()
-            )
-        }
-    }
-
-    private fun parseWarehouseList(json: JsonElement): List<WarehouseListItem> {
-        return json.jsonArray.mapNotNull { item ->
-            val obj = item.jsonObject
-            val id = obj["id"].optInt() ?: return@mapNotNull null
-            WarehouseListItem(
-                id = id,
-                name = obj["name"].optString() ?: "",
-                address = obj["address"].optString(),
-                manager = obj["manager"].optString(),
-                phone = obj["phone"].optString(),
-                isDefault = obj["is_default"].optInt() == 1,
-                createdAt = obj["created_at"].optString()
-            )
         }
     }
 }

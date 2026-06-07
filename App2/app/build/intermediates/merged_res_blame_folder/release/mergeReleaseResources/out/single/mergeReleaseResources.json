@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.app2.app-release-71:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.app2.app-main-72:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "com.app2.app-release-71:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.app2.app-main-72:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.app2.app-release-71:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.app2.app-main-72:/mipmap-anydpi-v26/ic_launcher.xml"
+    }
+]

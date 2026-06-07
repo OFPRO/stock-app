@@ -10,7 +10,8 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.App2">
+        android:theme="@style/Theme.App2"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"

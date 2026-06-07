@@ -27,6 +27,12 @@ object DatabaseModule {
     fun provideProductDao(db: AppDatabase) = db.productDao()
 
     @Provides
+    fun provideOrderDao(db: AppDatabase) = db.orderDao()
+
+    @Provides
+    fun provideOrderItemDao(db: AppDatabase) = db.orderItemDao()
+
+    @Provides
     fun provideCustomerDao(db: AppDatabase) = db.customerDao()
 
     @Provides
@@ -39,8 +45,20 @@ object DatabaseModule {
     fun provideInvoiceDao(db: AppDatabase) = db.invoiceDao()
 
     @Provides
+    fun provideInvoiceItemDao(db: AppDatabase) = db.invoiceItemDao()
+
+    @Provides
     fun provideNotificationDao(db: AppDatabase) = db.notificationDao()
 
     @Provides
     fun providePOSSessionDao(db: AppDatabase) = db.posSessionDao()
+
+    @Provides
+    fun provideLocationDao(db: AppDatabase) = db.locationDao()
+
+    @Provides
+    fun provideMovementDao(db: AppDatabase) = db.movementDao()
+
+    @Provides
+    fun provideReorderRuleDao(db: AppDatabase) = db.reorderRuleDao()
 }

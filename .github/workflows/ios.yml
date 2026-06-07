@@ -1,0 +1,34 @@
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ios/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ios/**"
+
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate --spec project.yml
+      - name: Build
+        run: |
+          xcodebuild -project StockPro.xcodeproj \
+                     -scheme StockPro \
+                     -sdk iphonesimulator \
+                     -destination 'platform=iOS Simulator,name=iPhone 16' \
+                     build | xcpretty

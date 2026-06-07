@@ -25,7 +25,7 @@ final class KPIProvider: KPIProviderProtocol {
     }
 
     func fetchPOSKPIs() async throws -> DashboardPOSKPIs {
-        let sessions: SessionsSummaryDTO = try await api.request(.sessionsSummary)
+        let sessions: SessionsSummaryDTO = try await api.request(.sessionsSummary(period: 30))
         let payments: PaymentMethodsDTO = try await api.request(.paymentMethods)
         return DashboardPOSKPIs(
             total: String(format: "%.2f MAD", sessions.total_sales_period ?? 0),
@@ -114,7 +114,13 @@ struct DashboardKPIDTO: Decodable {
 }
 
 struct SessionsSummaryDTO: Decodable {
+    let total_sessions: Int?
+    let closed_sessions: Int?
+    let open_sessions: Int?
+    let total_closing_cash: Double?
+    let total_expected_cash: Double?
     let total_sales_period: Double?
+    let nb_transactions_period: Int?
 }
 
 struct PaymentMethodsDTO: Decodable {

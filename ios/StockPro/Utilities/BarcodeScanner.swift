@@ -1,6 +1,7 @@
 import AVFoundation
 #if canImport(UIKit)
 import UIKit
+import SwiftUI
 
 final class BarcodeScannerCoordinator: NSObject, AVCaptureMetadataOutputObjectsDelegate {
     var onScan: ((String) -> Void)?
@@ -17,6 +18,13 @@ final class BarcodeScannerCoordinator: NSObject, AVCaptureMetadataOutputObjectsD
     }
 }
 
+final class PreviewUIView: UIView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        layer.sublayers?.compactMap { $0 as? AVCaptureVideoPreviewLayer }.first?.frame = bounds
+    }
+}
+
 struct BarcodeScannerPreview: UIViewRepresentable {
     let session: AVCaptureSession
     let onScan: (String) -> Void
@@ -28,12 +36,11 @@ struct BarcodeScannerPreview: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
+        let view = PreviewUIView(frame: .zero)
         view.backgroundColor = .black
 
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = view.bounds
         view.layer.addSublayer(previewLayer)
 
         let output = AVCaptureMetadataOutput()
@@ -46,8 +53,6 @@ struct BarcodeScannerPreview: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
-        guard let layer = uiView.layer.sublayers?.first as? AVCaptureVideoPreviewLayer else { return }
-        layer.frame = uiView.bounds
     }
 }
 

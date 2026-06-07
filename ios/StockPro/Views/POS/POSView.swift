@@ -1,26 +1,30 @@
 import SwiftUI
 import AVFoundation
+import UIKit
 
 struct POSView: View {
     @StateObject private var viewModel = POSViewModel()
+    @State private var pendingOutOfStock: ForSaleProductDTO?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                if !Reachability.shared.isConnected {
-                    offlineBanner
+            ZStack {
+                VStack(spacing: 0) {
+                    sessionHeader
+
+                    if viewModel.isLoadingSession {
+                        Spacer()
+                        ProgressView("Chargement de la caisse...")
+                        Spacer()
+                    } else if viewModel.sessionIsOpen {
+                        openSessionContent
+                    } else {
+                        closedSessionContent
+                    }
                 }
 
-                sessionHeader
-
-                if viewModel.isLoadingSession {
-                    Spacer()
-                    ProgressView("Chargement de la caisse...")
-                    Spacer()
-                } else if viewModel.sessionIsOpen {
-                    openSessionContent
-                } else {
-                    closedSessionContent
+                if !Reachability.shared.isConnected {
+                    offlineFullScreen
                 }
             }
             .background(AppColor.background)
@@ -34,6 +38,9 @@ struct POSView: View {
                         }
                     }
                 }
+            }
+            .sheet(isPresented: $viewModel.showTierPicker) {
+                tierPickerSheet
             }
             .sheet(isPresented: $viewModel.showScanner) {
                 POSScannerSheet { code in
@@ -55,6 +62,9 @@ struct POSView: View {
             .sheet(isPresented: $viewModel.showReceipt) {
                 receiptSheet
             }
+            .sheet(isPresented: $viewModel.showCloseSession) {
+                closeSessionSheet
+            }
             .alert("Caisse", isPresented: .init(
                 get: { viewModel.sessionErrorMessage != nil },
                 set: { if !$0 { viewModel.sessionErrorMessage = nil } }
@@ -69,16 +79,24 @@ struct POSView: View {
 
     // MARK: - Offline
 
-    private var offlineBanner: some View {
-        HStack {
-            Image(systemName: "wifi.slash")
-            Text("Connexion requise pour la caisse")
-        }
-        .font(.caption.weight(.medium))
-        .foregroundStyle(.white)
-        .frame(maxWidth: .infinity)
-        .padding(8)
-        .background(AppColor.error)
+    private var offlineFullScreen: some View {
+        Color.black.opacity(0.85)
+            .ignoresSafeArea()
+            .overlay {
+                VStack(spacing: 20) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 56))
+                        .foregroundStyle(.white)
+                    Text("Connexion requise")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text("La caisse nécessite une connexion Internet active.")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+            }
     }
 
     // MARK: - Session Header
@@ -94,6 +112,23 @@ struct POSView: View {
                 Text(s.session_number ?? "")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                Text(String(format: "%.0f MAD", viewModel.cashBalance))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(AppColor.success)
+                Button {
+                    viewModel.showCashMovements = true
+                } label: {
+                    Image(systemName: "banknote")
+                        .font(.caption)
+                }
+                .foregroundStyle(AppColor.brand)
+                Button("Fermer") {
+                    viewModel.closingCashText = String(format: "%.0f", viewModel.expectedCash)
+                    viewModel.showCloseSession = true
+                }
+                .font(.caption.weight(.medium))
+                .foregroundStyle(AppColor.error)
+                .padding(.leading, 4)
             }
         }
         .padding(.horizontal)
@@ -118,35 +153,22 @@ struct POSView: View {
     private var topActionRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                StockButton("Scanner", variant: .secondary, icon: "barcode.viewfinder") {
+                StockButton("Scanner", variant: .primary, icon: "barcode.viewfinder", compact: true) {
                     viewModel.showScanner = true
                 }
-                .fixedSize()
 
-                StockButton("Rechercher", variant: .secondary, icon: "magnifyingglass") {
+                StockButton("Rechercher", variant: .search, icon: "magnifyingglass", compact: true) {
                     viewModel.showProductSearch = true
                 }
-                .fixedSize()
+
+                StockButton(viewModel.selectedTier.label, variant: .secondary, icon: "tag", compact: true) {
+                    viewModel.showTierPicker = true
+                }
 
                 if !viewModel.bestSellers.isEmpty {
                     ForEach(viewModel.bestSellers.prefix(5)) { seller in
-                        Button {
-                            viewModel.addBestSeller(seller)
-                        } label: {
-                            VStack(spacing: 2) {
-                                Text(seller.name)
-                                    .font(.caption2.weight(.medium))
-                                    .lineLimit(1)
-                                Text(String(format: "%.2f MAD", seller.price_base))
-                                    .font(.caption2)
-                                    .foregroundStyle(AppColor.brand)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(AppColor.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                        }
-                        .buttonStyle(.plain)
+                        StockTag(seller.name, variant: .surface)
+                            .onTapGesture { viewModel.addBestSeller(seller) }
                     }
                 }
             }
@@ -170,12 +192,12 @@ struct POSView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
-                StockButton("Scanner", variant: .primary, icon: "barcode.viewfinder") {
+                StockButton("Scanner", variant: .primary, icon: "barcode.viewfinder", compact: true) {
                     viewModel.showScanner = true
                 }
                 .frame(maxWidth: 160)
 
-                StockButton("Rechercher", variant: .secondary, icon: "magnifyingglass") {
+                StockButton("Rechercher", variant: .search, icon: "magnifyingglass", compact: true) {
                     viewModel.showProductSearch = true
                 }
                 .frame(maxWidth: 160)
@@ -227,30 +249,29 @@ struct POSView: View {
     }
 
     private var customerBadge: some View {
-        HStack {
+        HStack(spacing: 6) {
             if let customer = viewModel.selectedCustomer {
-                HStack(spacing: 4) {
-                    Image(systemName: "person.fill")
-                        .font(.caption2)
-                    Text(customer.name)
-                        .font(.caption2.weight(.medium))
-                    if let rate = customer.discount_rate, rate > 0 {
-                        Text("remise \(Int(rate))%")
-                            .font(.caption2)
-                            .foregroundStyle(AppColor.success)
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(AppColor.success.opacity(0.1))
-                .clipShape(Capsule())
+                StockTag(customer.name, icon: "person.fill", variant: .success)
+                    .frame(maxWidth: 140)
             }
-            Spacer()
+
+            StockTag(viewModel.selectedTier.label, icon: "tag", variant: .brand)
+                .onTapGesture { viewModel.showTierPicker = true }
+
+            if viewModel.selectedTier != .normal, let first = viewModel.cart.first {
+                let price = viewModel.selectedTier.priceFor(item: first)
+                if price != first.baseUnitPrice {
+                    Text(String(format: "%.2f", first.baseUnitPrice - price) + " MAD")
+                        .font(.caption2)
+                        .foregroundStyle(AppColor.brand)
+                }
+            }
+            Spacer(minLength: 4)
             StockButton("Vider", variant: .ghost, icon: "trash") {
                 viewModel.clearCart()
             }
             .font(.caption)
-            .frame(width: 80)
+            .frame(width: 64)
         }
         .padding(.horizontal)
         .padding(.vertical, 4)
@@ -273,6 +294,8 @@ struct POSView: View {
                     Spacer()
                     Text(viewModel.formattedTotal)
                         .font(AppFont.posTotal)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                         .foregroundStyle(AppColor.brand)
                 }
             }
@@ -282,7 +305,7 @@ struct POSView: View {
                 viewModel.beginCheckout()
             }
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.bottom, 16)
         }
         .background(AppColor.surface)
     }
@@ -460,6 +483,9 @@ struct POSView: View {
                         .onSubmit {
                             Task { await viewModel.searchProducts(query: viewModel.productSearchText) }
                         }
+                        .onChange(of: viewModel.productSearchText) { _, newValue in
+                            Task { await viewModel.searchProducts(query: newValue) }
+                        }
                     if !viewModel.productSearchText.isEmpty {
                         Button {
                             viewModel.productSearchText = ""
@@ -480,10 +506,70 @@ struct POSView: View {
                 )
                 .padding()
 
+                Text("Produits chargés: \(viewModel.productCount) · Résultats: \(viewModel.productSearchResults.count)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal)
+
                 if viewModel.isSearchingProducts {
                     Spacer()
                     ProgressView("Recherche...")
                     Spacer()
+                } else if viewModel.productSearchText.isEmpty {
+                    List(viewModel.bestSellers.prefix(10)) { seller in
+                        Button {
+                            if (seller.quantity ?? 0) <= 0 {
+                                let dto = ForSaleProductDTO(
+                                    id: seller.id, name: seller.name, sku: seller.sku,
+                                    barcode: nil, price: seller.price, sale_price: seller.price_base,
+                                    price_loyal: nil, price_school: nil, price_student: nil,
+                                    quantity: seller.quantity ?? 0, min_quantity: nil,
+                                    category: nil, warehouse_id: nil
+                                )
+                                pendingOutOfStock = dto
+                            } else {
+                                viewModel.addBestSeller(seller)
+                                viewModel.showProductSearch = false
+                                viewModel.productSearchText = ""
+                                viewModel.productSearchResults = []
+                            }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(seller.name)
+                                        .font(.subheadline.weight(.medium))
+                                        .lineLimit(1)
+                                    Text(seller.sku)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                HStack(spacing: 12) {
+                                    StockBadge("\(seller.quantity ?? 0)", variant: seller.stockStatus == .outOfStock ? .error : seller.stockStatus == .low ? .warning : .success)
+                                    VStack(alignment: .trailing) {
+                                        Text(String(format: "%.2f MAD", seller.price_base))
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(AppColor.brand)
+                                        Text("\(seller.total_sold) vendus")
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                            }
+                            .opacity((seller.quantity ?? 0) <= 0 ? 0.5 : 1)
+                        }
+                        .disabled(false)
+                    }
+                    .listStyle(.plain)
+                    .overlay {
+                        if viewModel.bestSellers.isEmpty {
+                            ContentUnavailableView(
+                                "Aucun produit",
+                                systemImage: "shippingbox",
+                                description: Text("Les meilleures ventes apparaîtront ici")
+                            )
+                        }
+                    }
                 } else if viewModel.productSearchResults.isEmpty && !viewModel.productSearchText.isEmpty {
                     Spacer()
                     ContentUnavailableView(
@@ -495,25 +581,36 @@ struct POSView: View {
                 } else {
                     List(viewModel.productSearchResults) { product in
                         Button {
-                            viewModel.addToCart(product: product)
-                            viewModel.showProductSearch = false
-                            viewModel.productSearchText = ""
-                            viewModel.productSearchResults = []
+                            if product.stockStatus == .outOfStock {
+                                pendingOutOfStock = product
+                            } else {
+                                viewModel.addToCart(product: product)
+                                viewModel.showProductSearch = false
+                                viewModel.productSearchText = ""
+                                viewModel.productSearchResults = []
+                            }
                         } label: {
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(product.name)
                                         .font(.subheadline.weight(.medium))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.6)
                                     Text(product.sku)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                                Text(String(format: "%.2f MAD", product.sale_price ?? product.price))
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(AppColor.brand)
+                                HStack(spacing: 12) {
+                                    StockBadge("\(product.quantity)", variant: product.stockStatus == .outOfStock ? .error : product.stockStatus == .low ? .warning : .success)
+                                    Text(String(format: "%.2f MAD", product.sale_price ?? product.price))
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppColor.brand)
+                                }
                             }
+                            .opacity(product.stockStatus == .outOfStock ? 0.5 : 1)
                         }
+                        .disabled(false)
                     }
                     .listStyle(.plain)
                 }
@@ -526,6 +623,27 @@ struct POSView: View {
                         viewModel.productSearchText = ""
                         viewModel.productSearchResults = []
                     }
+                }
+            }
+            .alert("Rupture de stock", isPresented: .init(
+                get: { pendingOutOfStock != nil },
+                set: { if !$0 { pendingOutOfStock = nil } }
+            )) {
+                if let product = pendingOutOfStock {
+                    Button("Annuler", role: .cancel) {
+                        pendingOutOfStock = nil
+                    }
+                    Button("Ajouter quand même") {
+                        viewModel.addToCart(product: product)
+                        pendingOutOfStock = nil
+                        viewModel.showProductSearch = false
+                        viewModel.productSearchText = ""
+                        viewModel.productSearchResults = []
+                    }
+                }
+            } message: {
+                if let product = pendingOutOfStock {
+                    Text("« \(product.name) » est en rupture de stock (quantité: \(product.quantity)). L'ajouter au panier rendra le stock négatif.")
                 }
             }
         }
@@ -653,13 +771,18 @@ struct POSView: View {
 
                 Spacer()
 
+                StockButton("Imprimer", variant: .secondary, icon: "printer") {
+                    printReceipt()
+                }
+                .padding(.horizontal)
+
                 StockButton("Nouvelle vente", variant: .primary) {
                     viewModel.showReceipt = false
                     viewModel.checkoutResult = nil
                 }
                 .padding(.horizontal)
 
-                StockButton("Fermer", variant: .secondary) {
+                StockButton("Fermer", variant: .ghost) {
                     viewModel.showReceipt = false
                     viewModel.checkoutResult = nil
                 }
@@ -667,6 +790,121 @@ struct POSView: View {
                 .padding(.bottom, 16)
             }
         }
+    }
+
+    // MARK: - Close Session
+
+    private var closeSessionSheet: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                VStack(spacing: 8) {
+                    summaryRow("Solde attendu", viewModel.formattedExpectedCash)
+                    HStack {
+                        Text("Espèces en caisse")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        TextField("Montant", text: $viewModel.closingCashText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 120)
+                    }
+                    Divider()
+                    summaryRow("Différence", viewModel.formattedClosingDifference)
+                        .foregroundStyle(viewModel.closingDifference >= 0 ? AppColor.success : AppColor.error)
+                }
+                .padding()
+                .background(AppColor.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding()
+
+                Spacer()
+
+                StockButton("Confirmer la fermeture", variant: .danger, icon: "lock.fill") {
+                    Task { await viewModel.closeSession() }
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 16)
+            }
+            .navigationTitle("Fermeture de session")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { viewModel.showCloseSession = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - Tier Picker
+
+    private var tierPickerSheet: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(DiscountTier.allCases, id: \.self) { tier in
+                        Button {
+                            viewModel.selectTier(tier)
+                            viewModel.showTierPicker = false
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(tier.label)
+                                        .font(.subheadline.weight(.medium))
+                                    if let first = viewModel.cart.first {
+                                        let price = tier.priceFor(item: first)
+                                        if price != first.baseUnitPrice {
+                                            Text("Prix unitaire : \(String(format: "%.2f", price)) MAD (au lieu de \(String(format: "%.2f", first.baseUnitPrice)) MAD)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Prix unitaire : \(String(format: "%.2f", price)) MAD")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                                Spacer()
+                                if viewModel.selectedTier == tier {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(AppColor.brand)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Palier de prix")
+                } footer: {
+                    if let customer = viewModel.selectedCustomer {
+                        Text("Client : \(customer.name)")
+                    }
+                }
+            }
+            .background(AppColor.background)
+            .navigationTitle("Remise")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fermer") { viewModel.showTierPicker = false }
+                }
+            }
+        }
+    }
+
+    private func printReceipt() {
+        var text = "Bibliotheque Badr\nMarrakech, Maroc\n\n"
+        if let result = viewModel.checkoutResult {
+            text += "Ticket: \(result.document_number ?? "")\n"
+            text += "Total: \(String(format: "%.2f", result.total ?? 0)) MAD\n"
+            if let change = result.change_amount, change > 0 {
+                text += "Monnaie rendue: \(String(format: "%.2f", change)) MAD\n"
+            }
+            text += "\nMerci de votre visite !\n"
+        }
+        let printController = UIPrintInteractionController.shared
+        let formatter = UISimpleTextPrintFormatter(text: text)
+        formatter.font = .systemFont(ofSize: 12)
+        printController.printFormatter = formatter
+        printController.present(animated: true)
     }
 }
 
@@ -677,6 +915,9 @@ struct CartItemRowView: View {
     let onIncrement: () -> Void
     let onDecrement: () -> Void
     let onRemove: () -> Void
+    var onUpdatePrice: ((UUID, Double) -> Void)?
+    @State private var isEditingPrice = false
+    @State private var editedPriceText = ""
 
     var body: some View {
         HStack(spacing: 12) {
@@ -684,9 +925,33 @@ struct CartItemRowView: View {
                 Text(item.productName)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
-                Text(item.formattedUnitPrice)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .minimumScaleFactor(0.6)
+                if isEditingPrice {
+                    HStack(spacing: 4) {
+                        TextField("0.00", text: $editedPriceText)
+                            .keyboardType(.decimalPad)
+                            .font(.caption.weight(.medium))
+                            .frame(width: 70)
+                            .textFieldStyle(.roundedBorder)
+                        Button("OK") {
+                            if let newPrice = Double(editedPriceText.replacingOccurrences(of: ",", with: ".")),
+                               newPrice > 0 {
+                                onUpdatePrice?(item.id, newPrice)
+                            }
+                            isEditingPrice = false
+                        }
+                        .font(.caption2)
+                        .buttonStyle(.borderedProminent)
+                    }
+                } else {
+                    Text(item.formattedUnitPrice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .onTapGesture {
+                            editedPriceText = String(format: "%.2f", item.unitPrice)
+                            isEditingPrice = true
+                        }
+                }
                 if item.discountPercent > 0 {
                     Text("–\(Int(item.discountPercent))%")
                         .font(.caption2)
@@ -704,7 +969,7 @@ struct CartItemRowView: View {
 
                 Text("\(item.quantity)")
                     .font(.body.weight(.medium))
-                    .frame(minWidth: 24)
+                    .frame(minWidth: 24, maxWidth: 44)
 
                 Button(action: onIncrement) {
                     Image(systemName: "plus.circle")

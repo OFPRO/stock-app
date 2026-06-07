@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.app2.core.data.local.entity.ReorderRuleEntity
 import com.app2.core.data.local.entity.SupplierEntity
 import com.app2.core.data.local.entity.WarehouseEntity
 import com.app2.core.data.local.entity.NotificationEntity
@@ -66,5 +67,17 @@ interface POSSessionDao {
     suspend fun insert(session: POSSessionEntity)
 
     @Query("DELETE FROM pos_sessions")
+    suspend fun deleteAll()
+}
+
+@Dao
+interface ReorderRuleDao {
+    @Query("SELECT * FROM reordering_rules ORDER BY product_id ASC")
+    suspend fun getAll(): List<ReorderRuleEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(rules: List<ReorderRuleEntity>)
+
+    @Query("DELETE FROM reordering_rules")
     suspend fun deleteAll()
 }

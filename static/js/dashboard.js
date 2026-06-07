@@ -19,7 +19,7 @@ async function loadDashboard() {
 
         const [salesRes, marginsRes, receivablesRes, invoicesRes, dashboardRes,
              dailySalesRes, categoriesRes, topProductsRes, trendsRes, alertsRes, warehousesRes,
-             paymentRes] = await Promise.all([
+             paymentRes, expensesRes] = await Promise.all([
             fetch('/api/kpis/sales?' + params.toString()),
             fetch('/api/kpis/margins'),
             fetch('/api/kpis/receivables?' + params.toString()),
@@ -31,7 +31,8 @@ async function loadDashboard() {
             fetch('/api/kpis/trends?period=' + period),
             fetch('/api/kpis/alertes' + (warehouse ? '?warehouse_id=' + warehouse : '')),
             fetch('/api/warehouses'),
-            fetch('/api/kpis/payment-methods?' + params.toString())
+            fetch('/api/kpis/payment-methods?' + params.toString()),
+            fetch('/api/kpis/expenses?' + params.toString())
         ]);
 
         const sales = await salesRes.json();
@@ -46,6 +47,7 @@ async function loadDashboard() {
         const alerts = await alertsRes.json();
         const warehousesData = await warehousesRes.json();
         const paymentMethods = await paymentRes.json();
+        const expenses = await expensesRes.json();
 
         const whSelect = document.getElementById('warehouseFilter');
         if (whSelect && warehousesData.length > 0) {
@@ -80,6 +82,17 @@ async function loadDashboard() {
                 document.getElementById('mainAccountKpi').textContent = (accData.account.current_balance || 0).toFixed(2);
             }
         } catch(e) { console.error('Main account KPI error:', e); }
+
+        document.getElementById('totalDepenses').textContent = (expenses.total_expenses || 0).toLocaleString();
+        document.getElementById('depensesJour').textContent = (expenses.expenses_today || 0).toLocaleString();
+        document.getElementById('depensesFournisseur').textContent = (expenses.supplier_orders || 0).toLocaleString();
+        const trendEl = document.getElementById('depensesTrend');
+        if (trendEl) {
+            trendEl.innerHTML = expenses.trend >= 0 ?
+                '<i class="fas fa-arrow-up"></i> ' + Math.abs(expenses.trend) + '%' :
+                '<i class="fas fa-arrow-down"></i> ' + Math.abs(expenses.trend) + '%';
+            trendEl.className = 'kpi-card-trend ' + (expenses.trend >= 0 ? 'up' : 'down');
+        }
 
         updateTableToOrder(dashboard.products_to_order || []);
         updateTableCreances(receivables.clients || []);

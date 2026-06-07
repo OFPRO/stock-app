@@ -156,14 +156,14 @@ def main():
         price_base = round(p[2] * 0.6, 2)
         conn.execute("""
             INSERT INTO products (name, sku, barcode, quantity, min_quantity, max_quantity,
-                price, price_base, price_loyal, price_school, price_student,
+                price, price_base, price_loyal, price_gros,
                 tax_category, category, supplier_id, warehouse_id, location_id, purchase_price_avg, is_deleted)
             VALUES (?, ?, ?, 50, 10, 100,
-                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?,
                 '20', ?, ?, ?, ?, ?, 0)
         """, (
             p[0], p[1], 1234560001000 + i, p[2], price_base,
-            round(p[2] * 0.9, 2), round(p[2] * 0.85, 2), round(p[2] * 0.8, 2),
+            round(p[2] * 0.9, 2), round(p[2] * 0.75, 2),
             p[4], sup_id, wh_id, loc_id, price_base
         ))
     conn.commit()

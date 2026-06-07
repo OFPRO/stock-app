@@ -5,11 +5,29 @@ framework: OMNI
 version: 1.0.0
 
 project:
-  name: "App2"
-  type: "android"
-  root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/android"
+  name: "StockPro"
+  type: "mixed"                    # android + web_backend + ios
+  primary: "android"
+  root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app"
 
-current_phase: 6          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
+tracks:
+  android:
+    name: "StockPro Android"
+    root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/android"
+    version: "1.1.0"
+    status: "shipped"
+  backend:
+    name: "StockPro Flask API"
+    root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app"
+    version: "0.8"
+    status: "shipped"
+  ios:
+    name: "StockPro iOS"
+    root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro"
+    version: "0.1"
+    status: "wip"
+
+current_phase: 7          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
 
 phase_history:
   - phase: 0
@@ -51,6 +69,15 @@ phase_history:
       - "android/build-logic/convention/src/main/kotlin/com/app2/buildlogic/*.kt"
       - "android/build-logic/convention/build.gradle.kts"
       - "android/docs/epics.md"
+    blockers: []
+  - phase: 3
+    status: completed
+    completed_skills:
+      - bmad-create-ux-design
+    artifacts:
+      - "android/docs/epics.md"
+      - "android/docs/product-brief.md"
+      - "stock-app/docs/planning-artifacts/ux-design-specification.md"
     blockers: []
   - phase: 4
     status: completed
@@ -126,12 +153,40 @@ phase_history:
       - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/CreateMovementViewModel.kt"
       - "android/feature/warehouses/src/main/java/com/app2/feature/warehouses/CreateMovementScreen.kt"
     blockers: []
+  - phase: 6
+    status: completed
+    completed_skills:
+      - gstack-ship
+    artifacts:
+      - "git commit 758c29d"
+      - "git tag v1.1.0"
+      - "pushed to origin feat/omni-framework"
+    blockers: []
+  - phase: 7
+    status: completed
+    completed_skills:
+      - bmad-retrospective
+      - gstack-retro
+      - gstack-learn
+    artifacts:
+      - "stock-app/docs/implementation-artifacts/sprint-status.yaml"
+      - "stock-app/docs/planning-artifacts/ux-design-specification.md"
+      - "stock-app/docs/backend-api-inventory.md"
+    decision_log:
+      - "Phase 3 retroactively documented via UX design spec (was skipped in initial run)"
+      - "OMNI_STATE expanded to track 3 parallel tracks: android, backend, ios"
+      - "Sprint-status tracking created from git log + epics for velocity baseline"
+      - "Backend API fully covers remaining epics 9-14 — gap is Android client wiring"
 
 state:
-  project_context: "android/project-context.md"
+  project_context: "project-context.md"
   prd: "android/docs/product-brief.md"
   architecture: "android/docs/architecture.md"
   epics: "android/docs/epics.md"
-  design: ""
-  sprint_status: ""
+  design: "stock-app/docs/planning-artifacts/ux-design-specification.md"
+  sprint_status: "stock-app/docs/implementation-artifacts/sprint-status.yaml"
   version: "1.1.0"
+  tracks:
+    android_version: "1.1.0"
+    backend_version: "0.8"
+    ios_version: "0.1"

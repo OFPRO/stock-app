@@ -75,6 +75,7 @@ import com.app2.feature.warehouses.CreateMovementScreen
 import com.app2.feature.warehouses.LocationsScreen
 import com.app2.feature.warehouses.MovementListScreen
 import com.app2.feature.warehouses.WarehousesScreen
+import com.app2.feature.reorderrules.ReorderRulesScreen
 import com.app2.feature.settings.SettingsScreen
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -188,7 +189,12 @@ fun MainScreen(pinManager: PinManager) {
                         )
                     }
                     composable("pos") { POSScreen(onBack = { navController.popBackStack() }) }
-                    composable("customers") { CustomersScreen(onCustomerClick = { navController.navigate("customers/$it") }) }
+                    composable("customers") {
+                        CustomersScreen(
+                            onCustomerClick = { navController.navigate("customers/$it") },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                     composable(
                         route = "customers/{customerId}",
                         arguments = listOf(navArgument("customerId") { type = NavType.IntType })
@@ -209,15 +215,20 @@ fun MainScreen(pinManager: PinManager) {
                             onNotificationsClick = { navController.navigate("notifications") },
                             onWarehousesClick = { navController.navigate("warehouses") },
                             onMovementsClick = { navController.navigate("movements") },
+                            onReorderRulesClick = { navController.navigate("reorder-rules") },
                             onPinChangeClick = { navController.navigate("pin-change") },
                             onSettingsClick = { navController.navigate("settings") }
                         )
+                    }
+                    composable("reorder-rules") {
+                        ReorderRulesScreen(onBack = { navController.popBackStack() })
                     }
                     composable("invoices") {
                         InvoicesScreen(
                             onInvoiceClick = { invoiceId ->
                                 navController.navigate("invoices/$invoiceId")
-                            }
+                            },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable("notifications") {
@@ -238,7 +249,8 @@ fun MainScreen(pinManager: PinManager) {
                         OrdersScreen(
                             onOrderClick = { orderId ->
                                 navController.navigate("orders/$orderId")
-                            }
+                            },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable(
@@ -254,7 +266,8 @@ fun MainScreen(pinManager: PinManager) {
                     }
                     composable("movements") {
                         MovementListScreen(
-                            onCreateClick = { navController.navigate("create-movement") }
+                            onCreateClick = { navController.navigate("create-movement") },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable("create-movement") {
@@ -263,13 +276,19 @@ fun MainScreen(pinManager: PinManager) {
                             onSaved = { navController.popBackStack() }
                         )
                     }
-                    composable("suppliers") { SuppliersScreen(onSupplierClick = { navController.navigate("suppliers/$it") }) }
+                    composable("suppliers") {
+                        SuppliersScreen(
+                            onSupplierClick = { navController.navigate("suppliers/$it") },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                     composable("warehouses") {
                         WarehousesScreen(
                             onWarehouseClick = { id, name ->
                                 val encoded = java.net.URLEncoder.encode(name, "UTF-8")
                                 navController.navigate("warehouses/$id/$encoded")
-                            }
+                            },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable(
@@ -323,6 +342,7 @@ private fun MoreScreen(
     onNotificationsClick: () -> Unit = {},
     onWarehousesClick: () -> Unit = {},
     onMovementsClick: () -> Unit = {},
+    onReorderRulesClick: () -> Unit = {},
     onPinChangeClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {}
 ) {
@@ -486,6 +506,37 @@ private fun MoreScreen(
                     )
                     Text(
                         "Gérer les commandes fournisseur",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null)
+            }
+        }
+        StockCard(
+            onClick = onReorderRulesClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Inventory2,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Règles de réapprovisionnement",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "Seuils minimum et maximum par produit",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

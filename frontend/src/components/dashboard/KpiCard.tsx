@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
@@ -37,6 +38,7 @@ export function KpiCard({
   color = "default",
   className,
 }: KpiCardProps) {
+  const { t } = useTranslation()
   return (
     <Card className={cn("relative overflow-hidden", className)}>
       <CardContent className="p-4 md:p-5">
@@ -69,7 +71,7 @@ export function KpiCard({
               {trend.direction === "up" ? "+" : ""}
               {trend.value.toFixed(1)}%
             </span>
-            <span className="text-muted-foreground">vs période précédente</span>
+            <span className="text-muted-foreground">{t("dashboard.kpi.vs_previous_period")}</span>
           </div>
         )}
       </CardContent>

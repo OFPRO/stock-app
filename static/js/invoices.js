@@ -22,7 +22,7 @@ function renderInvoices() {
     const tbody = document.getElementById('invoicesTable');
     if (!tbody) return;
     if (invoices.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-light);">Aucune facture pour cette période</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-light);">Aucune facture pour cette période</td></tr>';
         return;
     }
     let html = '';
@@ -37,16 +37,37 @@ function renderInvoices() {
         const partyName = isFournisseur ? (inv.supplier_name || 'Fournisseur') : (inv.customer_name || 'Client Comptoir');
         const createdDate = inv.created_at ? inv.created_at.substring(0, 10) : '-';
         const paidDate = inv.paid_at ? inv.paid_at.substring(0, 10) : '-';
-        const statusBadge = 'badge badge-' + (inv.status === 'ticket' ? 'primary' : inv.status === 'payee' ? 'success' : inv.status === 'envoyee' ? 'warning' : inv.status === 'annulee' ? 'danger' : 'secondary');
-        const statusLabel = inv.status === 'ticket' ? 'Ticket' : inv.status === 'payee' ? 'Payée' : inv.status === 'envoyee' ? 'Envoyée' : inv.status === 'annulee' ? 'Annulée' : inv.status === 'brouillon' ? 'Brouillon' : (inv.status || 'Brouillon');
+
+        const statusColors = {
+            'ticket': 'primary', 'payee': 'success', 'partiellement_payee': 'info',
+            'envoyee': 'warning', 'annulee': 'danger', 'brouillon': 'secondary'
+        };
+        const statusLabels = {
+            'ticket': 'Ticket', 'payee': 'Payée', 'partiellement_payee': 'Partielle',
+            'envoyee': 'Envoyée', 'annulee': 'Annulée', 'brouillon': 'Brouillon'
+        };
+        const statColor = statusColors[inv.status] || 'secondary';
+        const statLabel = statusLabels[inv.status] || 'Brouillon';
+
+        const amountPaid = inv.amount_paid || 0;
+        const total = inv.total || 0;
+        const paidDisplay = (inv.status === 'partiellement_payee')
+            ? amountPaid.toFixed(2) + ' / ' + total.toFixed(2) + ' DH'
+            : ((isTicket || inv.status === 'payee') ? total.toFixed(2) + ' DH' : '-');
+
+        let actionBtn = '<button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + inv.invoice_number + '\')">' + btnLabel + '</button>';
+        if (inv.status === 'partiellement_payee' || inv.status === 'envoyee') {
+            actionBtn += ' <button class="btn btn-sm btn-primary" onclick="openPayCreditModal(' + inv.id + ')"><i class="fas fa-credit-card"></i> Payer</button>';
+        }
+
         html += '<tr>' +
             '<td><span class="' + badgeClass + '">' + label + '</span> ' + inv.invoice_number + '</td>' +
             '<td>' + partyName + '</td>' +
             '<td>' + createdDate + '</td>' +
             '<td>' + paidDate + '</td>' +
-            '<td>' + (inv.total || 0).toFixed(2) + ' DH</td>' +
-            '<td><span class="' + statusBadge + '">' + statusLabel + '</span></td>' +
-            '<td><button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + inv.invoice_number + '\')">' + btnLabel + '</button></td>' +
+            '<td>' + paidDisplay + '</td>' +
+            '<td><span class="badge badge-' + statColor + '">' + statLabel + '</span></td>' +
+            '<td>' + actionBtn + '</td>' +
             '</tr>';
     }
     tbody.innerHTML = html;
@@ -59,5 +80,80 @@ function viewInvoice(id, invoiceNumber) {
         window.open('/api/invoices/' + id + '/pdf', '_blank');
     } else {
         window.open('/api/invoices/' + id + '/pdf', '_blank');
+    }
+}
+
+let payCreditInvoiceId = null;
+
+async function openPayCreditModal(invoiceId) {
+    try {
+        const res = await fetch('/api/invoices/' + invoiceId);
+        const inv = await res.json();
+        if (!inv || inv.error) {
+            showError('Impossible de charger la facture');
+            return;
+        }
+
+        payCreditInvoiceId = invoiceId;
+        const total = inv.total || 0;
+        const paid = inv.amount_paid || 0;
+        const remaining = total - paid;
+
+        document.getElementById('payCreditInvoiceNumber').textContent = inv.invoice_number || '-';
+        document.getElementById('payCreditTotal').textContent = total.toFixed(2) + ' DH';
+        document.getElementById('payCreditAlreadyPaid').textContent = paid.toFixed(2) + ' DH';
+        document.getElementById('payCreditRemaining').textContent = remaining.toFixed(2) + ' DH';
+        document.getElementById('payCreditAmount').value = remaining.toFixed(2);
+        document.getElementById('payCreditAmount').max = remaining;
+        document.getElementById('payCreditMethod').value = 'cash';
+
+        openModal('modalPayCredit');
+    } catch(e) {
+        showError('Erreur lors du chargement de la facture');
+    }
+}
+
+function closePayCreditModal() {
+    closeModal('modalPayCredit');
+    payCreditInvoiceId = null;
+}
+
+function setPayCreditMethod(method) {
+    document.getElementById('payCreditMethod').value = method;
+    document.querySelectorAll('.pay-credit-method-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.dataset.method === method);
+    });
+}
+
+async function submitPayCredit() {
+    if (!payCreditInvoiceId) return;
+
+    const amount = parseFloat(document.getElementById('payCreditAmount').value) || 0;
+    const method = document.getElementById('payCreditMethod').value;
+
+    if (amount <= 0) {
+        showError('Montant invalide');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/invoices/' + payCreditInvoiceId + '/pay-credit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: amount, payment_method: method })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showError(data.status === 'payee'
+                ? 'Facture entierement payee!'
+                : 'Paiement partiel enregistre (' + amount.toFixed(2) + ' DH)');
+            closePayCreditModal();
+            loadInvoices();
+        } else {
+            showError(data.error || 'Erreur paiement');
+        }
+    } catch(e) {
+        showError('Erreur lors du paiement');
     }
 }

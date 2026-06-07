@@ -47,7 +47,7 @@ struct StockTextField: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .padding(.vertical, 9)
         .background(AppColor.surface)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(

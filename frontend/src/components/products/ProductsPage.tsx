@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { Plus, Pencil, Trash2, Search, Package, Eye } from "lucide-react"
 import {
   type ColumnDef,
@@ -65,61 +66,62 @@ function ProductForm({
   categories: string[]
   warehouses: Warehouse[]
 }) {
+  const { t } = useTranslation()
   return (
     <div className="grid gap-3">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium">Nom *</label>
+          <label className="text-xs font-medium">{t("products.form.name")}</label>
           <Input
             value={data.name}
             onChange={(e) => onChange({ ...data, name: e.target.value })}
-            placeholder="Nom du produit"
+            placeholder={t("products.form.name_placeholder")}
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium">SKU</label>
+          <label className="text-xs font-medium">{t("products.sku")}</label>
           <Input
             value={data.sku ?? ""}
             onChange={(e) => onChange({ ...data, sku: e.target.value })}
-            placeholder="Auto-généré si vide"
+            placeholder={t("products.form.sku_placeholder")}
           />
         </div>
       </div>
       <div className="space-y-1">
-        <label className="text-xs font-medium">Description</label>
+        <label className="text-xs font-medium">{t("products.form.description")}</label>
         <Input
           value={data.description ?? ""}
           onChange={(e) => onChange({ ...data, description: e.target.value })}
-          placeholder="Description optionnelle"
+          placeholder={t("products.form.description_placeholder")}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium">Catégorie</label>
+          <label className="text-xs font-medium">{t("products.category")}</label>
           <NativeSelect
             value={data.category ?? ""}
             onChange={(v) => onChange({ ...data, category: v || undefined })}
-            placeholder="Sélectionner"
+            placeholder={t("common.select")}
             options={categories.map((c) => ({ value: c, label: c }))}
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium">Taxe</label>
+          <label className="text-xs font-medium">{t("products.form.tax")}</label>
           <NativeSelect
             value={data.tax_category ?? "20"}
             onChange={(v) => onChange({ ...data, tax_category: v })}
             options={[
-              { value: "20", label: "20%" },
-              { value: "14", label: "14%" },
-              { value: "10", label: "10%" },
-              { value: "7", label: "7%" },
+              { value: "20", label: t("products.tax.20") },
+              { value: "14", label: t("products.tax.14") },
+              { value: "10", label: t("products.tax.10") },
+              { value: "7", label: t("products.tax.7") },
             ]}
           />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium">Prix</label>
+          <label className="text-xs font-medium">{t("products.price")}</label>
           <Input
             type="number"
             step="0.01"
@@ -128,7 +130,7 @@ function ProductForm({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium">Qté Min</label>
+          <label className="text-xs font-medium">{t("products.form.min_qty")}</label>
           <Input
             type="number"
             value={data.min_quantity ?? 5}
@@ -136,7 +138,7 @@ function ProductForm({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium">Qté Max</label>
+          <label className="text-xs font-medium">{t("products.form.max_qty")}</label>
           <Input
             type="number"
             value={data.max_quantity ?? 100}
@@ -144,9 +146,26 @@ function ProductForm({
           />
         </div>
       </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <label className="text-xs font-medium">{t("products.form.price_normal")}</label>
+          <Input type="number" step="0.01" value={data.price_base ?? data.price ?? 0}
+            onChange={(e) => onChange({ ...data, price_base: parseFloat(e.target.value) || 0 })} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium">{t("products.form.price_loyal")}</label>
+          <Input type="number" step="0.01" value={data.price_loyal ?? 0}
+            onChange={(e) => onChange({ ...data, price_loyal: parseFloat(e.target.value) || 0 })} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium">{t("products.form.price_bulk")}</label>
+          <Input type="number" step="0.01" value={data.price_gros ?? 0}
+            onChange={(e) => onChange({ ...data, price_gros: parseFloat(e.target.value) || 0 })} />
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium">Entrepôt</label>
+          <label className="text-xs font-medium">{t("products.warehouse")}</label>
           <NativeSelect
             value={String(data.warehouse_id ?? 1)}
             onChange={(v) => onChange({ ...data, warehouse_id: parseInt(v) })}
@@ -154,11 +173,11 @@ function ProductForm({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium">Code-barres</label>
+          <label className="text-xs font-medium">{t("products.barcode")}</label>
           <Input
             value={data.barcode ?? ""}
             onChange={(e) => onChange({ ...data, barcode: e.target.value })}
-            placeholder="Optionnel"
+            placeholder={t("common.optional")}
           />
         </div>
       </div>
@@ -167,16 +186,18 @@ function ProductForm({
 }
 
 function StockBadge({ quantity, minQuantity }: { quantity: number; minQuantity: number }) {
+  const { t } = useTranslation()
   if (quantity <= 0) {
-    return <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">Rupture</span>
+    return <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">{t("products.stock_badge.out_of_stock")}</span>
   }
   if (quantity <= minQuantity) {
-    return <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Stock bas</span>
+    return <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{t("products.stock_badge.low_stock")}</span>
   }
-  return <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">OK</span>
+  return <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">{t("products.stock_badge.ok")}</span>
 }
 
 export function ProductsPage() {
+  const { t } = useTranslation()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -244,6 +265,8 @@ export function ProductsPage() {
         max_quantity: p.max_quantity,
         price: p.price,
         price_base: p.price_base,
+        price_loyal: p.price_loyal,
+        price_gros: p.price_gros,
         category: p.category,
         tax_category: p.tax_category,
         warehouse_id: p.warehouse_id,
@@ -309,7 +332,7 @@ export function ProductsPage() {
   const columns = useMemo<ColumnDef<Product>[]>(() => [
     {
       accessorKey: "name",
-      header: "Nom",
+      header: t("products.name"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <Package className="size-3.5 shrink-0 text-muted-foreground" />
@@ -319,14 +342,14 @@ export function ProductsPage() {
     },
     {
       accessorKey: "sku",
-      header: "SKU",
+      header: t("products.sku"),
       cell: ({ getValue }) => (
         <span className="text-muted-foreground font-mono text-xs">{getValue() as string}</span>
       ),
     },
     {
       accessorKey: "category",
-      header: "Catégorie",
+      header: t("products.category"),
       cell: ({ getValue }) => {
         const v = getValue() as string
         return v ? <span className="text-xs">{v}</span> : null
@@ -334,7 +357,7 @@ export function ProductsPage() {
     },
     {
       accessorKey: "quantity",
-      header: "Stock",
+      header: t("products.stock"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <span className="tabular-nums">{row.original.quantity}</span>
@@ -344,14 +367,14 @@ export function ProductsPage() {
     },
     {
       accessorKey: "price",
-      header: "Prix",
+      header: t("products.price"),
       cell: ({ getValue }) => (
         <span className="tabular-nums">{(getValue() as number).toFixed(2)} DH</span>
       ),
     },
     {
       accessorKey: "warehouse_name",
-      header: "Entrepôt",
+      header: t("products.warehouse"),
       cell: ({ getValue }) => {
         const v = getValue() as string | null
         return v ? <span className="text-xs text-muted-foreground">{v}</span> : null
@@ -359,7 +382,7 @@ export function ProductsPage() {
     },
     {
       accessorKey: "supplier_name",
-      header: "Fournisseur",
+      header: t("products.supplier"),
       cell: ({ getValue }) => {
         const v = getValue() as string | null
         return v ? <span className="text-xs text-muted-foreground">{v}</span> : null
@@ -402,14 +425,14 @@ export function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Produits</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("products.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {products.length} produit{products.length !== 1 ? "s" : ""} enregistré{products.length !== 1 ? "s" : ""}
+            {products.length} {t("products.count", { count: products.length })} {t("products.registered", { count: products.length })}
           </p>
         </div>
         <Button onClick={openCreate}>
           <Plus className="size-4" />
-          Nouveau produit
+          {t("products.new")}
         </Button>
       </div>
 
@@ -418,17 +441,17 @@ export function ProductsPage() {
           <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder="Rechercher par nom, SKU ou code-barres..."
+            placeholder={t("products.search_placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Catégorie" />
+            <SelectValue placeholder={t("products.filter_category")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__all__">Toutes</SelectItem>
+            <SelectItem value="__all__">{t("products.all_categories")}</SelectItem>
             {categories.map((c) => (
               <SelectItem key={c} value={c}>{c}</SelectItem>
             ))}
@@ -466,7 +489,7 @@ export function ProductsPage() {
                 {table.getRowModel().rows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
-                      Aucun produit trouvé
+                      {t("products.empty.no_results")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -489,9 +512,9 @@ export function ProductsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Modifier le produit" : "Nouveau produit"}</DialogTitle>
+            <DialogTitle>{editingId ? t("products.dialog.edit_title") : t("products.dialog.create_title")}</DialogTitle>
             <DialogDescription>
-              {editingId ? "Modifiez les champs ci-dessous." : "Remplissez les informations du nouveau produit."}
+              {editingId ? t("products.dialog.edit_description") : t("products.dialog.create_description")}
             </DialogDescription>
           </DialogHeader>
           <ProductForm
@@ -502,10 +525,10 @@ export function ProductsPage() {
           />
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Annuler</Button>
+              <Button variant="outline">{t("common.cancel")}</Button>
             </DialogClose>
             <Button onClick={handleSave} disabled={saving || !formData.name.trim()}>
-              {saving ? "Enregistrement..." : "Enregistrer"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

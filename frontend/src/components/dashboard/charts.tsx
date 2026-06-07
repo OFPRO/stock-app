@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import Chart from "react-apexcharts"
 import type { SalesDaily, CategoryDistribution, TopProduct, KpiInvoicesStatus, KpiTrend, KpiMargins } from "@/lib/api"
 
@@ -10,6 +11,7 @@ const chartColors = {
 }
 
 export function SalesDailyChart({ data }: { data: SalesDaily[] }) {
+  const { t } = useTranslation()
   return (
     <Chart
       options={{
@@ -23,7 +25,7 @@ export function SalesDailyChart({ data }: { data: SalesDaily[] }) {
         grid: { borderColor: "var(--border)", strokeDashArray: 3 },
         tooltip: { y: { formatter: (v: number) => `${v.toFixed(2)} DH` } },
       }}
-      series={[{ name: "CA", data: data.map((d) => d.ca) }]}
+      series={[{ name: t("charts.series.revenue"), data: data.map((d) => d.ca) }]}
       type="area"
       height={220}
     />
@@ -51,6 +53,7 @@ export function CategoriesChart({ data }: { data: CategoryDistribution[] }) {
 }
 
 export function TopProductsChart({ data }: { data: TopProduct[] }) {
+  const { t } = useTranslation()
   const names = data.map((d) => d.name.length > 18 ? d.name.slice(0, 16) + ".." : d.name).reverse()
   const qties = data.map((d) => d.qty_vendue).reverse()
   return (
@@ -64,7 +67,7 @@ export function TopProductsChart({ data }: { data: TopProduct[] }) {
         colors: [chartColors.primary],
         grid: { borderColor: "var(--border)", strokeDashArray: 3 },
       }}
-      series={[{ name: "Qté vendue", data: qties }]}
+      series={[{ name: t("charts.series.qty_sold"), data: qties }]}
       type="bar"
       height={220}
     />
@@ -72,7 +75,8 @@ export function TopProductsChart({ data }: { data: TopProduct[] }) {
 }
 
 export function InvoicesStatusChart({ data }: { data: KpiInvoicesStatus }) {
-  const labels = ["Payée", "Envoyée", "Brouillon", "Annulée"]
+  const { t } = useTranslation()
+  const labels = [t("charts.invoice_status.paid"), t("charts.invoice_status.sent"), t("charts.invoice_status.draft"), t("charts.invoice_status.cancelled")]
   const values = [data.payee, data.envoyee, data.brouillon, data.annulee]
   const colors = [chartColors.success, chartColors.warning, chartColors.muted, chartColors.danger]
   return (
@@ -93,6 +97,7 @@ export function InvoicesStatusChart({ data }: { data: KpiInvoicesStatus }) {
 }
 
 export function MovementsChart({ data }: { data: KpiTrend[] }) {
+  const { t } = useTranslation()
   const recent = data.slice(-14)
   const dates = recent.map((d) => d.date.slice(5))
   return (
@@ -109,8 +114,8 @@ export function MovementsChart({ data }: { data: KpiTrend[] }) {
         legend: { position: "top", fontSize: "11px" },
       }}
       series={[
-        { name: "Entrées", data: recent.map((d) => d.entries) },
-        { name: "Sorties", data: recent.map((d) => d.exits) },
+        { name: t("charts.series.entries"), data: recent.map((d) => d.entries) },
+        { name: t("charts.series.exits"), data: recent.map((d) => d.exits) },
       ]}
       type="area"
       height={220}

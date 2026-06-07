@@ -4,10 +4,12 @@ import { getNotifications, markNotificationRead, markAllNotificationsRead, type 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useTranslation } from "react-i18next"
 
 const TYPE_ICONS: Record<string, string> = { low_stock: "🔴", out_of_stock: "⛔", expiring: "⚠️", order: "📦", system: "ℹ️" }
 
 export function NotificationsPage() {
+  const { t } = useTranslation()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -35,12 +37,12 @@ export function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div><h1 className="text-2xl font-bold tracking-tight">Notifications</h1><p className="text-sm text-muted-foreground">{unread} non lue{unread !== 1 ? "s" : ""}</p></div>
-        {unread > 0 && <Button variant="outline" onClick={handleMarkAllRead}><CheckCheck className="size-4" />Tout marquer comme lu</Button>}
+        <div><h1 className="text-2xl font-bold tracking-tight">{t("notifications.title")}</h1><p className="text-sm text-muted-foreground">{t("notifications.unread_count", { count: unread })}</p></div>
+        {unread > 0 && <Button variant="outline" onClick={handleMarkAllRead}><CheckCheck className="size-4" />{t("notifications.mark_all_read")}</Button>}
       </div>
       {loading ? <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}</div>
       : <div className="space-y-1">
-        {notifications.length === 0 ? <Card><CardContent className="flex items-center justify-center py-12 text-muted-foreground"><Bell className="size-8 mb-2 opacity-30" /><p>Aucune notification</p></CardContent></Card>
+        {notifications.length === 0 ? <Card><CardContent className="flex items-center justify-center py-12 text-muted-foreground"><Bell className="size-8 mb-2 opacity-30" /><p>{t("notifications.empty")}</p></CardContent></Card>
         : notifications.map(n => (
           <Card key={n.id} className={n.is_read ? "opacity-60" : ""}>
             <CardContent className="flex items-start gap-3 py-3">

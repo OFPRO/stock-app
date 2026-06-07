@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { useEffect, useState } from "react"
 import { Plus, Trash2, AlertTriangle } from "lucide-react"
 import { createOrder, getProducts, getSuppliers, getWarehouses, type Product, type Supplier, type Warehouse } from "@/lib/api"
@@ -21,6 +22,7 @@ interface OrderCreateDialogProps {
 }
 
 export function OrderCreateDialog({ open, onOpenChange, onSuccess }: OrderCreateDialogProps) {
+  const { t } = useTranslation()
   const [products, setProducts] = useState<Product[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -113,14 +115,14 @@ export function OrderCreateDialog({ open, onOpenChange, onSuccess }: OrderCreate
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Nouvelle commande</DialogTitle>
-          <DialogDescription>Créer un bon de commande fournisseur.</DialogDescription>
+          <DialogTitle>{t("orders.create.title")}</DialogTitle>
+          <DialogDescription>{t("orders.create.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium">Fournisseur *</label>
+              <label className="text-xs font-medium">{t("orders.create.supplier")}</label>
               <NativeSelect
                 value={String(supplierId)}
                 onChange={(v) => setSupplierId(parseInt(v))}
@@ -141,7 +143,7 @@ export function OrderCreateDialog({ open, onOpenChange, onSuccess }: OrderCreate
           {outOfStock.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20 px-3 py-2">
               <AlertTriangle className="size-3.5 shrink-0 text-red-600" />
-              <span className="text-xs font-semibold text-red-600 mr-1">RUPTURE:</span>
+              <span className="text-xs font-semibold text-red-600 mr-1">{t("orders.create.out_of_stock_label")}</span>
               {outOfStock.map((p) => (
                 <button
                   key={p.id}
@@ -166,10 +168,10 @@ export function OrderCreateDialog({ open, onOpenChange, onSuccess }: OrderCreate
 
             <div className="rounded-lg border">
               <div className="grid grid-cols-[1fr_70px_90px_80px_32px] gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted/50 border-b">
-                <span>Produit</span>
-                <span className="text-right">Qté</span>
-                <span className="text-right">Prix</span>
-                <span className="text-right">Total</span>
+                <span>{t("common.product")}</span>
+                <span className="text-right">{t("common.qty")}</span>
+                <span className="text-right">{t("orders.unit_price")}</span>
+                <span className="text-right">{t("common.total")}</span>
                 <span />
               </div>
 
@@ -232,31 +234,31 @@ export function OrderCreateDialog({ open, onOpenChange, onSuccess }: OrderCreate
 
               <div className="flex justify-end px-3 py-2 border-t bg-muted/30">
                 <span className="text-sm font-semibold">
-                  Total: <span className="text-primary tabular-nums">{total.toFixed(2)} DH</span>
+                  {t("common.total")}: <span className="text-primary tabular-nums">{total.toFixed(2)} DH</span>
                 </span>
               </div>
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium">Notes</label>
+            <label className="text-xs font-medium">{t("common.notes")}</label>
             <Input
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notes complémentaires..."
+              placeholder={t("orders.create.notes_placeholder")}
             />
           </div>
         </div>
 
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Annuler</Button>
+            <Button variant="outline">{t("common.cancel")}</Button>
           </DialogClose>
           <Button
             onClick={handleSave}
             disabled={saving || !supplierId}
           >
-            {saving ? "Enregistrement..." : "Enregistrer"}
+            {saving ? t("common.saving") : t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

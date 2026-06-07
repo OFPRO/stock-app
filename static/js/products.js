@@ -117,9 +117,8 @@ async function openProductDetail(productId) {
         document.getElementById('detail-margin').textContent = margin + '%';
 
         const priceBase = p.price_base || 0;
-        document.getElementById('detail-price-student').value = (p.price_student || 0).toFixed(2);
-        document.getElementById('detail-price-school').value = (p.price_school || 0).toFixed(2);
         document.getElementById('detail-price-loyal').value = (p.price_loyal || 0).toFixed(2);
+        document.getElementById('detail-price-gros').value = (p.price_gros || 0).toFixed(2);
         document.getElementById('detail-price-base').value = priceBase.toFixed(2);
 
         renderCustomPriceTiers(p.extra_prices || []);
@@ -214,8 +213,7 @@ async function saveProductPrices() {
     if (!currentProductDetail) return;
     const priceBase = parseFloat(document.getElementById('detail-price-base').value) || 0;
     const priceLoyal = parseFloat(document.getElementById('detail-price-loyal').value) || 0;
-    const priceStudent = parseFloat(document.getElementById('detail-price-student').value) || 0;
-    const priceSchool = parseFloat(document.getElementById('detail-price-school').value) || 0;
+    const priceGros = parseFloat(document.getElementById('detail-price-gros').value) || 0;
 
     const customPriceEls = document.querySelectorAll('#custom-price-tiers .custom-tier-row');
     const extraPrices = [];
@@ -240,8 +238,7 @@ async function saveProductPrices() {
                 price: priceBase,
                 price_base: priceBase,
                 price_loyal: priceLoyal,
-                price_student: priceStudent,
-                price_school: priceSchool,
+                price_gros: priceGros,
                 tax_category: currentProductDetail.tax_category || '20',
                 lot_number: currentProductDetail.lot_number || '',
                 serial_number: currentProductDetail.serial_number || '',
@@ -257,8 +254,7 @@ async function saveProductPrices() {
         if (data.success) {
             currentProductDetail.price_base = priceBase;
             currentProductDetail.price_loyal = priceLoyal;
-            currentProductDetail.price_student = priceStudent;
-            currentProductDetail.price_school = priceSchool;
+            currentProductDetail.price_gros = priceGros;
             currentProductDetail.price = data.price;
             showPriceSaved();
             loadProducts();
@@ -511,7 +507,121 @@ function openProductModal() {
     document.getElementById('productId').value = '';
     document.getElementById('productForm').reset();
     document.getElementById('productModalTitle').textContent = 'Nouveau Produit';
+    openModal('barcodeScannerModal');
+    initAddProductScanner();
+}
+
+function cancelBarcodeScan() {
+    stopAddProductScanner();
+    closeModal('barcodeScannerModal');
+}
+
+var addProductScannerStream = null;
+var addProductScannerTid = null;
+
+function initAddProductScanner() {
+    var video = document.getElementById('addProductVideo');
+    var status = document.getElementById('addProductScannerStatus');
+    if (!video) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        status.textContent = 'Caméra non disponible. Saisissez le code-barres manuellement.';
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function(stream) {
+        addProductScannerStream = stream;
+        video.srcObject = stream;
+        video.play();
+        status.textContent = 'Positionnez le code-barres devant la caméra';
+        if ('BarcodeDetector' in window) {
+            startBarcodeDetectLoop();
+        } else {
+            status.textContent = 'Scanner auto non supporté. Saisissez le code-barres manuellement.';
+        }
+    }).catch(function() {
+        status.textContent = 'Caméra non disponible. Saisissez le code-barres manuellement.';
+    });
+}
+
+function startBarcodeDetectLoop() {
+    var detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'codabar', 'itf', 'qr_code', 'data_matrix', 'pdf417'] });
+    var video = document.getElementById('addProductVideo');
+    var status = document.getElementById('addProductScannerStatus');
+
+    function detect() {
+        if (!video || video.readyState < 2) { addProductScannerTid = setTimeout(detect, 500); return; }
+        detector.detect(video).then(function(barcodes) {
+            if (barcodes.length > 0) {
+                var code = barcodes[0].rawValue;
+                status.textContent = 'Code détecté: ' + code;
+                onBarcodeScanned(code);
+                return;
+            }
+            addProductScannerTid = setTimeout(detect, 300);
+        }).catch(function() {
+            addProductScannerTid = setTimeout(detect, 300);
+        });
+    }
+    detect();
+}
+
+function stopAddProductScanner() {
+    if (addProductScannerTid) { clearTimeout(addProductScannerTid); addProductScannerTid = null; }
+    if (addProductScannerStream) {
+        addProductScannerStream.getTracks().forEach(function(t) { t.stop(); });
+        addProductScannerStream = null;
+    }
+    var video = document.getElementById('addProductVideo');
+    if (video) video.srcObject = null;
+}
+
+function onBarcodeEntered() {
+    var input = document.getElementById('addProductBarcodeInput');
+    var code = input.value.trim();
+    if (!code) return;
+    onBarcodeScanned(code);
+}
+
+function onBarcodeScanned(code) {
+    stopAddProductScanner();
+    closeModal('barcodeScannerModal');
+    document.getElementById('addProductBarcodeInput').value = '';
+    checkBarcodeExists(code);
+}
+
+var scannedBarcode = null;
+
+async function checkBarcodeExists(code) {
+    scannedBarcode = code;
+    try {
+        var res = await fetch('/api/products/for-sale?search=' + encodeURIComponent(code));
+        var products = await res.json();
+        if (products && products.length > 0) {
+            var p = products[0];
+            if (confirm('Le code-barres "' + code + '" est déjà utilisé par "' + p.name + '".\nVoulez-vous modifier ce produit existant ?')) {
+                openProductDetail(p.id);
+            } else {
+                openModal('barcodeScannerModal');
+                initAddProductScanner();
+            }
+        } else {
+            openModal('barcodeUnknownModal');
+        }
+    } catch(e) {
+        console.error(e);
+        openModal('barcodeUnknownModal');
+    }
+}
+
+function addUnknownBarcodeProduct() {
+    closeModal('barcodeUnknownModal');
+    document.getElementById('productBarcode').value = scannedBarcode || '';
     openModal('productModal');
+}
+
+function cancelUnknownBarcode() {
+    closeModal('barcodeUnknownModal');
+    openModal('barcodeScannerModal');
+    initAddProductScanner();
 }
 
 function editProductModal(product) {
@@ -520,7 +630,10 @@ function editProductModal(product) {
     document.getElementById('productDescription').value = product.description || '';
     document.getElementById('productSku').value = product.sku || '';
     document.getElementById('productBarcode').value = product.barcode || '';
+    document.getElementById('productPurchasePrice').value = product.purchase_price_avg || 0;
     document.getElementById('productPrice').value = product.price || 0;
+    document.getElementById('productLoyalPrice').value = product.price_loyal || 0;
+    document.getElementById('productGrosPrice').value = product.price_gros || 0;
     document.getElementById('productQuantity').value = product.quantity || 0;
     document.getElementById('productCategory').value = product.category || 'Général';
     document.getElementById('productMinQty').value = product.min_quantity || 5;
@@ -532,12 +645,20 @@ function editProductModal(product) {
 async function saveProduct(e) {
     e.preventDefault();
     const id = document.getElementById('productId').value;
+    var priceNormal = parseFloat(document.getElementById('productPrice').value) || 0;
+    var pricePurchase = parseFloat(document.getElementById('productPurchasePrice').value) || 0;
+    var priceLoyal = parseFloat(document.getElementById('productLoyalPrice').value) || 0;
+    var priceGros = parseFloat(document.getElementById('productGrosPrice').value) || 0;
     const data = {
         name: document.getElementById('productName').value,
         description: document.getElementById('productDescription').value,
         sku: document.getElementById('productSku').value,
         barcode: document.getElementById('productBarcode').value,
-        price: parseFloat(document.getElementById('productPrice').value) || 0,
+        purchase_price_avg: pricePurchase,
+        price: priceNormal,
+        price_base: priceNormal,
+        price_loyal: priceLoyal,
+        price_gros: priceGros,
         quantity: parseInt(document.getElementById('productQuantity').value) || 0,
         category: document.getElementById('productCategory').value,
         min_quantity: parseInt(document.getElementById('productMinQty').value) || 5,

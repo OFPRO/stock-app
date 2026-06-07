@@ -1,0 +1,977 @@
+{
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/skills-lock.json": {
+    "mtime": 1779247952.2173247,
+    "ast_hash": "7f9ea97fc49e286be6f846316b07f2a2",
+    "semantic_hash": "7f9ea97fc49e286be6f846316b07f2a2"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/reset_test_db.py": {
+    "mtime": 1779041145.0773692,
+    "ast_hash": "f92d520e46e869277d68a083269b8940",
+    "semantic_hash": "f92d520e46e869277d68a083269b8940"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/add_indexes.py": {
+    "mtime": 1777182916.4774375,
+    "ast_hash": "b0cc6629e59884f37835f4d868a03247",
+    "semantic_hash": "b0cc6629e59884f37835f4d868a03247"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/seed.py": {
+    "mtime": 1779046338.4047964,
+    "ast_hash": "82d570993f99afa476fbeec6c7a98301",
+    "semantic_hash": "82d570993f99afa476fbeec6c7a98301"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/manifest.json": {
+    "mtime": 1776531347.9164963,
+    "ast_hash": "6049fb7d0513bfec2738a39cf63ed945",
+    "semantic_hash": "6049fb7d0513bfec2738a39cf63ed945"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/app.py": {
+    "mtime": 1779417793.03597,
+    "ast_hash": "4f9cd4c7349f2d87675ecd8ddc361969",
+    "semantic_hash": "4f9cd4c7349f2d87675ecd8ddc361969"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/database/__init__.py": {
+    "mtime": 1777182885.7389092,
+    "ast_hash": "0fa1d944f33202ce6dea2ed937537ea3",
+    "semantic_hash": "0fa1d944f33202ce6dea2ed937537ea3"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/tsconfig.node.json": {
+    "mtime": 1778643186.5782123,
+    "ast_hash": "eec85c9d7c6b599801557f1afd86672c",
+    "semantic_hash": "eec85c9d7c6b599801557f1afd86672c"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/tsconfig.app.json": {
+    "mtime": 1778643186.5780656,
+    "ast_hash": "901547f9f2b709368486096112bea925",
+    "semantic_hash": "901547f9f2b709368486096112bea925"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/components.json": {
+    "mtime": 1778643211.6317556,
+    "ast_hash": "4309401ded0527ef65581f5ae99855a6",
+    "semantic_hash": "4309401ded0527ef65581f5ae99855a6"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/tsconfig.json": {
+    "mtime": 1778643186.5781436,
+    "ast_hash": "7b5e29df8aa966a4f53eeb1d92c1c602",
+    "semantic_hash": "7b5e29df8aa966a4f53eeb1d92c1c602"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/eslint.config.js": {
+    "mtime": 1778643186.5769649,
+    "ast_hash": "b8893da386a89dfd3672dad848f4ec7e",
+    "semantic_hash": "b8893da386a89dfd3672dad848f4ec7e"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/vite.config.ts": {
+    "mtime": 1778716320.8721836,
+    "ast_hash": "5aa9c99f88e7693124f03e797be48591",
+    "semantic_hash": "5aa9c99f88e7693124f03e797be48591"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/App.tsx": {
+    "mtime": 1778729787.5513408,
+    "ast_hash": "e0480fa8a2abe4f512be389ef5ff72ff",
+    "semantic_hash": "e0480fa8a2abe4f512be389ef5ff72ff"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/main.tsx": {
+    "mtime": 1778705247.6941116,
+    "ast_hash": "b88645ad91d8de5935a24457edf0a98c",
+    "semantic_hash": "b88645ad91d8de5935a24457edf0a98c"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/theme-provider.tsx": {
+    "mtime": 1778643186.5778327,
+    "ast_hash": "7acb1d3d5f4e7cc8d9b87e04f197c094",
+    "semantic_hash": "7acb1d3d5f4e7cc8d9b87e04f197c094"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/customers/CustomersPage.tsx": {
+    "mtime": 1778649378.8024023,
+    "ast_hash": "be2d75ac200175fd12dec20a1950415d",
+    "semantic_hash": "be2d75ac200175fd12dec20a1950415d"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/main-account/MainAccountPage.tsx": {
+    "mtime": 1778648839.26076,
+    "ast_hash": "6e3a869cf9dc12bf9960ff74df6d96a3",
+    "semantic_hash": "6e3a869cf9dc12bf9960ff74df6d96a3"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/tabs.tsx": {
+    "mtime": 1778643285.3586826,
+    "ast_hash": "329b6283f08168da5337a81433d71238",
+    "semantic_hash": "329b6283f08168da5337a81433d71238"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/card.tsx": {
+    "mtime": 1778643285.2108824,
+    "ast_hash": "77a10bd948ca424972a28e704a3df604",
+    "semantic_hash": "77a10bd948ca424972a28e704a3df604"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/sheet.tsx": {
+    "mtime": 1778697157.816248,
+    "ast_hash": "c030b0d2c63bb78d37d4747c8d299434",
+    "semantic_hash": "c030b0d2c63bb78d37d4747c8d299434"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/tooltip.tsx": {
+    "mtime": 1778702915.5248387,
+    "ast_hash": "e34d051aeeaf36b7f3eba368b01285fb",
+    "semantic_hash": "e34d051aeeaf36b7f3eba368b01285fb"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/native-select.tsx": {
+    "mtime": 1778708958.1453393,
+    "ast_hash": "e55a41d4b335282475525e25fd848835",
+    "semantic_hash": "e55a41d4b335282475525e25fd848835"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/dialog.tsx": {
+    "mtime": 1778697082.7368767,
+    "ast_hash": "f671ead167dd8828db6eb4d09162076c",
+    "semantic_hash": "f671ead167dd8828db6eb4d09162076c"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/sidebar.tsx": {
+    "mtime": 1778643285.7162182,
+    "ast_hash": "bc77b55db77ec6857c826d44902479d4",
+    "semantic_hash": "bc77b55db77ec6857c826d44902479d4"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/table.tsx": {
+    "mtime": 1778643285.2495568,
+    "ast_hash": "f51aea8eb022e6017f928b02f2471e79",
+    "semantic_hash": "f51aea8eb022e6017f928b02f2471e79"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/separator.tsx": {
+    "mtime": 1778643285.513749,
+    "ast_hash": "1449ebdaae30a546b22655bd37adee9b",
+    "semantic_hash": "1449ebdaae30a546b22655bd37adee9b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/button.tsx": {
+    "mtime": 1778704350.956538,
+    "ast_hash": "1861be015a0499605990859df008a767",
+    "semantic_hash": "1861be015a0499605990859df008a767"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/dropdown-menu.tsx": {
+    "mtime": 1778702841.7621977,
+    "ast_hash": "3950804d7fb586fa9e2485107cfbe31b",
+    "semantic_hash": "3950804d7fb586fa9e2485107cfbe31b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/select.tsx": {
+    "mtime": 1778702840.967367,
+    "ast_hash": "15d916109e6e857c2689976d2e4b351e",
+    "semantic_hash": "15d916109e6e857c2689976d2e4b351e"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/textarea.tsx": {
+    "mtime": 1778643285.3970582,
+    "ast_hash": "d448d2a90e48542e51b93a1189127bf2",
+    "semantic_hash": "d448d2a90e48542e51b93a1189127bf2"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/input.tsx": {
+    "mtime": 1778643285.2761874,
+    "ast_hash": "2b0e9e810580f227dd255d9b78a83835",
+    "semantic_hash": "2b0e9e810580f227dd255d9b78a83835"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/ui/skeleton.tsx": {
+    "mtime": 1778643285.592429,
+    "ast_hash": "0e6e825c43d858d98c9903f4da975382",
+    "semantic_hash": "0e6e825c43d858d98c9903f4da975382"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/reorder/ReorderRulesPage.tsx": {
+    "mtime": 1778729754.4900908,
+    "ast_hash": "7440cda504b800c0ca9f31557da1e650",
+    "semantic_hash": "7440cda504b800c0ca9f31557da1e650"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/reorder/ReplenishmentPage.tsx": {
+    "mtime": 1778729835.791962,
+    "ast_hash": "bafeb1c9640c34d18d3b0ebafa0bebf7",
+    "semantic_hash": "bafeb1c9640c34d18d3b0ebafa0bebf7"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/warehouses/WarehousesPage.tsx": {
+    "mtime": 1778713796.5259278,
+    "ast_hash": "fe1bc485aac9704eb5d78eee1427b0e4",
+    "semantic_hash": "fe1bc485aac9704eb5d78eee1427b0e4"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/products/ProductsPage.tsx": {
+    "mtime": 1778721894.8665888,
+    "ast_hash": "297a20c14666f2a727cc3793959e9701",
+    "semantic_hash": "297a20c14666f2a727cc3793959e9701"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/products/ProductDetailDialog.tsx": {
+    "mtime": 1778726766.080585,
+    "ast_hash": "72349a3fc8af74856f1a129879ac5fec",
+    "semantic_hash": "72349a3fc8af74856f1a129879ac5fec"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/products/ProductDetailPage.tsx": {
+    "mtime": 1778726717.4555068,
+    "ast_hash": "fc4462606ee3eeacc4311b9f2b2e6ea8",
+    "semantic_hash": "fc4462606ee3eeacc4311b9f2b2e6ea8"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/suppliers/SuppliersPage.tsx": {
+    "mtime": 1778713792.7095816,
+    "ast_hash": "3f55164f7599bd9b7617c46df371f0f5",
+    "semantic_hash": "3f55164f7599bd9b7617c46df371f0f5"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/invoices/InvoicesPage.tsx": {
+    "mtime": 1778735025.1112118,
+    "ast_hash": "bbea4d77888660190b30530b39c78d32",
+    "semantic_hash": "bbea4d77888660190b30530b39c78d32"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/layout/DashboardLayout.tsx": {
+    "mtime": 1778647322.6570716,
+    "ast_hash": "ffc0cb59520ac3c5bcab1697058c74b4",
+    "semantic_hash": "ffc0cb59520ac3c5bcab1697058c74b4"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/layout/AppSidebar.tsx": {
+    "mtime": 1778729802.5754082,
+    "ast_hash": "ae9bae212666a2f9da0210ab35400eca",
+    "semantic_hash": "ae9bae212666a2f9da0210ab35400eca"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/dashboard/KpiCard.tsx": {
+    "mtime": 1778644260.8370326,
+    "ast_hash": "c8afd64aab3deeeada4b4731b2d238b8",
+    "semantic_hash": "c8afd64aab3deeeada4b4731b2d238b8"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/dashboard/charts.tsx": {
+    "mtime": 1778644304.8477743,
+    "ast_hash": "f656065f66ac4eaa7cfa0d64e86be5f5",
+    "semantic_hash": "f656065f66ac4eaa7cfa0d64e86be5f5"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/dashboard/DashboardFilters.tsx": {
+    "mtime": 1778648018.641151,
+    "ast_hash": "3cd556dc480f89088e41e84023b290cf",
+    "semantic_hash": "3cd556dc480f89088e41e84023b290cf"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/dashboard/DashboardPage.tsx": {
+    "mtime": 1778814169.38961,
+    "ast_hash": "e7a70504947a09eaa71705628e160989",
+    "semantic_hash": "e7a70504947a09eaa71705628e160989"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/movements/MovementsPage.tsx": {
+    "mtime": 1778713795.8917413,
+    "ast_hash": "def5107910fb3163d0c25e8a910c6bab",
+    "semantic_hash": "def5107910fb3163d0c25e8a910c6bab"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/pos/PosPage.tsx": {
+    "mtime": 1778901608.788784,
+    "ast_hash": "f09bf19c9f765959d1593167b51edb8f",
+    "semantic_hash": "f09bf19c9f765959d1593167b51edb8f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/sessions/SessionsPage.tsx": {
+    "mtime": 1778699535.5031796,
+    "ast_hash": "3b2e8a49f3f62b2d7b9ba16382d7ad1b",
+    "semantic_hash": "3b2e8a49f3f62b2d7b9ba16382d7ad1b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/locations/LocationsPage.tsx": {
+    "mtime": 1778713797.6303205,
+    "ast_hash": "8271d80af4df483795118d2a2aec83ff",
+    "semantic_hash": "8271d80af4df483795118d2a2aec83ff"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/orders/OrderDetailPage.tsx": {
+    "mtime": 1778734519.8019197,
+    "ast_hash": "b4327f5916769f7832987a975e1745de",
+    "semantic_hash": "b4327f5916769f7832987a975e1745de"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/orders/OrdersPage.tsx": {
+    "mtime": 1778734484.2956412,
+    "ast_hash": "bc9cdc58e3577cc92a26818795fe2143",
+    "semantic_hash": "bc9cdc58e3577cc92a26818795fe2143"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/orders/ProductSelect.tsx": {
+    "mtime": 1778733561.9281106,
+    "ast_hash": "85183da6d96b7e2838aa6ddc0e43896e",
+    "semantic_hash": "85183da6d96b7e2838aa6ddc0e43896e"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/orders/OrderCreateDialog.tsx": {
+    "mtime": 1778733989.6693883,
+    "ast_hash": "8c7d7b1b4397ef4fd031b9d94afc5d9a",
+    "semantic_hash": "8c7d7b1b4397ef4fd031b9d94afc5d9a"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/scanner/ScannerPage.tsx": {
+    "mtime": 1778648926.4124434,
+    "ast_hash": "b53755a7302022410edb0298c0b8ff17",
+    "semantic_hash": "b53755a7302022410edb0298c0b8ff17"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/notifications/NotificationsPage.tsx": {
+    "mtime": 1778648828.7050252,
+    "ast_hash": "b07a74b040f9f4dbab2a8515a7931be6",
+    "semantic_hash": "b07a74b040f9f4dbab2a8515a7931be6"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/components/reports/ReportsPage.tsx": {
+    "mtime": 1778648895.9604003,
+    "ast_hash": "08291c9b09b9e4a1fb8267c401d429dd",
+    "semantic_hash": "08291c9b09b9e4a1fb8267c401d429dd"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/hooks/use-mobile.ts": {
+    "mtime": 1778643285.565494,
+    "ast_hash": "209b5193af16624cdd89d3591480dd48",
+    "semantic_hash": "209b5193af16624cdd89d3591480dd48"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/lib/utils.ts": {
+    "mtime": 1778643226.3254962,
+    "ast_hash": "5a6fd53fdcf2be529e9cc0b718fde352",
+    "semantic_hash": "5a6fd53fdcf2be529e9cc0b718fde352"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/frontend/src/lib/api.ts": {
+    "mtime": 1778810789.7010977,
+    "ast_hash": "7affa42fa76c8ac137e536fbb6c0a74b",
+    "semantic_hash": "7affa42fa76c8ac137e536fbb6c0a74b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.opencode/opencode.json": {
+    "mtime": 1779421525.7157338,
+    "ast_hash": "abcc8b9dcd80bca5f9dde6d9f0c3ae79",
+    "semantic_hash": "abcc8b9dcd80bca5f9dde6d9f0c3ae79"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.opencode/plugins/graphify.js": {
+    "mtime": 1779421525.7156332,
+    "ast_hash": "64ccd3c03dbfe0980b6095766f5c4e52",
+    "semantic_hash": "64ccd3c03dbfe0980b6095766f5c4e52"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/_bmad/scripts/resolve_customization.py": {
+    "mtime": 1778813196.1771967,
+    "ast_hash": "f313ea3459f73618a0450b33bcf591ca",
+    "semantic_hash": "f313ea3459f73618a0450b33bcf591ca"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/_bmad/scripts/resolve_config.py": {
+    "mtime": 1778813196.1746213,
+    "ast_hash": "4eb4080538618af98cf4f9abe273f913",
+    "semantic_hash": "4eb4080538618af98cf4f9abe273f913"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/tests/conftest.py": {
+    "mtime": 1778815775.2924402,
+    "ast_hash": "530356807009a7161c26e01b15c1454b",
+    "semantic_hash": "530356807009a7161c26e01b15c1454b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/tests/test_dashboard.py": {
+    "mtime": 1778954662.8179326,
+    "ast_hash": "35611dc3eefb850b0bb9f764dd821ab7",
+    "semantic_hash": "35611dc3eefb850b0bb9f764dd821ab7"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/tests/test_crud.py": {
+    "mtime": 1778959953.3457987,
+    "ast_hash": "ff64ac561ead67d70e581b339a75f269",
+    "semantic_hash": "ff64ac561ead67d70e581b339a75f269"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/tests/test_api.py": {
+    "mtime": 1778815844.2115245,
+    "ast_hash": "8edf17477a203153c66dff8e8f14b33f",
+    "semantic_hash": "8edf17477a203153c66dff8e8f14b33f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.agents/skills/bmad-customize/scripts/list_customizable_skills.py": {
+    "mtime": 1778813196.3971088,
+    "ast_hash": "67d6f21848aff408fefde505f35ba7e5",
+    "semantic_hash": "67d6f21848aff408fefde505f35ba7e5"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.agents/skills/bmad-customize/scripts/tests/test_list_customizable_skills.py": {
+    "mtime": 1778813196.3973782,
+    "ast_hash": "e8a0a467e803676cee8e31a7247cb715",
+    "semantic_hash": "e8a0a467e803676cee8e31a7247cb715"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.agents/skills/bmad-product-brief/bmad-manifest.json": {
+    "mtime": 1778813196.4286382,
+    "ast_hash": "2c71af66a29d7a1d4e6ac7fdc2210576",
+    "semantic_hash": "2c71af66a29d7a1d4e6ac7fdc2210576"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.agents/skills/bmad-document-project/templates/project-scan-report-schema.json": {
+    "mtime": 1778813196.415837,
+    "ast_hash": "71d5d42e569dcfeaadad5307c953097f",
+    "semantic_hash": "71d5d42e569dcfeaadad5307c953097f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.agents/skills/bmad-prfaq/bmad-manifest.json": {
+    "mtime": 1778813196.42435,
+    "ast_hash": "3469e107e0e4fe350953479b96fc6296",
+    "semantic_hash": "3469e107e0e4fe350953479b96fc6296"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.agents/skills/bmad-distillator/scripts/analyze_sources.py": {
+    "mtime": 1778813196.399352,
+    "ast_hash": "4667d5ace06f5fe86effed616f7b9e26",
+    "semantic_hash": "4667d5ace06f5fe86effed616f7b9e26"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/.agents/skills/bmad-distillator/scripts/tests/test_analyze_sources.py": {
+    "mtime": 1778813196.3996487,
+    "ast_hash": "2234475c0bbbae5cefabae067491b8e6",
+    "semantic_hash": "2234475c0bbbae5cefabae067491b8e6"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Package.swift": {
+    "mtime": 1779298537.6544807,
+    "ast_hash": "2771fd01cfc519b963d152f8fd9d6969",
+    "semantic_hash": "2771fd01cfc519b963d152f8fd9d6969"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/.build/workspace-state.json": {
+    "mtime": 1779298737.2137828,
+    "ast_hash": "2e5a5ad2a66d6697a649f98dcd8f1c38",
+    "semantic_hash": "2e5a5ad2a66d6697a649f98dcd8f1c38"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/.build/derived/SourcePackages/workspace-state.json": {
+    "mtime": 1779298890.419149,
+    "ast_hash": "2e5a5ad2a66d6697a649f98dcd8f1c38",
+    "semantic_hash": "2e5a5ad2a66d6697a649f98dcd8f1c38"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/.build/arm64-apple-macosx/debug/plugin-tools-description.json": {
+    "mtime": 1779415291.3930643,
+    "ast_hash": "3809a49f9e80107a1a8e4514e1a868ed",
+    "semantic_hash": "3809a49f9e80107a1a8e4514e1a868ed"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/.build/arm64-apple-macosx/debug/description.json": {
+    "mtime": 1779415291.4025977,
+    "ast_hash": "3809a49f9e80107a1a8e4514e1a868ed",
+    "semantic_hash": "3809a49f9e80107a1a8e4514e1a868ed"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/.build/arm64-apple-macosx/debug/StockPro.build/output-file-map.json": {
+    "mtime": 1779415291.3979921,
+    "ast_hash": "d6069e2ca8200e2af04f5f9f7299f7a7",
+    "semantic_hash": "d6069e2ca8200e2af04f5f9f7299f7a7"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/.build/arm64-apple-macosx/debug/StockPro.build/DerivedSources/resource_bundle_accessor.swift": {
+    "mtime": 1779298737.2239137,
+    "ast_hash": "f04c82c00e487c0ff5fb48a545d43ac1",
+    "semantic_hash": "f04c82c00e487c0ff5fb48a545d43ac1"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/ProductDetailViewModel.swift": {
+    "mtime": 1779412211.7330594,
+    "ast_hash": "55606963bdff12c51f7b206e752cb6aa",
+    "semantic_hash": "55606963bdff12c51f7b206e752cb6aa"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/SupplierListViewModel.swift": {
+    "mtime": 1779253440.220078,
+    "ast_hash": "0aca736e71ad2b22b6a160d8dbbaf875",
+    "semantic_hash": "0aca736e71ad2b22b6a160d8dbbaf875"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/InvoiceListViewModel.swift": {
+    "mtime": 1779413500.4237895,
+    "ast_hash": "56fa5f1cb2aebbdf7790f045d1efbd45",
+    "semantic_hash": "56fa5f1cb2aebbdf7790f045d1efbd45"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/CustomerListViewModel.swift": {
+    "mtime": 1779253436.2294447,
+    "ast_hash": "f00f8ac20a18b592c755a7c36c024339",
+    "semantic_hash": "f00f8ac20a18b592c755a7c36c024339"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/NotificationListViewModel.swift": {
+    "mtime": 1779413503.983097,
+    "ast_hash": "1877a3251c8f30f52bc1ba57bfc2fbf7",
+    "semantic_hash": "1877a3251c8f30f52bc1ba57bfc2fbf7"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/ReorderRuleFormViewModel.swift": {
+    "mtime": 1779413695.6648452,
+    "ast_hash": "88a32060ac795f2f93cea92e229d6bb6",
+    "semantic_hash": "88a32060ac795f2f93cea92e229d6bb6"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/InvoiceDetailViewModel.swift": {
+    "mtime": 1779413502.2292445,
+    "ast_hash": "6f83dcad414ade6bddb598e03f65676f",
+    "semantic_hash": "6f83dcad414ade6bddb598e03f65676f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/ProductListViewModel.swift": {
+    "mtime": 1779253231.7556195,
+    "ast_hash": "eb6e4928b30a10bdf38be1cd5b1f1fa5",
+    "semantic_hash": "eb6e4928b30a10bdf38be1cd5b1f1fa5"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/WarehouseListViewModel.swift": {
+    "mtime": 1779298626.173416,
+    "ast_hash": "430e6ae522b06463b58ccac7ae6b86ba",
+    "semantic_hash": "430e6ae522b06463b58ccac7ae6b86ba"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/POSViewModel.swift": {
+    "mtime": 1779420290.3305504,
+    "ast_hash": "efb74884fbd4ab7b88a4da0eca1ad539",
+    "semantic_hash": "efb74884fbd4ab7b88a4da0eca1ad539"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/CustomerDetailViewModel.swift": {
+    "mtime": 1779253437.9918952,
+    "ast_hash": "3a214e9d76ce938f18e0d865bc721a80",
+    "semantic_hash": "3a214e9d76ce938f18e0d865bc721a80"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/StockMovementListViewModel.swift": {
+    "mtime": 1779411128.934441,
+    "ast_hash": "f604a4ec57ff6d025e971baeeaf7c157",
+    "semantic_hash": "f604a4ec57ff6d025e971baeeaf7c157"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/OrderListViewModel.swift": {
+    "mtime": 1779413496.820606,
+    "ast_hash": "5080b10d693796117d20f0bb05fcee07",
+    "semantic_hash": "5080b10d693796117d20f0bb05fcee07"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/DashboardViewModel.swift": {
+    "mtime": 1779253251.1117618,
+    "ast_hash": "4395254593aeee9d187ca139e32ad49f",
+    "semantic_hash": "4395254593aeee9d187ca139e32ad49f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/OrderDetailViewModel.swift": {
+    "mtime": 1779413498.734959,
+    "ast_hash": "3512596995d925dbf8a9d3da9b2a9e94",
+    "semantic_hash": "3512596995d925dbf8a9d3da9b2a9e94"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/LocationListViewModel.swift": {
+    "mtime": 1779298825.086469,
+    "ast_hash": "cbd72878ffcd564ba6a61749d364a49f",
+    "semantic_hash": "cbd72878ffcd564ba6a61749d364a49f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/ReorderRuleListViewModel.swift": {
+    "mtime": 1779413747.0898826,
+    "ast_hash": "1a1166f3e35937427525762e7d7b7c81",
+    "semantic_hash": "1a1166f3e35937427525762e7d7b7c81"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/ViewModels/ScannerViewModel.swift": {
+    "mtime": 1779299690.6084464,
+    "ast_hash": "ae14aa015c8a058498d0d63f2173a328",
+    "semantic_hash": "ae14aa015c8a058498d0d63f2173a328"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/DesignSystem/Components/StockSkeleton.swift": {
+    "mtime": 1779253007.6481783,
+    "ast_hash": "13e712d704fcef7914aa0a360213e247",
+    "semantic_hash": "13e712d704fcef7914aa0a360213e247"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/DesignSystem/Components/StockTag.swift": {
+    "mtime": 1779415255.5239134,
+    "ast_hash": "c437e7c322fb09040108f775ef58a844",
+    "semantic_hash": "c437e7c322fb09040108f775ef58a844"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/DesignSystem/Components/StockButton.swift": {
+    "mtime": 1779416211.8909442,
+    "ast_hash": "cf3128c003c46216695dd54d6d3c87a2",
+    "semantic_hash": "cf3128c003c46216695dd54d6d3c87a2"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/DesignSystem/Components/StockErrorView.swift": {
+    "mtime": 1779253009.3196876,
+    "ast_hash": "ffd57f5b5abbed6062e906c83fc904e8",
+    "semantic_hash": "ffd57f5b5abbed6062e906c83fc904e8"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/DesignSystem/Components/StockCard.swift": {
+    "mtime": 1779413132.8794653,
+    "ast_hash": "92d323dd4784266a0e3d990a3850ad8a",
+    "semantic_hash": "92d323dd4784266a0e3d990a3850ad8a"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/DesignSystem/Components/StockFormRow.swift": {
+    "mtime": 1779252859.6213174,
+    "ast_hash": "42d02779e2263466384db6798cc7708f",
+    "semantic_hash": "42d02779e2263466384db6798cc7708f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/DesignSystem/Components/StockBadge.swift": {
+    "mtime": 1779413138.136889,
+    "ast_hash": "42dfd40df2ec74e6da22a27b20d23fa4",
+    "semantic_hash": "42dfd40df2ec74e6da22a27b20d23fa4"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/DesignSystem/Components/StockTextField.swift": {
+    "mtime": 1779404606.4763374,
+    "ast_hash": "28948e846a02b2a505e4957f544cf74a",
+    "semantic_hash": "28948e846a02b2a505e4957f544cf74a"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/App/StockProApp.swift": {
+    "mtime": 1779413142.82709,
+    "ast_hash": "ac0913e9e7ae1e6ea30d92940d783f10",
+    "semantic_hash": "ac0913e9e7ae1e6ea30d92940d783f10"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/App/DIContainer.swift": {
+    "mtime": 1779252827.4148438,
+    "ast_hash": "805f1d968851fdd729d7966347a35a08",
+    "semantic_hash": "805f1d968851fdd729d7966347a35a08"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Security/PINManager.swift": {
+    "mtime": 1779252912.963753,
+    "ast_hash": "e5988da4e06325eaff55322f42a9acf7",
+    "semantic_hash": "e5988da4e06325eaff55322f42a9acf7"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Security/SecurityManager.swift": {
+    "mtime": 1779252904.909407,
+    "ast_hash": "aebdd00ce0d75bed98a92ebbbf53694b",
+    "semantic_hash": "aebdd00ce0d75bed98a92ebbbf53694b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Networking/APIClient.swift": {
+    "mtime": 1779413487.9227316,
+    "ast_hash": "8ebb5ac2de07da935cb1af99d194aa58",
+    "semantic_hash": "8ebb5ac2de07da935cb1af99d194aa58"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Networking/Endpoint.swift": {
+    "mtime": 1779299529.4981613,
+    "ast_hash": "506bc24f3310dd39ef611fc399dcc4cf",
+    "semantic_hash": "506bc24f3310dd39ef611fc399dcc4cf"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Utilities/ViewState.swift": {
+    "mtime": 1779252916.868697,
+    "ast_hash": "5708a960d87717654af67ee4dca1bc49",
+    "semantic_hash": "5708a960d87717654af67ee4dca1bc49"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Utilities/Logger.swift": {
+    "mtime": 1779252895.5754266,
+    "ast_hash": "d55e21b76b5c2678851f27a05b2bd145",
+    "semantic_hash": "d55e21b76b5c2678851f27a05b2bd145"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Utilities/AppError.swift": {
+    "mtime": 1779252867.8565485,
+    "ast_hash": "e3a8932a065d454a2800c52ede712de9",
+    "semantic_hash": "e3a8932a065d454a2800c52ede712de9"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Utilities/BarcodeScanner.swift": {
+    "mtime": 1779315234.1113012,
+    "ast_hash": "bfa3af27696a7ff0aeb2fa44063bc392",
+    "semantic_hash": "bfa3af27696a7ff0aeb2fa44063bc392"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Utilities/Reachability.swift": {
+    "mtime": 1779252915.573634,
+    "ast_hash": "12fe28682f6d08ca83ca2b4ecae6bcfb",
+    "semantic_hash": "12fe28682f6d08ca83ca2b4ecae6bcfb"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/Store.swift": {
+    "mtime": 1779252939.470779,
+    "ast_hash": "d5cef52552a81537614f1eafbfb120a1",
+    "semantic_hash": "d5cef52552a81537614f1eafbfb120a1"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/Models/CachedProduct.swift": {
+    "mtime": 1779252943.272403,
+    "ast_hash": "bc1995637827eb156b92327d55f49674",
+    "semantic_hash": "bc1995637827eb156b92327d55f49674"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/InvoiceDTOs.swift": {
+    "mtime": 1779414559.4071443,
+    "ast_hash": "acc387780d8b411664ca5586d0eb395a",
+    "semantic_hash": "acc387780d8b411664ca5586d0eb395a"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/ReorderRuleDTOs.swift": {
+    "mtime": 1779413412.1818297,
+    "ast_hash": "3d187dd1d2d1440e0b4eb918ff78be20",
+    "semantic_hash": "3d187dd1d2d1440e0b4eb918ff78be20"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/ProductDTOs.swift": {
+    "mtime": 1779417805.309713,
+    "ast_hash": "6213a63893bf58081f651b3faa74f172",
+    "semantic_hash": "6213a63893bf58081f651b3faa74f172"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/WarehouseDTOs.swift": {
+    "mtime": 1779298563.8063285,
+    "ast_hash": "f347a03c5788e67be5ce9117632195bc",
+    "semantic_hash": "f347a03c5788e67be5ce9117632195bc"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/LocationDTOs.swift": {
+    "mtime": 1779298565.4178455,
+    "ast_hash": "58db7767e84f480d0298b059f3f3575b",
+    "semantic_hash": "58db7767e84f480d0298b059f3f3575b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/CustomerDTOs.swift": {
+    "mtime": 1779253409.0978434,
+    "ast_hash": "6f9763b1b28ca851ec797da5e1e400b8",
+    "semantic_hash": "6f9763b1b28ca851ec797da5e1e400b8"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/SupplierDTOs.swift": {
+    "mtime": 1779253410.8540127,
+    "ast_hash": "bf304b2fafa9c1c3d9d0f65acc774f74",
+    "semantic_hash": "bf304b2fafa9c1c3d9d0f65acc774f74"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/POSDTOs.swift": {
+    "mtime": 1779420286.5035243,
+    "ast_hash": "478183b84d68c2041954a08705f8bb82",
+    "semantic_hash": "478183b84d68c2041954a08705f8bb82"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/NotificationDTOs.swift": {
+    "mtime": 1779413417.0662053,
+    "ast_hash": "2e7b3d4d0dfb7378c253e01b7352b9a4",
+    "semantic_hash": "2e7b3d4d0dfb7378c253e01b7352b9a4"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Data/DTOs/OrderDTOs.swift": {
+    "mtime": 1779413414.2099001,
+    "ast_hash": "b1fec77a3f5c9364aa79508472029a30",
+    "semantic_hash": "b1fec77a3f5c9364aa79508472029a30"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Customers/CustomerDetailView.swift": {
+    "mtime": 1779253453.3807223,
+    "ast_hash": "8dfc016eb9c27aa21a578bef081fef7f",
+    "semantic_hash": "8dfc016eb9c27aa21a578bef081fef7f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Customers/CustomerFormView.swift": {
+    "mtime": 1779253460.3704367,
+    "ast_hash": "fd6ba2dd9fd999fb994d653b930c7a92",
+    "semantic_hash": "fd6ba2dd9fd999fb994d653b930c7a92"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Customers/CustomerListView.swift": {
+    "mtime": 1779253445.707724,
+    "ast_hash": "16addccf427c9f4052d083bdae26e075",
+    "semantic_hash": "16addccf427c9f4052d083bdae26e075"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Settings/SettingsView.swift": {
+    "mtime": 1779253004.4574156,
+    "ast_hash": "fa88d64a6c1500222f3aeee260dc9a1d",
+    "semantic_hash": "fa88d64a6c1500222f3aeee260dc9a1d"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Warehouses/WarehouseListView.swift": {
+    "mtime": 1779298659.6845462,
+    "ast_hash": "8a8c1ee66907669a1c926c165ab7b601",
+    "semantic_hash": "8a8c1ee66907669a1c926c165ab7b601"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Warehouses/WarehouseDetailView.swift": {
+    "mtime": 1779298662.4084575,
+    "ast_hash": "ead2bfd4f312439af5dd36844dd3c470",
+    "semantic_hash": "ead2bfd4f312439af5dd36844dd3c470"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Warehouses/WarehouseFormView.swift": {
+    "mtime": 1779298665.2450266,
+    "ast_hash": "5ca45e82a2bac5579b8764dd47a4117c",
+    "semantic_hash": "5ca45e82a2bac5579b8764dd47a4117c"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Products/ProductFormView.swift": {
+    "mtime": 1779253313.5567927,
+    "ast_hash": "e1a14a8f9725bcb5a7e8a4c42b980478",
+    "semantic_hash": "e1a14a8f9725bcb5a7e8a4c42b980478"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Products/ProductDetailView.swift": {
+    "mtime": 1779413098.79705,
+    "ast_hash": "6b22595d5c470385a82675dc183990c6",
+    "semantic_hash": "6b22595d5c470385a82675dc183990c6"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Products/ProductListView.swift": {
+    "mtime": 1779253229.5667412,
+    "ast_hash": "ea5cbb4bb1b386e7e475f2e6b1fa383f",
+    "semantic_hash": "ea5cbb4bb1b386e7e475f2e6b1fa383f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Suppliers/SupplierDetailView.swift": {
+    "mtime": 1779253475.781543,
+    "ast_hash": "3cca62fbeb800e4968dd08555b20a5d3",
+    "semantic_hash": "3cca62fbeb800e4968dd08555b20a5d3"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Suppliers/SupplierFormView.swift": {
+    "mtime": 1779253481.2971134,
+    "ast_hash": "a34598a8f26435139479486d94207ee3",
+    "semantic_hash": "a34598a8f26435139479486d94207ee3"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Suppliers/SupplierListView.swift": {
+    "mtime": 1779253470.2361305,
+    "ast_hash": "c01ab7059fcf3e9027ea84a473a77058",
+    "semantic_hash": "c01ab7059fcf3e9027ea84a473a77058"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Invoices/InvoiceListView.swift": {
+    "mtime": 1779413846.9292917,
+    "ast_hash": "71004f612699eed25928065416027b12",
+    "semantic_hash": "71004f612699eed25928065416027b12"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Invoices/InvoiceDetailView.swift": {
+    "mtime": 1779414566.775082,
+    "ast_hash": "09f3536dd12e8cad5f7d2c23dad47c98",
+    "semantic_hash": "09f3536dd12e8cad5f7d2c23dad47c98"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Auth/LoginView.swift": {
+    "mtime": 1779252932.5828645,
+    "ast_hash": "df5f2cc0f4c6f676a0958ff0ea33440f",
+    "semantic_hash": "df5f2cc0f4c6f676a0958ff0ea33440f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/ReorderRules/ReorderRuleListView.swift": {
+    "mtime": 1779413839.24607,
+    "ast_hash": "a104fdcb7cf588062fd356957f59cbb4",
+    "semantic_hash": "a104fdcb7cf588062fd356957f59cbb4"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/ReorderRules/ReorderRuleFormView.swift": {
+    "mtime": 1779413829.31359,
+    "ast_hash": "50158276b2b1c86c3de4ce5dcb11f678",
+    "semantic_hash": "50158276b2b1c86c3de4ce5dcb11f678"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Dashboard/DashboardView.swift": {
+    "mtime": 1779404603.6371775,
+    "ast_hash": "7140be40c4a2ef9f20b918206345d583",
+    "semantic_hash": "7140be40c4a2ef9f20b918206345d583"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Common/MoreMenuView.swift": {
+    "mtime": 1779413540.6766336,
+    "ast_hash": "f861918d991e9feaa85a5c19efd69cc3",
+    "semantic_hash": "f861918d991e9feaa85a5c19efd69cc3"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Movements/StockMovementFormView.swift": {
+    "mtime": 1779411679.9067857,
+    "ast_hash": "be3c391662632a8b854e732e0e9a9212",
+    "semantic_hash": "be3c391662632a8b854e732e0e9a9212"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Movements/StockMovementListView.swift": {
+    "mtime": 1779413094.7240195,
+    "ast_hash": "826e49df0a4b7c34358a3dc38002cb08",
+    "semantic_hash": "826e49df0a4b7c34358a3dc38002cb08"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/POS/POSView+Payment.swift": {
+    "mtime": 1779306157.742029,
+    "ast_hash": "4c1e70ee68b41b3896c1bad9faa539c1",
+    "semantic_hash": "4c1e70ee68b41b3896c1bad9faa539c1"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/POS/POSView.swift": {
+    "mtime": 1779420310.3142827,
+    "ast_hash": "6363ca708753e326367790772e1fa28b",
+    "semantic_hash": "6363ca708753e326367790772e1fa28b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Locations/LocationDetailView.swift": {
+    "mtime": 1779298689.2434227,
+    "ast_hash": "98c7442e1ef4bc6087fe40dc2ac20f45",
+    "semantic_hash": "98c7442e1ef4bc6087fe40dc2ac20f45"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Locations/LocationListView.swift": {
+    "mtime": 1779298684.960411,
+    "ast_hash": "e3dcd4c8c1fcf518dd02e7b5602fb07d",
+    "semantic_hash": "e3dcd4c8c1fcf518dd02e7b5602fb07d"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Locations/LocationFormView.swift": {
+    "mtime": 1779298705.6201217,
+    "ast_hash": "45d6d45b07170a2693352e8ab095090a",
+    "semantic_hash": "45d6d45b07170a2693352e8ab095090a"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Orders/OrderListView.swift": {
+    "mtime": 1779413846.15981,
+    "ast_hash": "87d4eb553361f8c9b7e493b787694eb1",
+    "semantic_hash": "87d4eb553361f8c9b7e493b787694eb1"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Orders/OrderDetailView.swift": {
+    "mtime": 1779413892.8024888,
+    "ast_hash": "d2a7b6f12e6fc85f390a8849da0ccc82",
+    "semantic_hash": "d2a7b6f12e6fc85f390a8849da0ccc82"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Scanner/ScannerView.swift": {
+    "mtime": 1779301217.0197115,
+    "ast_hash": "063c80168ad083a8f704ee59ba4765a4",
+    "semantic_hash": "063c80168ad083a8f704ee59ba4765a4"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Views/Notifications/NotificationListView.swift": {
+    "mtime": 1779413825.736579,
+    "ast_hash": "f4118a5cd968d7e8ee436de30ec8c74f",
+    "semantic_hash": "f4118a5cd968d7e8ee436de30ec8c74f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/POSService.swift": {
+    "mtime": 1779417949.363333,
+    "ast_hash": "011a1fa352d708df4479b10895547c3f",
+    "semantic_hash": "011a1fa352d708df4479b10895547c3f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/SupplierService.swift": {
+    "mtime": 1779253422.5109806,
+    "ast_hash": "d58dad9c081b14c931f8cccfa2a92a41",
+    "semantic_hash": "d58dad9c081b14c931f8cccfa2a92a41"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/ServiceStubs.swift": {
+    "mtime": 1779414579.4359434,
+    "ast_hash": "9d64d4ffd99e4d24a2effc78a0807656",
+    "semantic_hash": "9d64d4ffd99e4d24a2effc78a0807656"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/ProductService.swift": {
+    "mtime": 1779417904.2310598,
+    "ast_hash": "b5ee00c62ee1a661b2254d2c1f53e40f",
+    "semantic_hash": "b5ee00c62ee1a661b2254d2c1f53e40f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/KPIProvider.swift": {
+    "mtime": 1779310968.1355445,
+    "ast_hash": "df5f28526e1eed97ea3dce6ad5fa2b5e",
+    "semantic_hash": "df5f28526e1eed97ea3dce6ad5fa2b5e"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/AuthService.swift": {
+    "mtime": 1779298539.468932,
+    "ast_hash": "1a987c795413e94c623946d44a0e0c7e",
+    "semantic_hash": "1a987c795413e94c623946d44a0e0c7e"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/WarehouseService.swift": {
+    "mtime": 1779298589.3410141,
+    "ast_hash": "aec42f8cf1e940d25a3743de6e377225",
+    "semantic_hash": "aec42f8cf1e940d25a3743de6e377225"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/ServiceProtocols.swift": {
+    "mtime": 1779413790.9994464,
+    "ast_hash": "4cd72f23c351b3a7202a91045b5b80ed",
+    "semantic_hash": "4cd72f23c351b3a7202a91045b5b80ed"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/CustomerService.swift": {
+    "mtime": 1779253417.39613,
+    "ast_hash": "274f9e0ef128c94394c2c48be41a672b",
+    "semantic_hash": "274f9e0ef128c94394c2c48be41a672b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/ios/StockPro/Services/LocationService.swift": {
+    "mtime": 1779298593.9081469,
+    "ast_hash": "99145ce4bed7aa95f381d91d84f3be48",
+    "semantic_hash": "99145ce4bed7aa95f381d91d84f3be48"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/orders.js": {
+    "mtime": 1778982826.0926912,
+    "ast_hash": "b399cefa108b342d93616a306c17e18f",
+    "semantic_hash": "b399cefa108b342d93616a306c17e18f"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/products.js": {
+    "mtime": 1778982818.69181,
+    "ast_hash": "b3376d023cad816a79aa39b96ee59a7d",
+    "semantic_hash": "b3376d023cad816a79aa39b96ee59a7d"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/scanner.js": {
+    "mtime": 1779235883.3086407,
+    "ast_hash": "633977a45566f3b95c443f7ec0f6d31c",
+    "semantic_hash": "633977a45566f3b95c443f7ec0f6d31c"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/pos.js": {
+    "mtime": 1779235962.4194229,
+    "ast_hash": "7a13890fd13d37649e666d135ba1dcbc",
+    "semantic_hash": "7a13890fd13d37649e666d135ba1dcbc"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/movements.js": {
+    "mtime": 1778651173.7550745,
+    "ast_hash": "295479da42c09dde6edfba619941b761",
+    "semantic_hash": "295479da42c09dde6edfba619941b761"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/pos-scanner.js": {
+    "mtime": 1779235913.9253345,
+    "ast_hash": "74c0a1dc160bba0ef9cfe50609e3740d",
+    "semantic_hash": "74c0a1dc160bba0ef9cfe50609e3740d"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/replenishment.js": {
+    "mtime": 1778651173.7562962,
+    "ast_hash": "933fd53e5df6284cd68b603fe92a2ea3",
+    "semantic_hash": "933fd53e5df6284cd68b603fe92a2ea3"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/customers.js": {
+    "mtime": 1778651173.7542706,
+    "ast_hash": "9efd86b1e22ed5ce9a1af3f3afced396",
+    "semantic_hash": "9efd86b1e22ed5ce9a1af3f3afced396"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/invoices.js": {
+    "mtime": 1779045087.2059977,
+    "ast_hash": "2b12928757504f40826a8fe2c45672ff",
+    "semantic_hash": "2b12928757504f40826a8fe2c45672ff"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/suppliers.js": {
+    "mtime": 1778651173.7571838,
+    "ast_hash": "008e9c6e3e0706188d805783c0b86f4a",
+    "semantic_hash": "008e9c6e3e0706188d805783c0b86f4a"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/scanner-pro.js": {
+    "mtime": 1779228662.2529924,
+    "ast_hash": "3318020aaf0ea7ec62aef11733a276b0",
+    "semantic_hash": "3318020aaf0ea7ec62aef11733a276b0"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/dashboard.js": {
+    "mtime": 1779041272.9448285,
+    "ast_hash": "634b0ff643de08e91b9bee558e9b82bd",
+    "semantic_hash": "634b0ff643de08e91b9bee558e9b82bd"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/reports.js": {
+    "mtime": 1778651173.7566633,
+    "ast_hash": "649949850cba35fbeead48dfb558316b",
+    "semantic_hash": "649949850cba35fbeead48dfb558316b"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/app.js": {
+    "mtime": 1779231604.9233541,
+    "ast_hash": "19bfe73478cd988474f5c062ef401de0",
+    "semantic_hash": "19bfe73478cd988474f5c062ef401de0"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/static/js/zxing.min.js": {
+    "mtime": 1779218982.4040103,
+    "ast_hash": "d475c701fdd4f6ea0fdec4f537032e5d",
+    "semantic_hash": "d475c701fdd4f6ea0fdec4f537032e5d"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/db.py": {
+    "mtime": 1779235603.6430771,
+    "ast_hash": "cadbca6b68a5cd8bce3ec1b919ac4bb8",
+    "semantic_hash": "cadbca6b68a5cd8bce3ec1b919ac4bb8"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/kpis.py": {
+    "mtime": 1779235799.2142663,
+    "ast_hash": "77f702bc844005652611f6bf1621986c",
+    "semantic_hash": "77f702bc844005652611f6bf1621986c"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/products.py": {
+    "mtime": 1779417791.4939766,
+    "ast_hash": "dc4a730f25715b690ff3f2c12aa78c60",
+    "semantic_hash": "dc4a730f25715b690ff3f2c12aa78c60"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/warehouses.py": {
+    "mtime": 1778694012.5302236,
+    "ast_hash": "1402062a530ce89a81451cae42eb31f3",
+    "semantic_hash": "1402062a530ce89a81451cae42eb31f3"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/suppliers.py": {
+    "mtime": 1779235700.2758524,
+    "ast_hash": "07aae04f94527da301253d4783a0a11a",
+    "semantic_hash": "07aae04f94527da301253d4783a0a11a"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/customers.py": {
+    "mtime": 1779235693.1138096,
+    "ast_hash": "ec37f3d327194516ac746c2e800d5d46",
+    "semantic_hash": "ec37f3d327194516ac746c2e800d5d46"
+  },
+  "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/routes/locations.py": {
+    "mtime": 1778651173.7531152,
+    "ast_hash": "bb7d24e2d83ad00a2a91b4eb60254013",
+    "semantic_hash": "bb7d24e2d83ad00a2a91b4eb60254013"
+  }
+}

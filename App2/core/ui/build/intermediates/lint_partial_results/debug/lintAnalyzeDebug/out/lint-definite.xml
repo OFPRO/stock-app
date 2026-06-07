@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incidents format="6" by="lint 8.5.2" type="incidents">
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockBadge.kt"
+            line="47"
+            column="5"
+            startOffset="1526"
+            endLine="47"
+            endColumn="13"
+            endOffset="1534"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockButton.kt"
+            line="39"
+            column="5"
+            startOffset="1413"
+            endLine="39"
+            endColumn="13"
+            endOffset="1421"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockFormRow.kt"
+            line="22"
+            column="5"
+            startOffset="754"
+            endLine="22"
+            endColumn="13"
+            endOffset="762"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockSkeleton.kt"
+            line="43"
+            column="5"
+            startOffset="1637"
+            endLine="43"
+            endColumn="13"
+            endOffset="1645"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockSkeleton.kt"
+            line="64"
+            column="5"
+            startOffset="2160"
+            endLine="64"
+            endColumn="13"
+            endOffset="2168"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockSkeleton.kt"
+            line="78"
+            column="5"
+            startOffset="2410"
+            endLine="78"
+            endColumn="13"
+            endOffset="2418"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockSkeleton.kt"
+            line="122"
+            column="5"
+            startOffset="3567"
+            endLine="122"
+            endColumn="13"
+            endOffset="3575"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockSkeleton.kt"
+            line="148"
+            column="5"
+            startOffset="4381"
+            endLine="148"
+            endColumn="13"
+            endOffset="4389"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockTag.kt"
+            line="31"
+            column="5"
+            startOffset="1028"
+            endLine="31"
+            endColumn="13"
+            endOffset="1036"/>
+    </incident>
+
+    <incident
+        id="ModifierParameter"
+        severity="warning"
+        message="Modifier parameter should be the first optional parameter">
+        <location
+            file="${:core:ui*debug*MAIN*sourceProvider*0*javaDir*0}/com/app2/core/ui/components/StockTextField.kt"
+            line="37"
+            column="5"
+            startOffset="1418"
+            endLine="37"
+            endColumn="13"
+            endOffset="1426"/>
+    </incident>
+
+</incidents>

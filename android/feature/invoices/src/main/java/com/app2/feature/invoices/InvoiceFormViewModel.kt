@@ -2,9 +2,9 @@ package com.app2.feature.invoices
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.CustomerApiService
-import com.app2.core.data.remote.InvoiceApiService
-import com.app2.core.data.remote.ProductApiService
+import com.app2.core.data.repository.CustomerRepository
+import com.app2.core.data.repository.InvoiceRepository
+import com.app2.core.data.repository.ProductRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -12,28 +12,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import javax.inject.Inject
-
-private fun JsonElement?.optString(): String? {
-    val prim = this?.jsonPrimitive
-    return if (prim != null && prim !is JsonNull) prim.content else null
-}
-
-private fun JsonElement?.optInt(): Int? =
-    this?.jsonPrimitive?.intOrNull
-
-private fun JsonElement?.optDouble(): Double? =
-    this?.jsonPrimitive?.doubleOrNull
 
 data class CustomerOption(
     val id: Int,
@@ -57,9 +41,9 @@ data class InvoiceLineItem(
 
 @HiltViewModel
 class InvoiceFormViewModel @Inject constructor(
-    private val invoiceApi: InvoiceApiService,
-    private val customerApi: CustomerApiService,
-    private val productApi: ProductApiService
+    private val invoiceRepository: InvoiceRepository,
+    private val customerRepository: CustomerRepository,
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     private val _customers = MutableStateFlow<ViewState<List<CustomerOption>>>(ViewState.Loading)
@@ -115,15 +99,8 @@ class InvoiceFormViewModel @Inject constructor(
             }
             _isSearching.value = true
             try {
-                val response = productApi.getProductsForSale(search = query)
-                _productResults.value = response.jsonArray.mapNotNull { item ->
-                    val o = item.jsonObject
-                    val id = o["id"].optInt() ?: return@mapNotNull null
-                    ProductSearchResult(
-                        id = id,
-                        name = o["name"].optString() ?: "",
-                        price = o["price"].optDouble() ?: 0.0
-                    )
+                _productResults.value = productRepository.getProductsForSale(search = query).map {
+                    ProductSearchResult(id = it.id, name = it.name, price = it.price)
                 }
             } catch (_: Exception) {
                 _productResults.value = emptyList()
@@ -198,8 +175,8 @@ class InvoiceFormViewModel @Inject constructor(
                     put("status", "brouillon")
                     put("notes", _notes.value.ifBlank { "" })
                 }
-                val createResponse = invoiceApi.createInvoice(createBody)
-                val invoiceId = createResponse.jsonObject["id"]?.optInt()
+                val createResponse = invoiceRepository.createInvoice(createBody)
+                val invoiceId = createResponse.jsonObject["id"]?.jsonPrimitive?.intOrNull
                     ?: throw Exception("Impossible de récupérer l'ID de la facture")
 
                 for (line in _lines.value) {
@@ -208,7 +185,7 @@ class InvoiceFormViewModel @Inject constructor(
                         put("quantity", line.quantity)
                         put("unit_price", line.unitPrice)
                     }
-                    invoiceApi.addInvoiceItem(invoiceId, itemBody)
+                    invoiceRepository.addInvoiceItem(invoiceId, itemBody)
                 }
 
                 onSuccess()
@@ -223,13 +200,8 @@ class InvoiceFormViewModel @Inject constructor(
     private fun loadCustomers() {
         viewModelScope.launch {
             try {
-                val response = customerApi.getCustomers()
                 _customers.value = ViewState.Loaded(
-                    response.jsonArray.mapNotNull { item ->
-                        val o = item.jsonObject
-                        val id = o["id"].optInt() ?: return@mapNotNull null
-                        CustomerOption(id = id, name = o["name"].optString() ?: "")
-                    }
+                    customerRepository.getCustomers().map { CustomerOption(id = it.id, name = it.name) }
                 )
             } catch (e: Exception) {
                 _customers.value = ViewState.Error(e.message ?: "Erreur de chargement des clients")

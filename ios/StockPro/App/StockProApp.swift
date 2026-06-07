@@ -49,8 +49,16 @@ struct MainTabView: View {
                     .tag(tab)
             }
         }
+        .tint(AppColor.accent)
         .sheet(isPresented: $showSettings) {
             SettingsView()
+        }
+        .onAppear {
+            let appearance = UITabBarAppearance()
+            appearance.configureWithDefaultBackground()
+            appearance.backgroundColor = UIColor(Color(.systemBackground))
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
         }
     }
 

@@ -154,6 +154,9 @@ interface OrderApiService {
         @Query("status") status: String? = null
     ): JsonElement
 
+    @GET("api/orders/{id}")
+    suspend fun getOrder(@Path("id") id: Int): JsonElement
+
     @POST("api/orders")
     suspend fun createOrder(@Body body: JsonObject): JsonElement
 
@@ -227,7 +230,7 @@ interface KPIApiService {
     suspend fun getDashboardKPIs(): JsonElement
 
     @GET("api/kpis/sales-daily")
-    suspend fun getSalesDaily(@Query("days") days: Int = 7): JsonElement
+    suspend fun getSalesDaily(@Query("period") period: Int = 7): JsonElement
 
     @GET("api/kpis/categories-distribution")
     suspend fun getCategoriesDistribution(): JsonElement
@@ -264,6 +267,12 @@ interface KPIApiService {
 
     @GET("api/kpis/top-products")
     suspend fun getTopProducts(): JsonElement
+
+    @GET("api/kpis/payment-methods")
+    suspend fun getPaymentMethods(): JsonElement
+
+    @GET("api/kpis/trends")
+    suspend fun getTrends(): JsonElement
 }
 
 interface MainAccountApiService {

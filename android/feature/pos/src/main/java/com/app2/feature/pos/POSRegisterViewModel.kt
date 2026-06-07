@@ -2,33 +2,19 @@ package com.app2.feature.pos
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.POSApiService
-import com.app2.core.data.remote.ProductApiService
+import com.app2.core.data.remote.dto.ForSaleProductDTO
+import com.app2.core.data.remote.dto.POSCustomerDTO
+import com.app2.core.data.repository.POSRepository
+import com.app2.core.data.repository.ProductRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import javax.inject.Inject
-
-private fun JsonElement?.optString(): String? {
-    val prim = this?.jsonPrimitive
-    return if (prim != null && prim !is JsonNull) prim.content else null
-}
-
-private fun JsonElement?.optDouble(): Double? = this?.jsonPrimitive?.doubleOrNull
-private fun JsonElement?.optInt(): Int? = this?.jsonPrimitive?.intOrNull
 
 data class POSProduct(
     val id: Int,
@@ -67,8 +53,8 @@ data class PaymentResult(
 
 @HiltViewModel
 class POSRegisterViewModel @Inject constructor(
-    private val posApi: POSApiService,
-    private val productApi: ProductApiService
+    private val posRepository: POSRepository,
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -100,11 +86,11 @@ class POSRegisterViewModel @Inject constructor(
             _products.value = ViewState.Loading
             try {
                 val custId = _selectedCustomer.value?.id
-                val response = productApi.getProductsForSale(
+                val result = productRepository.getProductsForSale(
                     search = search.ifBlank { null },
                     customerId = custId
                 )
-                _products.value = ViewState.Loaded(parseProducts(response))
+                _products.value = ViewState.Loaded(result.map { it.toPOSProduct() })
             } catch (e: Exception) {
                 _products.value = ViewState.Error(e.message ?: "Erreur de chargement")
             }
@@ -114,8 +100,8 @@ class POSRegisterViewModel @Inject constructor(
     fun loadCustomers() {
         viewModelScope.launch {
             try {
-                val response = posApi.getPOSCustomers()
-                _customers.value = parseCustomers(response)
+                val result = posRepository.getPOSCustomers()
+                _customers.value = result.map { POSCustomer(id = it.id, name = it.name, discountRate = it.discountRate?.toInt()) }
             } catch (_: Exception) {}
         }
     }
@@ -123,8 +109,22 @@ class POSRegisterViewModel @Inject constructor(
     fun loadBestSellers() {
         viewModelScope.launch {
             try {
-                val response = posApi.getBestSellers()
-                _bestSellers.value = parseProducts(response)
+                val result = posRepository.getBestSellers()
+                _bestSellers.value = result.map {
+                    POSProduct(
+                        id = it.id,
+                        name = it.name,
+                        sku = it.sku,
+                        barcode = null,
+                        salePrice = it.price,
+                        priceBase = it.priceBase ?: it.price,
+                        priceLoyal = null,
+                        priceSchool = null,
+                        priceStudent = null,
+                        quantity = it.quantity ?: 0,
+                        category = null
+                    )
+                }
             } catch (_: Exception) {}
         }
     }
@@ -179,25 +179,25 @@ class POSRegisterViewModel @Inject constructor(
                         cartItems.forEach { item ->
                             add(buildJsonObject {
                                 put("product_id", item.product.id)
+                                put("product_name", item.product.name)
+                                put("product_sku", item.product.sku)
                                 put("quantity", item.quantity)
                                 put("unit_price", item.product.salePrice)
                             })
                         }
                     })
                 }
-                val response = posApi.createTransaction(body)
-                val obj = response.jsonObject
-                val success = obj["success"]?.jsonPrimitive?.content == "true"
+                val result = posRepository.createTransaction(body)
                 _paymentState.value = ViewState.Loaded(
                     PaymentResult(
-                        success = success,
-                        documentNumber = obj["document_number"].optString(),
-                        total = obj["total"].optDouble() ?: 0.0,
-                        changeAmount = obj["change_amount"].optDouble() ?: 0.0,
-                        customerName = obj["customer_name"].optString()
+                        success = result.success,
+                        documentNumber = result.documentNumber,
+                        total = result.total ?: 0.0,
+                        changeAmount = result.changeAmount ?: 0.0,
+                        customerName = result.customerName
                     )
                 )
-                if (success) {
+                if (result.success) {
                     _cart.value = emptyList()
                     loadBestSellers()
                 }
@@ -208,36 +208,18 @@ class POSRegisterViewModel @Inject constructor(
     }
 
     fun clearPaymentState() { _paymentState.value = null }
-
-    private fun parseProducts(json: JsonElement): List<POSProduct> {
-        return json.jsonArray.mapNotNull { item ->
-            val obj = item.jsonObject
-            val id = obj["id"].optInt() ?: return@mapNotNull null
-            POSProduct(
-                id = id,
-                name = obj["name"].optString() ?: "",
-                sku = obj["sku"].optString() ?: "",
-                barcode = obj["barcode"].optString(),
-                salePrice = (obj["sale_price"].optDouble() ?: obj["price"].optDouble() ?: 0.0),
-                priceBase = obj["price_base"].optDouble() ?: obj["price"].optDouble() ?: 0.0,
-                priceLoyal = obj["price_loyal"].optDouble(),
-                priceSchool = obj["price_school"].optDouble(),
-                priceStudent = obj["price_student"].optDouble(),
-                quantity = obj["quantity"].optInt() ?: 0,
-                category = obj["category"].optString()
-            )
-        }
-    }
-
-    private fun parseCustomers(json: JsonElement): List<POSCustomer> {
-        return json.jsonArray.mapNotNull { item ->
-            val obj = item.jsonObject
-            val id = obj["id"].optInt() ?: return@mapNotNull null
-            POSCustomer(
-                id = id,
-                name = obj["name"].optString() ?: "",
-                discountRate = obj["discount_rate"].optInt()
-            )
-        }
-    }
 }
+
+private fun ForSaleProductDTO.toPOSProduct() = POSProduct(
+    id = id,
+    name = name,
+    sku = sku,
+    barcode = barcode,
+    salePrice = salePrice ?: price,
+    priceBase = price,
+    priceLoyal = priceLoyal,
+    priceSchool = priceSchool,
+    priceStudent = priceStudent,
+    quantity = quantity,
+    category = category
+)

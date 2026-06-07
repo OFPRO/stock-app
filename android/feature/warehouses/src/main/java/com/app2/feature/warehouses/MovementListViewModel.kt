@@ -2,28 +2,13 @@ package com.app2.feature.warehouses
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.MovementApiService
+import com.app2.core.data.repository.MovementRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
-
-private fun JsonElement?.optString(): String? {
-    val prim = this?.jsonPrimitive
-    return if (prim != null && prim !is JsonNull) prim.content else null
-}
-
-private fun JsonElement?.optInt(): Int? =
-    this?.jsonPrimitive?.intOrNull
 
 data class MovementListItem(
     val id: Int,
@@ -39,7 +24,7 @@ data class MovementListItem(
 
 @HiltViewModel
 class MovementListViewModel @Inject constructor(
-    private val movementApi: MovementApiService
+    private val movementRepository: MovementRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ViewState<List<MovementListItem>>>(ViewState.Loading)
@@ -63,8 +48,19 @@ class MovementListViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = ViewState.Loading
             try {
-                val response = movementApi.getMovements()
-                allMovements = parseMovementList(response)
+                allMovements = movementRepository.getMovements().map { dto ->
+                    MovementListItem(
+                        id = dto.id,
+                        productId = dto.productId,
+                        productName = dto.productName,
+                        type = dto.type,
+                        quantity = dto.quantity,
+                        sourceLocation = dto.sourceLocation,
+                        destLocation = dto.destLocation,
+                        note = dto.note,
+                        createdAt = dto.createdAt
+                    )
+                }
                 applyFilters()
             } catch (e: Exception) {
                 _state.value = ViewState.Error(e.message ?: "Erreur de chargement des mouvements")
@@ -111,24 +107,6 @@ class MovementListViewModel @Inject constructor(
             ViewState.Empty
         } else {
             ViewState.Loaded(filtered)
-        }
-    }
-
-    private fun parseMovementList(json: JsonElement): List<MovementListItem> {
-        return json.jsonArray.mapNotNull { item ->
-            val obj = item.jsonObject
-            val id = obj["id"].optInt() ?: return@mapNotNull null
-            MovementListItem(
-                id = id,
-                productId = obj["product_id"].optInt() ?: 0,
-                productName = obj["product_name"].optString() ?: "",
-                type = obj["type"].optString() ?: "",
-                quantity = obj["quantity"].optInt() ?: 0,
-                sourceLocation = obj["source_location"].optString(),
-                destLocation = obj["dest_location"].optString(),
-                note = obj["note"].optString(),
-                createdAt = obj["created_at"].optString()
-            )
         }
     }
 }

@@ -2,7 +2,7 @@ package com.app2.feature.warehouses
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.app2.core.data.remote.WarehouseApiService
+import com.app2.core.data.repository.WarehouseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +13,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class WarehouseFormViewModel @Inject constructor(
-    private val warehouseApi: WarehouseApiService
+    private val warehouseRepository: WarehouseRepository
 ) : ViewModel() {
 
     private val _name = MutableStateFlow("")
@@ -50,7 +50,7 @@ class WarehouseFormViewModel @Inject constructor(
                     put("manager", _manager.value.ifBlank { "" })
                     put("phone", _phone.value.ifBlank { "" })
                 }
-                warehouseApi.createWarehouse(body)
+                warehouseRepository.createWarehouse(body)
                 onSuccess()
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Erreur d'enregistrement"

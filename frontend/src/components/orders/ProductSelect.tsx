@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { useEffect, useRef, useState } from "react"
 import { type Product } from "@/lib/api"
 import { Input } from "@/components/ui/input"
@@ -10,6 +11,7 @@ interface ProductSelectProps {
 }
 
 export function ProductSelect({ products, onSelect, placeholder, loading }: ProductSelectProps) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState("")
   const [isOpen, setIsOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -65,22 +67,22 @@ export function ProductSelect({ products, onSelect, placeholder, loading }: Prod
         onFocus={() => {
           if (search.trim().length > 0) setIsOpen(true)
         }}
-        placeholder={placeholder ?? "Rechercher un produit..."}
+        placeholder={placeholder ?? t("products.select.search_placeholder")}
         className="w-full"
       />
       {isOpen && (
         <div className="absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border bg-popover text-popover-foreground shadow-md">
           {loading ? (
             <div className="px-3 py-2 text-xs text-muted-foreground italic">
-              Chargement des produits...
+              {t("products.select.loading")}
             </div>
           ) : products.length === 0 ? (
             <div className="px-3 py-2 text-xs text-muted-foreground italic">
-              Aucun produit disponible
+              {t("products.select.no_products")}
             </div>
           ) : allResults.length === 0 ? (
             <div className="px-3 py-2 text-xs text-muted-foreground italic">
-              Aucun produit trouvé
+              {t("products.select.no_results")}
             </div>
           ) : (
             allResults.map((p) => {
@@ -94,8 +96,8 @@ export function ProductSelect({ products, onSelect, placeholder, loading }: Prod
                 p.quantity <= 0
                   ? "Rupture"
                   : p.quantity <= p.min_quantity
-                  ? "Restant: " + p.quantity
-                  : "Stock: " + p.quantity
+                  ? t("products.select.remaining_prefix") + " " + p.quantity
+                  : t("products.select.stock_prefix") + " " + p.quantity
               return (
                 <div
                   key={p.id}
