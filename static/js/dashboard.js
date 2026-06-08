@@ -116,7 +116,7 @@ async function loadDashboard() {
 }
 
 function updateTableToOrder(products) {
-    let html = '<table class="mini-table"><thead><tr><th>Produit</th><th>Stock</th><th>Min</th><th>A cmd</th></tr></thead><tbody>';
+    let html = '<table class="mini-table"><thead><tr><th>Produit</th><th>Stock</th><th>Min</th><th>Action</th></tr></thead><tbody>';
     if (products.length === 0) {
         html += '<tr><td colspan="4" style="text-align:center;color:var(--text-light)">Aucun produit</td></tr>';
     } else {
@@ -125,7 +125,7 @@ function updateTableToOrder(products) {
             html += '<tr><td class="product-name">' + p.name + '</td>' +
                 '<td><span class="qty ' + qtyClass + '">' + p.quantity + '</span></td>' +
                 '<td>' + p.min_quantity + '</td>' +
-                '<td><strong>+' + p.needed + '</strong></td></tr>';
+                '<td><button class="btn btn-sm btn-primary" onclick="openOrderWithProduct(' + p.id + ')">Commander</button></td></tr>';
         }
     }
     html += '</tbody></table>';

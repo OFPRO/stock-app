@@ -1,0 +1,10 @@
+=== StockPro v1.0.0 - Installation macOS ===
+
+1. Ouvrir StockPro.dmg
+2. Glisser StockPro.app dans le dossier Applications
+3. Double-cliquer sur StockPro.app pour lancer
+4. L'application s'ouvre dans votre navigateur par défaut
+
+Pour désinstaller : supprimer StockPro.app des Applications.
+
+Données stockées dans le dossier de l'application.
