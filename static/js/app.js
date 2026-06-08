@@ -117,7 +117,7 @@ function showTab(tab) {
     if (tab === 'customers') loadCustomers();
     if (tab === 'invoices') loadInvoices();
     if (tab === 'dashboard') loadDashboard();
-    if (tab === 'pos') { loadProducts(); loadPosSession(); loadPosCashMovements(); loadPosTransactions(); setTimeout(function () { document.getElementById('posSearchInput').focus(); }, 100); }
+    if (tab === 'pos') { loadProducts(); loadPosRegisters(); loadPosCashMovements(); loadPosTransactions(); setTimeout(function () { document.getElementById('posSearchInput').focus(); }, 100); }
     if (tab === 'mainAccount') loadMainAccount();
     if (tab === 'reports') { currentReport = 'overview'; applyReportPeriod(); }
     if (tab === 'sessions') loadSessionsHistory();

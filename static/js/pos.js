@@ -3,10 +3,41 @@ let posCart = [];
 let posPaymentMethod = 'cash';
 let posTenderedAmount = 0;
 let posCashMovementType = 'in';
+let posRegisterId = 1;
+let posRegisters = [];
+let posEventSource = null;
 
-async function loadPosSession() {
+async function loadPosRegisters() {
     try {
-        const res = await fetch('/api/pos/sessions');
+        const res = await fetch('/api/pos/registers');
+        posRegisters = await res.json();
+        const select = document.getElementById('posRegisterSelect');
+        if (select && posRegisters.length > 0) {
+            select.innerHTML = posRegisters.map(r =>
+                '<option value="' + r.id + '">' + r.name + '</option>'
+            ).join('');
+            if (!posRegisters.find(r => r.id === posRegisterId)) {
+                posRegisterId = posRegisters[0].id;
+            }
+            select.value = posRegisterId;
+        }
+    } catch(e) { console.error('Error loading registers:', e); }
+}
+
+function onRegisterChange() {
+    const select = document.getElementById('posRegisterSelect');
+    posRegisterId = parseInt(select.value);
+    document.getElementById('posCurrentRegister').textContent =
+        posRegisters.find(r => r.id === posRegisterId)?.name || 'Caisse ' + posRegisterId;
+    document.getElementById('posRegisterActions').style.display =
+        posSession ? '' : '';
+    loadPosSession(posRegisterId);
+}
+
+async function loadPosSession(registerId) {
+    try {
+        const url = registerId ? '/api/pos/sessions?register_id=' + registerId : '/api/pos/sessions';
+        const res = await fetch(url);
         const sessions = await res.json();
         const openSession = sessions.find(s => s.status === 'open');
         if (openSession) {
@@ -14,11 +45,12 @@ async function loadPosSession() {
             document.getElementById('posSessionNumber').textContent = 'Session: ' + openSession.session_number;
             document.getElementById('posSessionStatus').textContent = 'Ouverte';
             document.getElementById('posSessionStatus').className = 'badge badge-success';
-            document.getElementById('btnOpenSession').style.display = 'none';
-            document.getElementById('btnCloseSession').style.display = 'inline-flex';
+            document.getElementById('posRegisterActions').style.display = 'none';
+            document.getElementById('posSessionActions').style.display = '';
             loadPosCashMovements();
             loadPosCustomers();
             loadPosTransactions();
+            startSSE();
         } else {
             resetPosSession();
         }
@@ -28,32 +60,83 @@ async function loadPosSession() {
 }
 
 function resetPosSession() {
+    if (posSession) {
+        stopSSE();
+    }
     posSession = null;
     document.getElementById('posSessionNumber').textContent = 'Session: ---';
     document.getElementById('posSessionStatus').textContent = 'Fermee';
     document.getElementById('posSessionStatus').className = 'badge badge-warning';
-    document.getElementById('btnOpenSession').style.display = 'inline-flex';
-    document.getElementById('btnCloseSession').style.display = 'none';
+    document.getElementById('posRegisterActions').style.display = '';
+    document.getElementById('posSessionActions').style.display = 'none';
     document.getElementById('posTransactionsList').innerHTML = '<p class="text-muted text-center">Aucune transaction</p>';
 }
 
 async function openPosSession() {
     try {
+        const cashierName = document.getElementById('posCashierName').value.trim();
         const res = await fetch('/api/pos/sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ warehouse_id: 1, opening_cash: 0 })
+            body: JSON.stringify({
+                warehouse_id: 1,
+                opening_cash: 0,
+                register_id: posRegisterId,
+                cashier_name: cashierName
+            })
         });
         const data = await res.json();
         if (data.success) {
             showTab('pos');
-            loadPosSession();
+            loadPosSession(posRegisterId);
             showError('Caisse ouverte: ' + data.session_number);
         } else {
             showError(data.error || 'Erreur ouverture caisse');
         }
     } catch(e) {
         showError('Erreur ouverture caisse');
+    }
+}
+
+function startSSE() {
+    if (posEventSource) return;
+    posEventSource = new EventSource('/api/events');
+    posEventSource.addEventListener('stock-update', function(e) {
+        try {
+            const data = JSON.parse(e.data);
+            checkCartConflict(data);
+        } catch(ex) {}
+    });
+    posEventSource.addEventListener('transaction', function(e) {
+        try {
+            const data = JSON.parse(e.data);
+            if (data.session_id !== (posSession ? posSession.id : null)) {
+                loadPosCashMovements();
+            }
+        } catch(ex) {}
+    });
+    posEventSource.onerror = function() {
+        setTimeout(startSSE, 3000);
+    };
+}
+
+function stopSSE() {
+    if (posEventSource) {
+        posEventSource.close();
+        posEventSource = null;
+    }
+}
+
+function checkCartConflict(data) {
+    const item = posCart.find(i => i.product_id === data.product_id);
+    if (!item) return;
+    const product = products.find(p => p.id === data.product_id);
+    if (product && item.quantity > product.quantity) {
+        const regName = data.register_name || 'Autre caisse';
+        const overage = item.quantity - product.quantity;
+        showError(regName + ' a vendu ' + (product.name || 'produit') +
+            ' — stock restant: ' + product.quantity +
+            (overage > 1 ? ' (excedent: ' + overage + ')' : ''));
     }
 }
 
@@ -69,6 +152,7 @@ async function closePosSession() {
         });
         const data = await res.json();
         if (data.success) {
+            stopSSE();
             resetPosSession();
             clearPosCart();
             showError('Caisse fermee avec succes');

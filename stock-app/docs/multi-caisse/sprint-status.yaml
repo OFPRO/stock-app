@@ -1,0 +1,105 @@
+# Sprint Plan — Multi-Caisse Epic
+# OMNI Phase 3 → Phase 4
+
+sprint: "Multi-Caisse v1"
+start: "2026-06-08"
+target: "2026-06-15"
+
+stories:
+  - id: S1.1
+    title: "Table pos_registers + CRUD + seed"
+    status: "ready-for-dev"
+    epic: 1
+    effort: "M"
+    dependencies: []
+
+  - id: S1.2
+    title: "Migration pos_sessions.register_id"
+    status: "ready-for-dev"
+    epic: 1
+    effort: "S"
+    dependencies: ["S1.1"]
+
+  - id: S1.3
+    title: "Modifier open_pos_session() — sessions par register"
+    status: "ready-for-dev"
+    epic: 1
+    effort: "S"
+    dependencies: ["S1.2"]
+
+  - id: S1.4
+    title: "Modifier get_pos_session() — filtre par register"
+    status: "ready-for-dev"
+    epic: 1
+    effort: "S"
+    dependencies: ["S1.2"]
+
+  - id: S1.5
+    title: "GET /api/pos/sessions/active — toutes les sessions ouvertes"
+    status: "ready-for-dev"
+    epic: 1
+    effort: "S"
+    dependencies: ["S1.3"]
+
+  - id: S2.1
+    title: "Moteur SSE : events_queue + broadcast_event()"
+    status: "ready-for-dev"
+    epic: 2
+    effort: "M"
+    dependencies: []
+
+  - id: S2.2
+    title: "Broadcast SSE après create_pos_transaction()"
+    status: "ready-for-dev"
+    epic: 2
+    effort: "S"
+    dependencies: ["S2.1"]
+
+  - id: S2.3
+    title: "Endpoint GET /api/events"
+    status: "ready-for-dev"
+    epic: 2
+    effort: "S"
+    dependencies: ["S2.1"]
+
+  - id: S3.1
+    title: "Sélecteur de caisse + session par register (frontend)"
+    status: "pending"
+    epic: 3
+    effort: "M"
+    dependencies: ["S1.4", "S1.5"]
+
+  - id: S3.2
+    title: "Connexion SSE côté client (EventSource)"
+    status: "pending"
+    epic: 3
+    effort: "M"
+    dependencies: ["S2.3", "S3.1"]
+
+  - id: S3.3
+    title: "Vérification conflit panier (checkCartConflicts)"
+    status: "pending"
+    epic: 3
+    effort: "M"
+    dependencies: ["S3.2"]
+
+  - id: S3.4
+    title: "Affichage du nom de register + caissier"
+    status: "pending"
+    epic: 3
+    effort: "S"
+    dependencies: ["S3.1"]
+
+  - id: S4.1
+    title: "API GET /api/kpis/registers-status"
+    status: "pending"
+    epic: 4
+    effort: "M"
+    dependencies: ["S1.3"]
+
+  - id: S4.2
+    title: "Carte Caisses dans le dashboard"
+    status: "pending"
+    epic: 4
+    effort: "M"
+    dependencies: ["S4.1"]

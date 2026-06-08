@@ -83,6 +83,35 @@ async function loadDashboard() {
             }
         } catch(e) { console.error('Main account KPI error:', e); }
 
+        try {
+            const regRes = await fetch('/api/kpis/registers-status');
+            const regs = await regRes.json();
+            for (let i = 0; i < regs.length && i < 3; i++) {
+                const r = regs[i];
+                const idx = i + 1;
+                const valEl = document.getElementById('register' + idx + 'Sales');
+                const statusEl = document.getElementById('register' + idx + 'Status');
+                const card = valEl ? valEl.closest('.kpi-card') : null;
+                if (valEl) {
+                    valEl.textContent = r.status === 'open' ? (r.total_sales || 0).toLocaleString() : '---';
+                    valEl.className = 'kpi-card-value ' + (r.status === 'open' ? 'success' : '');
+                }
+                if (statusEl) {
+                    if (r.status === 'open') {
+                        statusEl.textContent = 'Ouverte · ' + (r.nb_transactions || 0) + ' trans. · ' + (r.cash_balance || 0).toFixed(2) + ' DH';
+                        statusEl.className = 'kpi-card-sub badge badge-success';
+                    } else {
+                        statusEl.textContent = 'Fermée';
+                        statusEl.className = 'kpi-card-sub';
+                    }
+                }
+                if (card) {
+                    card.style.cursor = r.status === 'open' ? 'pointer' : '';
+                    card.onclick = r.status === 'open' ? function() { showTab('pos'); } : null;
+                }
+            }
+        } catch(e) { console.error('Register status error:', e); }
+
         document.getElementById('totalDepenses').textContent = (expenses.total_expenses || 0).toLocaleString();
         document.getElementById('depensesJour').textContent = (expenses.expenses_today || 0).toLocaleString();
         document.getElementById('depensesFournisseur').textContent = (expenses.supplier_orders || 0).toLocaleString();
