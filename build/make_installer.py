@@ -72,13 +72,14 @@ def build_portable():
         if os.path.exists(src):
             shutil.copy2(src, bundle_dir)
 
+    ignore = shutil.ignore_patterns('__pycache__', '*.bak', '*.pyc')
     for dirname in ['routes', 'templates', 'static']:
         src = os.path.join(ROOT, dirname)
         dst = os.path.join(bundle_dir, dirname)
         if os.path.exists(src):
             if os.path.exists(dst):
                 shutil.rmtree(dst)
-            shutil.copytree(src, dst)
+            shutil.copytree(src, dst, ignore=ignore)
 
     launcher = os.path.join(bundle_dir, 'start.command')
     with open(launcher, 'w') as f:

@@ -266,6 +266,24 @@ async function openOrderModal(orderId) {
     document.getElementById('orderModal').style.display = 'flex';
 }
 
+async function openOrderWithProduct(productId) {
+    document.getElementById('orderId').value = '';
+    document.getElementById('orderNumber').value = '';
+    document.getElementById('orderNotes').value = '';
+    document.getElementById('orderSupplier').value = '';
+    document.getElementById('orderDate').valueAsDate = new Date();
+    enableOrderForm();
+
+    const container = document.getElementById('orderItemsBody');
+    container.innerHTML = '';
+
+    await ensureProductsLoaded();
+    addRuptureProduct(productId);
+    populateRuptureTags();
+
+    document.getElementById('orderModal').style.display = 'flex';
+}
+
 function disableOrderFormForPaidOrder() {
     const modal = document.getElementById('orderModal');
     modal.querySelectorAll('.form-input:not([readonly]), .form-select').forEach(el => {

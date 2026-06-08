@@ -1781,7 +1781,7 @@ def get_invoice_stats():
     
     total_invoices = conn.execute('SELECT COUNT(*) FROM invoices').fetchone()[0]
     total_amount = conn.execute('SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != "annulee"').fetchone()[0]
-    paid_amount = conn.execute('SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = "payee"').fetchone()[0]
+    paid_amount = conn.execute('SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status IN ("payee", "ticket")').fetchone()[0]
     pending_amount = conn.execute('SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status IN ("brouillon", "envoyee")').fetchone()[0]
     
     conn.close()

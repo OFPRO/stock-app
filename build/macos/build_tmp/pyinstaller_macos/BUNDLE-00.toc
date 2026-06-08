@@ -1,0 +1,3 @@
+([('stock-app',
+   '/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/dist/macos/stock-app',
+   'EXECUTABLE')],)
