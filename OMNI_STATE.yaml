@@ -7,19 +7,19 @@ version: 1.0.0
 project:
   name: "StockPro"
   type: "mixed"                    # android + web_backend + ios
-  primary: "android"
+  primary: "backend"
   root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app"
 
 tracks:
+  backend:
+    name: "StockPro Flask API"
+    root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app"
+    version: "1.0.0"
+    status: "shipped"
   android:
     name: "StockPro Android"
     root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app/android"
     version: "1.1.0"
-    status: "shipped"
-  backend:
-    name: "StockPro Flask API"
-    root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app"
-    version: "0.8"
     status: "shipped"
   ios:
     name: "StockPro iOS"
@@ -27,7 +27,8 @@ tracks:
     version: "0.1"
     status: "wip"
 
-current_phase: 7          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
+current_phase: 5          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
+current_epic: "multi-caisse"
 
 phase_history:
   - phase: 0
@@ -177,16 +178,17 @@ phase_history:
       - "OMNI_STATE expanded to track 3 parallel tracks: android, backend, ios"
       - "Sprint-status tracking created from git log + epics for velocity baseline"
       - "Backend API fully covers remaining epics 9-14 — gap is Android client wiring"
+      - "v1.0.0 saved at git tag v1.0.0 (commit 2484fd5) — pre-multi-caisse savepoint"
 
 state:
   project_context: "project-context.md"
-  prd: "android/docs/product-brief.md"
-  architecture: "android/docs/architecture.md"
-  epics: "android/docs/epics.md"
-  design: "stock-app/docs/planning-artifacts/ux-design-specification.md"
-  sprint_status: "stock-app/docs/implementation-artifacts/sprint-status.yaml"
-  version: "1.1.0"
+  prd: "stock-app/docs/multi-caisse/product-brief.md"
+  architecture: "stock-app/docs/multi-caisse/architecture.md"
+  epics: "stock-app/docs/multi-caisse/epics.md"
+  design: "stock-app/docs/multi-caisse/ux-design.md"
+  sprint_status: "stock-app/docs/multi-caisse/sprint-status.yaml"
+  version: "1.0.0"
   tracks:
+    backend_version: "1.0.0"
     android_version: "1.1.0"
-    backend_version: "0.8"
     ios_version: "0.1"

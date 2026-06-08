@@ -1007,3 +1007,45 @@ def get_kpis_payment_methods():
         'total_inv': round(total_inv, 2),
         'total': round(total_pos + total_inv, 2)
     })
+
+
+@kpis_bp.route('/api/kpis/registers-status', methods=['GET'])
+def get_kpis_registers_status():
+    with get_db() as conn:
+        registers = conn.execute('''
+            SELECT r.*, s.id as session_id, s.session_number, s.status as session_status,
+                   s.opening_cash, s.opened_at, s.cashier_name
+            FROM pos_registers r
+            LEFT JOIN pos_sessions s ON r.id = s.register_id AND s.status = 'open'
+            WHERE r.is_active = 1
+            ORDER BY r.id
+        ''').fetchall()
+        
+        result = []
+        for reg in registers:
+            row = dict(reg)
+            if row['session_id']:
+                total_sales = conn.execute('''
+                    SELECT COALESCE(SUM(total), 0) FROM pos_transactions WHERE session_id = ?
+                ''', (row['session_id'],)).fetchone()[0]
+                nb_trans = conn.execute('''
+                    SELECT COUNT(*) FROM pos_transactions WHERE session_id = ?
+                ''', (row['session_id'],)).fetchone()[0]
+                cash_in = conn.execute('''
+                    SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id = ? AND type = 'in'
+                ''', (row['session_id'],)).fetchone()[0]
+                cash_out = conn.execute('''
+                    SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id = ? AND type = 'out'
+                ''', (row['session_id'],)).fetchone()[0]
+                row['total_sales'] = total_sales
+                row['nb_transactions'] = nb_trans
+                row['cash_balance'] = row['opening_cash'] + cash_in - cash_out
+                row['status'] = 'open'
+            else:
+                row['status'] = 'closed'
+                row['total_sales'] = 0
+                row['nb_transactions'] = 0
+                row['cash_balance'] = 0
+            result.append(row)
+        
+        return jsonify(result)

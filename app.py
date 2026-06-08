@@ -4,6 +4,8 @@ import random
 import html
 import os
 import sys
+import json
+import queue
 import argparse
 import webbrowser
 from io import StringIO
@@ -21,6 +23,21 @@ from routes.customers import customers_bp
 from routes.suppliers import suppliers_bp
 from routes.warehouses import warehouses_bp
 from routes.locations import locations_bp
+
+# SSE event bus for real-time multi-caisse sync
+sse_clients = []
+
+def broadcast_event(event_type, data):
+    payload = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+    dead_clients = []
+    for client_queue in sse_clients:
+        try:
+            client_queue.put_nowait(payload)
+        except Exception:
+            dead_clients.append(client_queue)
+    for q in dead_clients:
+        sse_clients.remove(q)
+
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24).hex()
@@ -469,6 +486,33 @@ def init_db():
     except Exception:
         pass
     
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS pos_registers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            code TEXT NOT NULL UNIQUE,
+            warehouse_id INTEGER DEFAULT 1,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
+        )
+    ''')
+
+    try:
+        c.execute("ALTER TABLE pos_sessions ADD COLUMN register_id INTEGER REFERENCES pos_registers(id)")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE pos_sessions ADD COLUMN cashier_name TEXT DEFAULT ''")
+    except Exception:
+        pass
+
+    default_register = c.execute('SELECT id FROM pos_registers LIMIT 1').fetchone()
+    if not default_register:
+        c.execute('''
+            INSERT INTO pos_registers (name, code) VALUES ('Caisse 1', 'CAISSE-01')
+        ''')
+
     c.execute('''
         CREATE TABLE IF NOT EXISTS main_account (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -1816,14 +1860,28 @@ def get_receivables():
 
 @app.route('/api/pos/sessions', methods=['GET'])
 def get_pos_session():
-    """Get active POS session"""
+    """Get active POS session, optionally filtered by register_id"""
     conn = get_db()
-    session = conn.execute('''
-        SELECT * FROM pos_sessions 
-        WHERE status = 'open' 
-        ORDER BY opened_at DESC 
-        LIMIT 1
-    ''').fetchone()
+    register_id = request.args.get('register_id')
+    
+    if register_id:
+        session = conn.execute('''
+            SELECT s.*, r.name as register_name
+            FROM pos_sessions s
+            LEFT JOIN pos_registers r ON s.register_id = r.id
+            WHERE s.status = 'open' AND s.register_id = ?
+            ORDER BY s.opened_at DESC
+            LIMIT 1
+        ''', (register_id,)).fetchone()
+    else:
+        session = conn.execute('''
+            SELECT s.*, r.name as register_name
+            FROM pos_sessions s
+            LEFT JOIN pos_registers r ON s.register_id = r.id
+            WHERE s.status = 'open'
+            ORDER BY s.opened_at DESC
+            LIMIT 1
+        ''').fetchone()
     
     result = [dict(session)] if session else []
     conn.close()
@@ -1831,20 +1889,30 @@ def get_pos_session():
 
 @app.route('/api/pos/sessions', methods=['POST'])
 def open_pos_session():
-    """Open a new POS session"""
+    """Open a new POS session for a specific register"""
     data = request.json or {}
     warehouse_id = data.get('warehouse_id', 1)
     opening_cash = data.get('opening_cash', 0)
+    register_id = data.get('register_id')
+    cashier_name = data.get('cashier_name', '')
     
     conn = get_db()
     
-    # Check for existing open session
-    existing = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open'").fetchone()
-    if existing:
-        conn.close()
-        return jsonify({'error': 'Une session est déjà ouverte'}), 400
+    if register_id:
+        reg = conn.execute('SELECT * FROM pos_registers WHERE id = ? AND is_active = 1', (register_id,)).fetchone()
+        if not reg:
+            conn.close()
+            return jsonify({'error': 'Caisse invalide ou désactivée'}), 400
+        existing = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open' AND register_id = ?", (register_id,)).fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'error': 'Cette caisse a déjà une session ouverte'}), 400
+    else:
+        existing = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open'").fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'error': 'Une session est déjà ouverte'}), 400
     
-    # Generate session number
     today = datetime.now().strftime('%Y%m%d')
     last_session = conn.execute('''
         SELECT session_number FROM pos_sessions 
@@ -1859,9 +1927,9 @@ def open_pos_session():
     session_number = f'SES-{today}-{seq:04d}'
     
     conn.execute('''
-        INSERT INTO pos_sessions (session_number, warehouse_id, opening_cash, status)
-        VALUES (?, ?, ?, 'open')
-    ''', (session_number, warehouse_id, opening_cash))
+        INSERT INTO pos_sessions (session_number, warehouse_id, opening_cash, status, register_id, cashier_name)
+        VALUES (?, ?, ?, 'open', ?, ?)
+    ''', (session_number, warehouse_id, opening_cash, register_id, cashier_name))
     conn.commit()
     
     session_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -2169,7 +2237,29 @@ def create_pos_transaction():
     
     conn.commit()
     conn.close()
-    
+
+    register_name = session.get('register_name') or session.get('cashier_name') or ''
+    stock_updates = []
+    for item in items:
+        stock_updates.append({
+            'product_id': item.get('product_id') or item.get('id'),
+            'product_name': item.get('product_name', ''),
+            'quantity': item.get('quantity', 1)
+        })
+    broadcast_event('transaction', {
+        'session_id': session_id,
+        'register_name': register_name,
+        'total': total,
+        'document_number': doc_number,
+        'payment_method': payment_method
+    })
+    for update in stock_updates:
+        broadcast_event('stock-update', {
+            'product_id': update['product_id'],
+            'register_name': register_name,
+            'timestamp': datetime.now().isoformat()
+        })
+
     return jsonify({
         'success': True,
         'document_number': doc_number,
@@ -2568,6 +2658,133 @@ def get_pos_transaction_by_invoice(invoice_number):
     
     conn.close()
     return jsonify(dict(transaction))
+
+# ─── POS Registers CRUD ───────────────────────────────────────
+
+@app.route('/api/pos/registers', methods=['GET'])
+def get_pos_registers():
+    conn = get_db()
+    registers = conn.execute(
+        'SELECT * FROM pos_registers WHERE is_active = 1 ORDER BY id'
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in registers])
+
+
+@app.route('/api/pos/registers', methods=['POST'])
+def create_pos_register():
+    data = request.json or {}
+    name = data.get('name', '').strip()
+    code = data.get('code', '').strip()
+    if not name or not code:
+        return jsonify({'error': 'Nom et code requis'}), 400
+    conn = get_db()
+    try:
+        conn.execute(
+            'INSERT INTO pos_registers (name, code) VALUES (?, ?)',
+            (name, code)
+        )
+        conn.commit()
+        reg_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        reg = conn.execute('SELECT * FROM pos_registers WHERE id = ?', (reg_id,)).fetchone()
+        conn.close()
+        return jsonify({'success': True, 'register': dict(reg)})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Nom ou code déjà utilisé'}), 400
+
+
+@app.route('/api/pos/registers/<int:reg_id>', methods=['PUT'])
+def update_pos_register(reg_id):
+    data = request.json or {}
+    conn = get_db()
+    reg = conn.execute('SELECT * FROM pos_registers WHERE id = ?', (reg_id,)).fetchone()
+    if not reg:
+        conn.close()
+        return jsonify({'error': 'Caisse non trouvée'}), 404
+    name = data.get('name', reg['name']).strip()
+    is_active = data.get('is_active', reg['is_active'])
+    try:
+        conn.execute(
+            'UPDATE pos_registers SET name = ?, is_active = ? WHERE id = ?',
+            (name, is_active, reg_id)
+        )
+        conn.commit()
+        reg = conn.execute('SELECT * FROM pos_registers WHERE id = ?', (reg_id,)).fetchone()
+        conn.close()
+        return jsonify({'success': True, 'register': dict(reg)})
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'error': 'Nom déjà utilisé'}), 400
+
+
+@app.route('/api/pos/registers/<int:reg_id>', methods=['DELETE'])
+def delete_pos_register(reg_id):
+    conn = get_db()
+    open_session = conn.execute(
+        'SELECT id FROM pos_sessions WHERE register_id = ? AND status = ?',
+        (reg_id, 'open')
+    ).fetchone()
+    if open_session:
+        conn.close()
+        return jsonify({'error': 'Impossible de supprimer une caisse avec une session ouverte'}), 400
+    conn.execute('UPDATE pos_registers SET is_active = 0 WHERE id = ?', (reg_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+
+# ─── POS Register Status (for dashboard) ─────────────────────
+
+@app.route('/api/pos/sessions/active', methods=['GET'])
+def get_active_sessions():
+    conn = get_db()
+    sessions = conn.execute('''
+        SELECT s.*, r.name as register_name
+        FROM pos_sessions s
+        LEFT JOIN pos_registers r ON s.register_id = r.id
+        WHERE s.status = 'open'
+        ORDER BY s.opened_at DESC
+    ''').fetchall()
+    result = []
+    for s in sessions:
+        row = dict(s)
+        total_sales = conn.execute('''
+            SELECT COALESCE(SUM(total), 0) FROM pos_transactions WHERE session_id = ?
+        ''', (s['id'],)).fetchone()[0]
+        nb_trans = conn.execute('''
+            SELECT COUNT(*) FROM pos_transactions WHERE session_id = ?
+        ''', (s['id'],)).fetchone()[0]
+        cash_in = conn.execute('''
+            SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id = ? AND type = 'in'
+        ''', (s['id'],)).fetchone()[0]
+        cash_out = conn.execute('''
+            SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id = ? AND type = 'out'
+        ''', (s['id'],)).fetchone()[0]
+        row['total_sales'] = total_sales
+        row['nb_transactions'] = nb_trans
+        row['cash_balance'] = s['opening_cash'] + cash_in - cash_out
+        result.append(row)
+    conn.close()
+    return jsonify(result)
+
+
+# ─── SSE Events ──────────────────────────────────────────────
+
+@app.route('/api/events')
+def sse_events():
+    client_queue = queue.Queue()
+    sse_clients.append(client_queue)
+    def event_stream():
+        try:
+            while True:
+                payload = client_queue.get()
+                yield payload
+        except GeneratorExit:
+            if client_queue in sse_clients:
+                sse_clients.remove(client_queue)
+    return Response(event_stream(), mimetype='text/event-stream')
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='StockPro - Gestion de Stock')

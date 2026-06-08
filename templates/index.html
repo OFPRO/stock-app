@@ -276,6 +276,37 @@
                         </div>
                     </div>
                     
+                    <!-- KPI CARDS - ROW 3b: Multi-Caisse -->
+                    <div class="kpi-section">
+                        <div class="kpi-section-title">Caisses</div>
+                        <div class="kpi-cards" id="registersKpiCards">
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon success"><i class="fas fa-cash-register"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Caisse 1</div>
+                                <div class="kpi-card-value success" id="register1Sales">0</div>
+                                <div class="kpi-card-sub" id="register1Status">Fermée</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="50">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon info"><i class="fas fa-cash-register"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Caisse 2</div>
+                                <div class="kpi-card-value info" id="register2Sales">0</div>
+                                <div class="kpi-card-sub" id="register2Status">Fermée</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon primary"><i class="fas fa-cash-register"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Caisse 3</div>
+                                <div class="kpi-card-value primary" id="register3Sales">0</div>
+                                <div class="kpi-card-sub" id="register3Status">Fermée</div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- KPI CARDS - ROW 4: Dépenses -->
                     <div class="kpi-section">
                         <div class="kpi-section-title">Dépenses</div>
@@ -796,15 +827,22 @@
                         <div class="pos-left">
                             <div class="pos-session-bar">
                                 <div class="pos-session-info">
+                                    <select id="posRegisterSelect" class="form-select" style="width:auto;display:inline-block;margin-right:0.5rem;" onchange="onRegisterChange()"></select>
+                                    <input type="text" id="posCashierName" placeholder="Caissier" style="width:120px;padding:4px;border:1px solid var(--border);border-radius:4px;margin-right:0.5rem;">
+                                    <span id="posCurrentRegister" style="display:none;"></span>
                                     <span id="posSessionNumber">Session: ---</span>
                                     <span id="posSessionStatus" class="badge badge-warning">Fermee</span>
                                 </div>
-                                <button class="btn btn-sm" id="btnOpenSession" data-click="open-pos-session">
-                                    <i class="fas fa-play"></i> Ouvrir Caisse
-                                </button>
-                                <button class="btn btn-sm btn-danger" id="btnCloseSession" data-click="close-pos-session" style="display:none;">
-                                    <i class="fas fa-stop"></i> Fermer Caisse
-                                </button>
+                                <span id="posRegisterActions">
+                                    <button class="btn btn-sm" id="btnOpenSession" data-click="open-pos-session">
+                                        <i class="fas fa-play"></i> Ouvrir
+                                    </button>
+                                </span>
+                                <span id="posSessionActions" style="display:none;">
+                                    <button class="btn btn-sm btn-danger" id="btnCloseSession" data-click="close-pos-session">
+                                        <i class="fas fa-stop"></i> Fermer
+                                    </button>
+                                </span>
                             </div>
                             
                             <div class="pos-search-bar">
