@@ -90,6 +90,10 @@
                     <span data-i18n="nav.notifications">Notifications</span>
                     <span id="notifBadge" style="display:none;background:var(--danger);color:white;padding:2px 8px;border-radius:10px;font-size:12px;"></span>
                 </div>
+                <div class="nav-item" data-click="show-tab" data-arg="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Paramètres</span>
+                </div>
             </nav>
         </aside>
         
@@ -107,6 +111,14 @@
                     </div>
                 </div>
                 <div class="header-actions">
+                    <div class="store-switcher" id="storeSwitcherContainer">
+                        <button class="btn btn-sm btn-outline store-switcher-btn" onclick="toggleStoreSwitcherDropdown(event)" title="Magasin actif">
+                            <i class="fas fa-store"></i>
+                            <span id="storeSwitcherLabel">Papeterie AlQalam</span>
+                            <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px;"></i>
+                        </button>
+                        <div class="store-switcher-dropdown" id="storeSwitcherDropdown" style="display:none;"></div>
+                    </div>
                     <button class="btn btn-sm btn-outline lang-toggle" id="langToggleBtn" onclick="i18n.setLang(i18n.lang === 'ar' ? 'fr' : 'ar')" title="Langue">
                         <i class="fas fa-language" id="langToggleIcon"></i>
                         <span id="langToggleText" style="margin-left:4px;font-size:0.75rem;">Français</span>
@@ -1085,6 +1097,35 @@
                         <div class="empty"><i class="fas fa-bell-slash"></i><p>Aucune notification</p></div>
                     </div>
                 </div>
+                <div class="tab-content" id="settingsTab">
+                    <div class="card" style="margin-bottom:1.5rem;">
+                        <div class="card-header">
+                            <div class="card-title"><i class="fas fa-store"></i> Magasins</div>
+                            <button class="btn btn-primary btn-sm" onclick="openCreateStoreModal()"><i class="fas fa-plus"></i> Nouveau magasin</button>
+                        </div>
+                        <div class="card-body" id="storesList">
+                            <div class="empty"><i class="fas fa-store"></i><p>Chargement...</p></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title"><i class="fas fa-tags"></i> Catégories de produits</div>
+                            <button class="btn btn-primary btn-sm" onclick="openAddCategoryModal()"><i class="fas fa-plus"></i> Ajouter</button>
+                        </div>
+                        <div class="card-body" style="padding:0;">
+                            <table class="table" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Nom (français)</th>
+                                        <th>Nom (arabe)</th>
+                                        <th class="text-right" style="width:120px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="categoriesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -1816,9 +1857,73 @@
     </div>
 </div>
 
+<div class="modal" id="createStoreModal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <div class="modal-title">Nouveau magasin</div>
+            <button class="modal-close" onclick="closeModal('createStoreModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Nom du magasin <span style="color:var(--danger);">*</span></label>
+                <input type="text" id="newStoreName" class="form-input" placeholder="Ex: Succursale Marrakech" autofocus>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('createStoreModal')">Annuler</button>
+            <button class="btn btn-primary" onclick="createStore()">Créer</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="editCategoryModal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <div class="modal-title" id="categoryModalTitle">Ajouter une catégorie</div>
+            <button class="modal-close" onclick="closeModal('editCategoryModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editCategoryId">
+            <div class="form-group">
+                <label class="form-label">Nom (français) <span style="color:var(--danger);">*</span></label>
+                <input type="text" id="editCategoryNameFr" class="form-input" placeholder="Ex: Fournitures bureau">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nom (arabe) <span style="color:var(--danger);">*</span></label>
+                <input type="text" id="editCategoryNameAr" class="form-input" placeholder="Ex: أدوات مكتبية">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('editCategoryModal')">Annuler</button>
+            <button class="btn btn-primary" onclick="saveCategory()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
 <style>
 .pay-credit-method-btn { border: 2px solid var(--border); background: var(--bg-card); cursor: pointer; border-radius: 6px; font-size: 0.85rem; }
 .pay-credit-method-btn.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+
+.store-switcher { position:relative; display:inline-block; }
+.store-switcher-btn { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.store-switcher-dropdown { position:absolute; top:100%; right:0; margin-top:4px; min-width:200px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; overflow:hidden; }
+.store-switcher-item { display:flex; align-items:center; gap:8px; padding:10px 14px; cursor:pointer; font-size:0.85rem; transition:background 0.15s; }
+.store-switcher-item:hover { background:var(--bg-hover); }
+.store-switcher-item.active { font-weight:600; background:var(--bg-active); }
+
+.store-card { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); transition:background 0.15s; }
+.store-card:last-child { border-bottom:none; }
+.store-card:hover { background:var(--bg-hover); }
+.store-card-info { flex:1; }
+.store-card-name { font-weight:600; font-size:0.95rem; display:flex; align-items:center; gap:8px; }
+.store-card-name i { width:18px; }
+.store-card-meta { font-size:0.8rem; color:var(--text-light); margin-top:2px; }
+.store-card-actions { display:flex; gap:6px; align-items:center; }
+.store-active .store-card-name { color:var(--success); }
+.store-inactive .store-card-name { color:var(--text); }
+.store-archived .store-card-name { color:var(--text-light); }
+.store-archived { opacity:0.6; }
+.badge-active { font-size:0.75rem; padding:3px 10px; border-radius:12px; background:var(--success); color:#fff; }
 </style>
 
 <script src="/static/js/i18n.js"></script>
@@ -1836,5 +1941,6 @@
 <script src="/static/js/reports.js"></script>
 <script src="/static/js/invoices.js"></script>
 <script src="/static/js/replenishment.js"></script>
+<script src="/static/js/settings.js"></script>
 </body>
 </html>

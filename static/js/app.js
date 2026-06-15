@@ -123,6 +123,7 @@ function showTab(tab) {
     if (tab === 'mainAccount') loadMainAccount();
     if (tab === 'reports') { currentReport = 'overview'; applyReportPeriod(); }
     if (tab === 'sessions') loadSessionsHistory();
+    if (tab === 'settings') loadSettings();
 }
 
 function toggleSidebar() {
