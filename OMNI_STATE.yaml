@@ -14,7 +14,7 @@ tracks:
   backend:
     name: "StockPro Flask API"
     root: "/Users/mac/Desktop/OpenCode_Projects/glm-project/stock-app"
-    version: "1.0.0"
+    version: "1.2.0"
     status: "shipped"
   android:
     name: "StockPro Android"
@@ -27,7 +27,7 @@ tracks:
     version: "0.1"
     status: "wip"
 
-current_phase: 5          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
+current_phase: 6          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
 current_epic: "multi-caisse"
 
 phase_history:
@@ -180,6 +180,16 @@ phase_history:
       - "Backend API fully covers remaining epics 9-14 — gap is Android client wiring"
       - "v1.0.0 saved at git tag v1.0.0 (commit 2484fd5) — pre-multi-caisse savepoint"
 
+  - phase: 6
+    status: in_progress
+    completed_skills:
+      - gstack-ship
+    artifacts:
+      - "git commit [hash]"
+      - "git tag v1.2.0"
+      - "pushed to origin main"
+    blockers: []
+
 state:
   project_context: "project-context.md"
   prd: "stock-app/docs/multi-caisse/product-brief.md"
@@ -187,8 +197,8 @@ state:
   epics: "stock-app/docs/multi-caisse/epics.md"
   design: "stock-app/docs/multi-caisse/ux-design.md"
   sprint_status: "stock-app/docs/multi-caisse/sprint-status.yaml"
-  version: "1.0.0"
+  version: "1.2.0"
   tracks:
-    backend_version: "1.0.0"
+    backend_version: "1.2.0"
     android_version: "1.1.0"
     ios_version: "0.1"

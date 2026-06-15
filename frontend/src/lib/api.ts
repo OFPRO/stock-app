@@ -269,6 +269,7 @@ export interface Product {
   discount_category?: string
   tax_category: string
   category: string
+  category_ar?: string
   lot_number: string
   serial_number: string
   expiry_date: string | null
@@ -340,7 +341,13 @@ export function deleteProduct(id: number): Promise<{ success: boolean; message?:
   return fetch(BASE + "/products/" + id, { method: "DELETE" }).then((r) => r.json())
 }
 
-export function getCategories(): Promise<string[]> {
+export interface Category {
+  id: number
+  name_ar: string
+  name_fr: string
+}
+
+export function getCategories(): Promise<Category[]> {
   return fetchJson("/categories")
 }
 

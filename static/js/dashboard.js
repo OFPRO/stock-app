@@ -1,3 +1,46 @@
+let dashboardEventSource = null;
+
+function startDashboardSSE() {
+    if (dashboardEventSource) return;
+    dashboardEventSource = new EventSource('/api/events');
+    dashboardEventSource.addEventListener('transaction', function(e) {
+        try {
+            const regRes = fetch('/api/kpis/registers-status');
+            regRes.then(r => r.json()).then(regs => {
+                for (let i = 0; i < regs.length && i < 2; i++) {
+                    const r = regs[i];
+                    const idx = i + 1;
+                    const valEl = document.getElementById('register' + idx + 'Sales');
+                    const statusEl = document.getElementById('register' + idx + 'Status');
+                    if (valEl) {
+                        valEl.textContent = r.status === 'open' ? (r.total_sales || 0).toLocaleString() : '---';
+                    }
+                    if (statusEl) {
+                        if (r.status === 'open') {
+                            statusEl.textContent = 'Ouverte · ' + (r.nb_transactions || 0) + ' trans. · ' + (r.cash_balance || 0).toFixed(2) + ' DH';
+                        } else {
+                            statusEl.textContent = 'Fermée';
+                        }
+                    }
+                }
+            }).catch(() => {});
+        } catch(ex) {}
+    });
+    dashboardEventSource.onerror = function() {
+        if (dashboardEventSource) {
+            dashboardEventSource.close();
+            dashboardEventSource = null;
+        }
+    };
+}
+
+function stopDashboardSSE() {
+    if (dashboardEventSource) {
+        dashboardEventSource.close();
+        dashboardEventSource = null;
+    }
+}
+
 async function loadDashboard() {
     try {
         document.getElementById('dashboardLoader').classList.add('active');
@@ -86,7 +129,7 @@ async function loadDashboard() {
         try {
             const regRes = await fetch('/api/kpis/registers-status');
             const regs = await regRes.json();
-            for (let i = 0; i < regs.length && i < 3; i++) {
+            for (let i = 0; i < regs.length && i < 2; i++) {
                 const r = regs[i];
                 const idx = i + 1;
                 const valEl = document.getElementById('register' + idx + 'Sales');
@@ -136,6 +179,7 @@ async function loadDashboard() {
         renderMarginsChart(margins.categories || []);
 
         document.getElementById('dashboardLoader').classList.remove('active');
+        startDashboardSSE();
 
     } catch(e) {
         console.error('Dashboard error:', e);

@@ -108,7 +108,9 @@ function showTab(tab) {
     if (typeof i18n !== 'undefined') i18n.applyDOM();
     if (tab !== 'scanner' && typeof stopScanner === 'function') stopScanner();
     if (tab !== 'pos' && typeof stopPosScanner === 'function') stopPosScanner();
-    if (tab === 'products') loadProducts();
+    if (tab !== 'pos' && typeof stopSSE === 'function') stopSSE();
+    if (tab !== 'dashboard' && typeof stopDashboardSSE === 'function') stopDashboardSSE();
+    if (tab === 'products') { loadProducts(); loadCategories(); }
     if (tab === 'warehouses') loadWarehouses();
     if (tab === 'locations') loadLocations();
     if (tab === 'movements') loadMovements();
@@ -117,7 +119,7 @@ function showTab(tab) {
     if (tab === 'customers') loadCustomers();
     if (tab === 'invoices') loadInvoices();
     if (tab === 'dashboard') loadDashboard();
-    if (tab === 'pos') { loadProducts(); loadPosRegisters(); loadPosCashMovements(); loadPosTransactions(); setTimeout(function () { document.getElementById('posSearchInput').focus(); }, 100); }
+    if (tab === 'pos') { loadProducts(); loadPosRegisters(); loadPosCashMovements(); loadPosTransactions(); if (typeof startSSE === 'function' && typeof posSession !== 'undefined' && posSession) startSSE(); setTimeout(function () { document.getElementById('posSearchInput').focus(); }, 100); }
     if (tab === 'mainAccount') loadMainAccount();
     if (tab === 'reports') { currentReport = 'overview'; applyReportPeriod(); }
     if (tab === 'sessions') loadSessionsHistory();

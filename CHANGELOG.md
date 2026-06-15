@@ -1,5 +1,54 @@
 # Changelog
 
+## v1.2.0 (2026-06-15)
+
+### Nettoyage Caisse
+
+- **Registers** : `init_db()` désactive les caisses autres que "Caisse 1" et "Caisse 2"
+- **Monnaie** : Affichage "monnaie rendu" retiré du DOM (alerte conservée)
+- **Dashboard** : Limite des KPIs caisses passée de 3 à 2
+
+### Catégories Produits — Refonte Complète
+
+- **Nouvelle table** `categories` avec 22 entrées bilingues (`name_ar`, `name_fr`)
+- **Migration** : 55 produits reclassés des 8 anciennes catégories vers les 22 nouvelles
+- **API** : `GET /api/categories` retourne `[{id, name_ar, name_fr}]` au lieu de `string[]`
+- **API** : `GET /api/products` inclut `category_ar` via `LEFT JOIN categories`
+- **Seed** : `seed.py` synchronisé avec les nouvelles catégories
+
+### Renommages
+
+| ID | Arabe | Français |
+|----|-------|----------|
+| 4 | المحافظ | Cartables *(ex: Trousses)* |
+| 5 | مقلمة | Trousses *(ex: Carnets)* |
+| 6 | لانش بوكس | Launch Box *(ex: Pochettes classeurs)* |
+| 7 | آلة حسابية | Calculatrices *(ex: Fournitures calcul)* |
+| 11 | ستيلو/ قلم الرصاص | Stylos à bille/Crayons |
+| 12 | ملونات الخشب / الشمع | *(inchangé)* |
+| 15 | ادوات الصباغة و الرسم | Dessins/peinture |
+
+### Frontend Legacy (Jinja2)
+
+- `products.js` : Nouvelle fonction `loadCategories()` pour dropdown dynamique
+- `index.html` : Options catégories hardcodées supprimées du `<select>`
+- `product_detail.html` : Affichage bilingue `category_ar / category`
+- `dashboard.js` : Limite boucle KPIs caisses `i < 2`
+
+### Frontend React
+
+- **Types** : `Category {id, name_ar, name_fr}` ajouté dans `api.ts`
+- **ProductsPage** : Filtre et tableau affichent `name_ar / name_fr`
+- **ProductDetailDialog/Page** : Affichage bilingue des catégories
+- **Formulaire** : `NativeSelect` des catégories utilise `name_ar / name_fr`
+
+### Base de données & Tests
+
+- `init_db()` refactorisée : `DELETE + INSERT` au lieu de `INSERT OR IGNORE` (évite les lignes périmées)
+- `conftest.py` : `PRAGMA foreign_keys=OFF` dans le cleanup, `categories` ajouté à la liste de nettoyage
+- **163 tests passent** (100%)
+- `test_api_categories` valide le nouveau format `[{id, name_ar, name_fr}]`
+
 ## v0.8 (2026-06-03)
 
 ### Qualité (Phase 5b) — 8 correctifs

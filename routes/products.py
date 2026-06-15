@@ -21,11 +21,13 @@ def get_products():
         where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
         
         query = '''
-            SELECT p.*, s.name as supplier_name, w.name as warehouse_name, l.name as location_name
+            SELECT p.*, s.name as supplier_name, w.name as warehouse_name, l.name as location_name,
+                   c.name_ar as category_ar
             FROM products p
             LEFT JOIN suppliers s ON p.supplier_id = s.id
             LEFT JOIN warehouses w ON p.warehouse_id = w.id
             LEFT JOIN locations l ON p.location_id = l.id
+            LEFT JOIN categories c ON p.category = c.name_fr
             WHERE ''' + where_clause + '''
             ORDER BY p.name
         '''
@@ -38,11 +40,13 @@ def get_product(product_id):
     with get_db() as conn:
         product = conn.execute('''
             SELECT p.*, s.name as supplier_name, s.email as supplier_email, s.phone as supplier_phone,
-                   w.name as warehouse_name, l.name as location_name
+                   w.name as warehouse_name, l.name as location_name,
+                   c.name_ar as category_ar
             FROM products p
             LEFT JOIN suppliers s ON p.supplier_id = s.id
             LEFT JOIN warehouses w ON p.warehouse_id = w.id
             LEFT JOIN locations l ON p.location_id = l.id
+            LEFT JOIN categories c ON p.category = c.name_fr
             WHERE p.id = ?
         ''', (product_id,)).fetchone()
         
@@ -298,10 +302,10 @@ def get_products_for_sale():
         params = []
         base_where = 'is_deleted = 0'
         if warehouse_id:
-            query = 'SELECT * FROM products WHERE ' + base_where + ' AND warehouse_id = ?'
+            query = 'SELECT p.*, c.name_ar as category_ar FROM products p LEFT JOIN categories c ON p.category = c.name_fr WHERE ' + base_where + ' AND p.warehouse_id = ?'
             params.append(warehouse_id)
         else:
-            query = 'SELECT * FROM products WHERE ' + base_where
+            query = 'SELECT p.*, c.name_ar as category_ar FROM products p LEFT JOIN categories c ON p.category = c.name_fr WHERE ' + base_where
         
         if search:
             query += ' AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ?)'
@@ -329,6 +333,6 @@ def get_products_for_sale():
 def get_categories():
     with get_db() as conn:
         categories = conn.execute(
-            'SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != "" ORDER BY category'
+            'SELECT id, name_ar, name_fr FROM categories ORDER BY id'
         ).fetchall()
-        return jsonify([c['category'] for c in categories])
+        return jsonify([dict(c) for c in categories])

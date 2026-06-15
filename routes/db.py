@@ -21,9 +21,9 @@ def validate_id(value):
 
 def get_price_by_tier(product, tier):
     base_price = product.get('price_base', 0) or product.get('price', 0)
-    if tier == 'fidele':
+    if tier in ('fidele', 'price_loyal'):
         return product.get('price_loyal', 0) or base_price
-    elif tier == 'gros':
+    elif tier in ('gros', 'price_gros'):
         return product.get('price_gros', 0) or base_price
     return base_price
 

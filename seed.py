@@ -66,56 +66,56 @@ def main():
     
     # ==== PRODUCTS (50) with realistic pricing ====
     products_data = [
-        ('Stylo à bille bleu', 'STY001', 5.50, 4.00, 'Papeterie', 50),
-        ('Stylo à bille noir', 'STY002', 5.50, 4.00, 'Papeterie', 30),
-        ('Stylo fluorescent vert', 'STY003', 8.00, 6.00, 'Papeterie', 45),
-        ('Crayon à papier HB', 'CRA001', 2.50, 1.80, 'Papeterie', 100),
-        ('Gomme blanche', 'GOM001', 3.00, 2.00, 'Papeterie', 80),
-        ('Taille-crayon', 'TAL001', 5.00, 3.50, 'Papeterie', 60),
-        ('Règle 30cm', 'REG001', 8.00, 5.50, 'Papeterie', 40),
-        ('Paire de ciseaux', 'SCI001', 12.00, 8.00, 'Bureautique', 25),
-        ('Agrafeuse', 'AGR001', 25.00, 18.00, 'Bureautique', 15),
-        ('Agraffes (boîte)', 'AGR002', 8.00, 5.50, 'Bureautique', 50),
-        ('Ruban adhésif transparent', 'RUB001', 6.00, 4.00, 'Bureautique', 70),
-        ('Ruban adhésif noir', 'RUB002', 7.00, 5.00, 'Bureautique', 35),
-        ('Classeur rigide A4', 'CLA001', 18.00, 12.00, 'Papeterie', 40),
-        ('Classeur souple A4', 'CLA002', 12.00, 8.00, 'Papeterie', 50),
-        ('Feuilles perforées A4 (500)', 'FEU001', 35.00, 25.00, 'Papeterie', 20),
-        ('Bloc-notes A5', 'BLOC001', 8.00, 5.50, 'Papeterie', 60),
-        ('Cahier grand format (200p)', 'CAH001', 25.00, 18.00, 'Papeterie', 35),
-        ('Cahier petit format (100p)', 'CAH002', 15.00, 10.00, 'Papeterie', 45),
-        ('Trousse scolaire', 'TRO001', 35.00, 25.00, 'Fournitures', 20),
-        ('Sac à dos scolaires', 'SAC001', 120.00, 85.00, 'Fournitures', 15),
-        ('Calculatrice scientifique', 'CAL001', 45.00, 32.00, 'Fournitures', 25),
-        ('Compas géométrie', 'COM001', 18.00, 12.00, 'Fournitures', 30),
-        ('Equerre plastique', 'EQ001', 8.00, 5.00, 'Fournitures', 50),
-        ('Rapporteur 180°', 'RAP001', 6.00, 4.00, 'Fournitures', 40),
-        ('Marqueurs fluorescents (lot 6)', 'MAR001', 15.00, 10.00, 'Papeterie', 55),
-        ('Stylos gel (lot 10)', 'SG001', 25.00, 18.00, 'Papeterie', 40),
-        ('Piles AA (lot 8)', 'BAT001', 18.00, 12.00, 'Accessoires', 30),
-        ('Piles AAA (lot 8)', 'BAT002', 15.00, 10.00, 'Accessoires', 30),
-        ('Clé USB 16Go', 'USB01', 45.00, 30.00, 'Informatique', 20),
-        ('Clé USB 32Go', 'USB02', 65.00, 45.00, 'Informatique', 15),
-        ('Souris sans fil', 'SOU001', 35.00, 25.00, 'Informatique', 25),
-        ('Clavier USB', 'CLA02', 45.00, 32.00, 'Informatique', 20),
-        ('Tapis de souris', 'TAP001', 15.00, 10.00, 'Accessoires', 40),
-        ('Hub USB 4 ports', 'HUB001', 35.00, 25.00, 'Accessoires', 15),
-        ('Câble HDMI 2m', 'HDM01', 25.00, 18.00, 'Câbles', 30),
-        ('Câble HDMI 5m', 'HDM02', 40.00, 28.00, 'Câbles', 20),
-        ('Câble VGA 2m', 'VGA01', 20.00, 14.00, 'Câbles', 25),
-        ('Support laptop aluminium', 'SUP001', 85.00, 60.00, 'Accessoires', 10),
-        ('Webcam HD 720p', 'WEB01', 75.00, 55.00, 'Informatique', 15),
-        ('Casque audio', 'CAS001', 65.00, 45.00, 'Informatique', 20),
-        ('Enceinte Bluetooth', 'ENC01', 95.00, 70.00, 'Informatique', 12),
-        ('Lampe bureau LED', 'LAM001', 55.00, 38.00, 'Éclairage', 18),
-        ('Lampe clip USB', 'LAM002', 35.00, 25.00, 'Éclairage', 25),
-        ('Support mural écran', 'SUP02', 120.00, 85.00, 'Accessoires', 8),
-        ('Perforateur 2 trous', 'PER01', 45.00, 32.00, 'Bureautique', 20),
-        ('Trombones (boîte)', 'TRO02', 5.00, 3.00, 'Bureautique', 80),
-        ('Poinçon', 'POI01', 8.00, 5.00, 'Bureautique', 40),
-        ('Badges magnétiques', 'BAD01', 12.00, 8.00, 'Accessoires', 50),
-        ('Étiquettes adhesives', 'ETI01', 8.00, 5.50, 'Papeterie', 60),
-        ('Colle stick', 'COL01', 6.00, 4.00, 'Papeterie', 70),
+        ('Stylo à bille bleu', 'STY001', 5.50, 4.00, 'Fournitures bureau', 50),
+        ('Stylo à bille noir', 'STY002', 5.50, 4.00, 'Fournitures bureau', 30),
+        ('Stylo fluorescent vert', 'STY003', 8.00, 6.00, 'Blanco surligneurs', 45),
+        ('Crayon à papier HB', 'CRA001', 2.50, 1.80, 'Stylos à bille/Crayons', 100),
+        ('Gomme blanche', 'GOM001', 3.00, 2.00, 'Fournitures scolaires', 80),
+        ('Taille-crayon', 'TAL001', 5.00, 3.50, 'Fournitures scolaires', 60),
+        ('Règle 30cm', 'REG001', 8.00, 5.50, 'Calculatrices', 40),
+        ('Paire de ciseaux', 'SCI001', 12.00, 8.00, 'Fournitures bureau', 25),
+        ('Agrafeuse', 'AGR001', 25.00, 18.00, 'Fournitures bureau', 15),
+        ('Agraffes (boîte)', 'AGR002', 8.00, 5.50, 'Fournitures bureau', 50),
+        ('Ruban adhésif transparent', 'RUB001', 6.00, 4.00, 'Fournitures bureau', 70),
+        ('Ruban adhésif noir', 'RUB002', 7.00, 5.00, 'Fournitures bureau', 35),
+        ('Classeur rigide A4', 'CLA001', 18.00, 12.00, 'Classeurs chemises papier', 40),
+        ('Classeur souple A4', 'CLA002', 12.00, 8.00, 'Classeurs chemises papier', 50),
+        ('Feuilles perforées A4 (500)', 'FEU001', 35.00, 25.00, 'Classeurs chemises papier', 20),
+        ('Bloc-notes A5', 'BLOC001', 8.00, 5.50, 'Notebooks agendas', 60),
+        ('Cahier grand format (200p)', 'CAH001', 25.00, 18.00, 'Cahiers', 35),
+        ('Cahier petit format (100p)', 'CAH002', 15.00, 10.00, 'Cahiers', 45),
+        ('Trousse scolaire', 'TRO001', 35.00, 25.00, 'Cartables', 20),
+        ('Sac à dos scolaires', 'SAC001', 120.00, 85.00, 'Fournitures scolaires', 15),
+        ('Calculatrice scientifique', 'CAL001', 45.00, 32.00, 'Calculatrices', 25),
+        ('Compas géométrie', 'COM001', 18.00, 12.00, 'Calculatrices', 30),
+        ('Equerre plastique', 'EQ001', 8.00, 5.00, 'Calculatrices', 50),
+        ('Rapporteur 180°', 'RAP001', 6.00, 4.00, 'Calculatrices', 40),
+        ('Marqueurs fluorescents (lot 6)', 'MAR001', 15.00, 10.00, 'Blanco surligneurs', 55),
+        ('Stylos gel (lot 10)', 'SG001', 25.00, 18.00, 'Fournitures bureau', 40),
+        ('Piles AA (lot 8)', 'BAT001', 18.00, 12.00, 'Fournitures bureau', 30),
+        ('Piles AAA (lot 8)', 'BAT002', 15.00, 10.00, 'Fournitures bureau', 30),
+        ('Clé USB 16Go', 'USB01', 45.00, 30.00, 'Fournitures bureau', 20),
+        ('Clé USB 32Go', 'USB02', 65.00, 45.00, 'Fournitures bureau', 15),
+        ('Souris sans fil', 'SOU001', 35.00, 25.00, 'Fournitures bureau', 25),
+        ('Clavier USB', 'CLA02', 45.00, 32.00, 'Fournitures bureau', 20),
+        ('Tapis de souris', 'TAP001', 15.00, 10.00, 'Fournitures bureau', 40),
+        ('Hub USB 4 ports', 'HUB001', 35.00, 25.00, 'Fournitures bureau', 15),
+        ('Câble HDMI 2m', 'HDM01', 25.00, 18.00, 'Accessoires téléphone', 30),
+        ('Câble HDMI 5m', 'HDM02', 40.00, 28.00, 'Accessoires téléphone', 20),
+        ('Câble VGA 2m', 'VGA01', 20.00, 14.00, 'Accessoires téléphone', 25),
+        ('Support laptop aluminium', 'SUP001', 85.00, 60.00, 'Fournitures bureau', 10),
+        ('Webcam HD 720p', 'WEB01', 75.00, 55.00, 'Fournitures bureau', 15),
+        ('Casque audio', 'CAS001', 65.00, 45.00, 'Fournitures bureau', 20),
+        ('Enceinte Bluetooth', 'ENC01', 95.00, 70.00, 'Accessoires téléphone', 12),
+        ('Lampe bureau LED', 'LAM001', 55.00, 38.00, 'Fournitures bureau', 18),
+        ('Lampe clip USB', 'LAM002', 35.00, 25.00, 'Fournitures bureau', 25),
+        ('Support mural écran', 'SUP02', 120.00, 85.00, 'Fournitures bureau', 8),
+        ('Perforateur 2 trous', 'PER01', 45.00, 32.00, 'Fournitures bureau', 20),
+        ('Trombones (boîte)', 'TRO02', 5.00, 3.00, 'Fournitures bureau', 80),
+        ('Poinçon', 'POI01', 8.00, 5.00, 'Fournitures bureau', 40),
+        ('Badges magnétiques', 'BAD01', 12.00, 8.00, 'Cadeaux adultes', 50),
+        ('Étiquettes adhesives', 'ETI01', 8.00, 5.50, 'Fournitures bureau', 60),
+        ('Colle stick', 'COL01', 6.00, 4.00, 'Fournitures scolaires', 70),
     ]
     
     prod_ids = []
@@ -331,87 +331,101 @@ def main():
     conn.commit()
     print(f'✓ Stock updated from received purchase orders')
     
-    # ==== POS SESSION + TRANSACTIONS ====
+    # ==== POS SESSIONS + TRANSACTIONS (Caisse 1 & Caisse 2) ====
     today_str = today.strftime('%Y-%m-%d %H:%M:%S')
-    conn.execute("INSERT INTO pos_sessions (session_number, opening_cash, status, opened_at) VALUES (?, ?, 'open', ?)",
-                 (f'POS-{today.strftime("%Y%m%d")}-001', 500, today_str))
-    pos_session_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    
+    reg1 = conn.execute("SELECT id FROM pos_registers WHERE name='Caisse 1'").fetchone()
+    reg2 = conn.execute("SELECT id FROM pos_registers WHERE name='Caisse 2'").fetchone()
+    sid1 = None
+    sid2 = None
+    
+    if reg1:
+        c1_opening = 500
+        c1_ts = (today - timedelta(hours=10)).strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute("INSERT INTO pos_sessions (session_number, opening_cash, status, opened_at, register_id, cashier_name) VALUES (?, ?, 'open', ?, ?, ?)",
+                     (f'SES-{today.strftime("%Y%m%d")}-0001', c1_opening, c1_ts, reg1['id'], 'Caissier'))
+        sid1 = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    
+    if reg2:
+        c2_ts = (today - timedelta(hours=9, minutes=30)).strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute("INSERT INTO pos_sessions (session_number, opening_cash, status, opened_at, register_id, cashier_name) VALUES (?, ?, 'open', ?, ?, ?)",
+                     (f'SES-{today.strftime("%Y%m%d")}-0002', 0, c2_ts, reg2['id'], 'Caissier'))
+        sid2 = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    conn.commit()
     
     pos_payment_methods = ['cash', 'cash', 'cash', 'card', 'card']
-    for i in range(20):
-        days_ago = random.randint(0, 14)
-        ts = (today - timedelta(days=days_ago, hours=random.randint(8, 18), minutes=random.randint(0, 59))).strftime('%Y-%m-%d %H:%M:%S')
-        seq = i + 1
-        doc_number = f'Ticket-{today.strftime("%Y%m%d")}-{seq:04d}'
-        payment = random.choice(pos_payment_methods)
-        items_count = random.randint(1, 4)
-        
-        subtotal = 0
-        tax = 0
-        trans_items = []
-        for _ in range(items_count):
-            product_id = random.choice(prod_ids)
-            product = conn.execute('SELECT name, sku, price, price_base, quantity FROM products WHERE id=?', (product_id,)).fetchone()
-            if product['quantity'] <= 1:
-                continue
-            qty = random.randint(1, min(3, product['quantity']))
-            if qty == 0:
-                continue
-            unit_price = round(product['price'] * random.uniform(0.9, 1.1), 2)
-            line_ht = qty * unit_price
-            subtotal += line_ht
-            tax += line_ht * 0.20
-            trans_items.append((product_id, product['name'], product['sku'], qty, unit_price, 0, 20, round(line_ht * 1.20, 2)))
-        
-        if not trans_items:
+    # 10 transactions for each session
+    for session_id, count in [(sid1, 10), (sid2, 10)]:
+        if not session_id:
             continue
-        
-        total = round(subtotal + tax, 2)
-        tendered = total if payment == 'card' else round(total * random.uniform(1.0, 1.5), 2)
-        change = max(0, round(tendered - total, 2))
-        
-        conn.execute('''
-            INSERT INTO pos_transactions (ticket_number, transaction_number, session_id, customer_id, payment_method,
-                subtotal, discount_total, tax_amount, total, tendered_amount, change_given, status, created_at)
-            VALUES (?, ?, ?, NULL, ?, ?, 0, ?, ?, ?, ?, 'completed', ?)
-        ''', (doc_number, doc_number, pos_session_id, payment, subtotal, tax, total, tendered, change, ts))
-        trans_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-        
-        # Create invoice record for POS ticket
-        conn.execute('''
-            INSERT INTO invoices (invoice_number, customer_id, warehouse_id, status, type,
-                subtotal, discount_total, tax_amount, total, paid_at, payment_method, tendered_amount, change_given, created_at)
-            VALUES (?, NULL, 1, 'payee', 'ticket', ?, 0, ?, ?, ?, ?, ?, ?, ?)
-        ''', (doc_number, subtotal, tax, total, ts, payment, tendered, change, ts))
-        
-        for item in trans_items:
+        for i in range(count):
+            days_ago = random.randint(0, 14)
+            ts = (today - timedelta(days=days_ago, hours=random.randint(8, 18), minutes=random.randint(0, 59))).strftime('%Y-%m-%d %H:%M:%S')
+            seq = (session_id * 100) + i + 1
+            doc_number = f'Ticket-{today.strftime("%Y%m%d")}-{seq:04d}'
+            payment = random.choice(pos_payment_methods)
+            items_count = random.randint(1, 4)
+            
+            subtotal = 0
+            tax = 0
+            trans_items = []
+            for _ in range(items_count):
+                product_id = random.choice(prod_ids)
+                product = conn.execute('SELECT name, sku, price, price_base, quantity FROM products WHERE id=?', (product_id,)).fetchone()
+                if not product or product['quantity'] <= 1:
+                    continue
+                qty = random.randint(1, min(3, product['quantity']))
+                if qty == 0:
+                    continue
+                unit_price = round(product['price'] * random.uniform(0.9, 1.1), 2)
+                line_ht = qty * unit_price
+                subtotal += line_ht
+                tax += line_ht * 0.20
+                trans_items.append((product_id, product['name'], product['sku'], qty, unit_price, 0, 20, round(line_ht * 1.20, 2)))
+            
+            if not trans_items:
+                continue
+            
+            total = round(subtotal + tax, 2)
+            tendered = total if payment == 'card' else round(total * random.uniform(1.0, 1.5), 2)
+            change = max(0, round(tendered - total, 2))
+            
             conn.execute('''
-                INSERT INTO pos_transaction_items (transaction_id, product_id, product_name, product_sku,
-                    quantity, unit_price, discount_percent, tax_rate, line_total)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (trans_id, *item))
-            conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (item[3], item[0], item[3]))
-            conn.execute('''INSERT INTO stock_movements (product_id, type, quantity, note, created_at)
-                         VALUES (?, 'sale', ?, ?, ?)''', (item[0], item[3], f'Vente POS: {doc_number}', ts))
-        
-        if payment == 'cash':
-            conn.execute('INSERT INTO pos_cash_movements (session_id, type, amount, reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                        (pos_session_id, 'in', total, 'sale', doc_number, ts))
-            if change > 0:
+                INSERT INTO pos_transactions (ticket_number, transaction_number, session_id, customer_id, payment_method,
+                    subtotal, discount_total, tax_amount, total, tendered_amount, change_given, status, created_at)
+                VALUES (?, ?, ?, NULL, ?, ?, 0, ?, ?, ?, ?, 'completed', ?)
+            ''', (doc_number, doc_number, session_id, payment, subtotal, tax, total, tendered, change, ts))
+            trans_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            
+            conn.execute('''
+                INSERT INTO invoices (invoice_number, customer_id, warehouse_id, status, type,
+                    subtotal, discount_total, tax_amount, total, paid_at, payment_method, tendered_amount, change_given, created_at)
+                VALUES (?, NULL, 1, 'payee', 'ticket', ?, 0, ?, ?, ?, ?, ?, ?, ?)
+            ''', (doc_number, subtotal, tax, total, ts, payment, tendered, change, ts))
+            
+            for item in trans_items:
+                conn.execute('''
+                    INSERT INTO pos_transaction_items (transaction_id, product_id, product_name, product_sku,
+                        quantity, unit_price, discount_percent, tax_rate, line_total)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (trans_id, *item))
+                conn.execute('UPDATE products SET quantity = quantity - ? WHERE id=? AND quantity >= ?', (item[3], item[0], item[3]))
+                conn.execute('''INSERT INTO stock_movements (product_id, type, quantity, note, created_at)
+                             VALUES (?, 'sale', ?, ?, ?)''', (item[0], item[3], f'Vente POS: {doc_number}', ts))
+            
+            if payment == 'cash':
                 conn.execute('INSERT INTO pos_cash_movements (session_id, type, amount, reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                            (pos_session_id, 'out', change, 'change', f'Monnaie rendu: {doc_number}', ts))
-        elif payment == 'card':
-            conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (total,))
-            conn.execute('''INSERT INTO main_account_transactions (type, amount, reason, reference_id, note, created_at)
-                         VALUES ('in', ?, 'card_payment', ?, ?, ?)''', (total, trans_id, f'Paiement carte: {doc_number}', ts))
-    conn.commit()
+                            (session_id, 'in', total, 'sale', doc_number, ts))
+                if change > 0:
+                    conn.execute('INSERT INTO pos_cash_movements (session_id, type, amount, reason, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+                                (session_id, 'out', change, 'change', f'Monnaie rendu: {doc_number}', ts))
+            elif payment == 'card':
+                conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (total,))
+                conn.execute('''INSERT INTO main_account_transactions (type, amount, reason, reference_id, note, created_at)
+                             VALUES ('in', ?, 'card_payment', ?, ?, ?)''', (total, trans_id, f'Paiement carte: {doc_number}', ts))
+        conn.commit()
     
-    # Close POS session
-    conn.execute("UPDATE pos_sessions SET status='closed', closed_at=?, closing_cash=? WHERE id=?",
-                 (today_str, 500 + conn.execute('SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id=? AND type=?', (pos_session_id, 'in')).fetchone()[0]
-                  - conn.execute('SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id=? AND type=?', (pos_session_id, 'out')).fetchone()[0], pos_session_id))
-    conn.commit()
-    print(f'✓ {20} POS transactions created')
+    print(f'✓ {20} POS transactions created (10 per register)')
     
     # ==== REORDERING RULES ====
     for p in prod_ids[:25]:

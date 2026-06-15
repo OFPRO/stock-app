@@ -12,6 +12,21 @@ async function loadProducts() {
     }
 }
 
+async function loadCategories() {
+    try {
+        const res = await fetch('/api/categories');
+        const cats = await res.json();
+        const select = document.getElementById('productCategory');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- Sélectionner --</option>' +
+            cats.map(function(c) {
+                return '<option value="' + c.name_fr + '">' + c.name_ar + ' / ' + c.name_fr + '</option>';
+            }).join('');
+    } catch(e) {
+        console.error('Erreur chargement catégories:', e);
+    }
+}
+
 async function loadBestSellers() {
     try {
         const res = await fetch('/api/pos/best-sellers?limit=5');
@@ -99,7 +114,9 @@ async function openProductDetail(productId) {
 
         document.getElementById('detail-name').textContent = p.name;
         document.getElementById('detail-name-ar').textContent = p.name_ar || '-';
-        document.getElementById('detail-category').textContent = p.category || '-';
+        var catLabel = p.category || '-';
+        if (p.category_ar) catLabel = p.category_ar + ' / ' + p.category;
+        document.getElementById('detail-category').textContent = catLabel;
         document.getElementById('detail-barcode').textContent = p.barcode || '-';
         document.getElementById('detail-warehouse').textContent = p.warehouse_name || '-';
         document.getElementById('detail-location').textContent = p.location_name || '-';

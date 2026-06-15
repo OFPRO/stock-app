@@ -52,13 +52,15 @@ def runner(app):
 def _db_cleanup(app, db_path):
     import routes.db
     conn = routes.db.get_db()
+    conn.execute("PRAGMA foreign_keys=OFF")
     for table in ["pos_transaction_items", "pos_transactions", "pos_cash_movements",
                    "pos_sessions", "main_account_transactions", "invoice_items",
                    "invoices", "stock_movements", "stock", "notifications",
                    "reordering_rules", "purchase_order_items", "purchase_orders",
                    "products", "customers", "locations", "suppliers", "warehouses",
-                   "main_account"]:
+                   "main_account", "categories"]:
         conn.execute(f"DELETE FROM {table}")
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.commit()
     conn.close()
     yield
@@ -70,6 +72,9 @@ def seed_data(_db_cleanup, db_path):
     import routes.db
     conn = routes.db.get_db()
     c = conn.cursor()
+
+    for ar, fr in [("قرطاسية", "Papeterie"), ("أدوات مكتبية", "Fournitures")]:
+        c.execute("INSERT OR IGNORE INTO categories (name_ar, name_fr) VALUES (?, ?)", (ar, fr))
 
     c.execute("INSERT INTO warehouses (name, address, manager, is_default) VALUES (?, ?, ?, ?)",
               ("Test Warehouse", "123 Test St", "Tester", 1))
