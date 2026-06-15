@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.3.0 (2026-06-15)
+
+### Module Paramètres — Magasins Multi-Base + Catégories
+
+- **Nouvelle architecture** : 1 base de données par magasin (`stock.db` → Papeterie AlQalam, `stock_N.db` → magasin N)
+- **Nouveau blueprint** `routes/stores.py` : CRUD magasins, switch, archive, réactivation, gestion catégories
+- **Résolution dynamique** : `get_db()` sélectionne automatiquement la base via `session['active_store_id']`
+- **Nouveau magasin** : base vierge avec catégories pré-remplies (22), entrepôt + emplacement par défaut, 0 produits/clients/factures
+- **Frontend legacy** : onglet "Paramètres" dans la sidebar, sélecteur de magasin stylisé dans le header
+- **Catégories** : CRUD complet (ajouter, modifier, supprimer) depuis l'interface paramètres
+
+### Scan Caméra — Toggle Manuel
+
+- **Caméra désactivée par défaut** à l'ouverture du modal "Nouveau Produit"
+- **Bouton toggle** "Activer le scan" / "Désactiver le scan" (pas de démarrage automatique)
+- **Écran noir caché** : la zone vidéo reste masquée (`display:none`) tant que le scan n'est pas activé
+- **Tous les chemins de retour** (annulation, code-barres déjà utilisé) réinitialisent le toggle à OFF
+
 ## v1.2.0 (2026-06-15)
 
 ### Nettoyage Caisse
