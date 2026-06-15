@@ -10,8 +10,8 @@ import argparse
 import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, Response, send_from_directory
-from routes.db import get_db, get_price_by_tier, DB_NAME, _safe_int, validate_id
+from flask import Flask, render_template, request, jsonify, Response, send_from_directory, session
+from routes.db import get_db, get_price_by_tier, DB_NAME, _safe_int, validate_id, categories_data
 try:
     from reset_test_db import reset_transactional_data
     _HAS_RESET = True
@@ -23,6 +23,7 @@ from routes.customers import customers_bp
 from routes.suppliers import suppliers_bp
 from routes.warehouses import warehouses_bp
 from routes.locations import locations_bp
+from routes.stores import stores_bp
 
 # SSE event bus for real-time multi-caisse sync
 sse_clients = []
@@ -48,6 +49,12 @@ app.register_blueprint(customers_bp)
 app.register_blueprint(suppliers_bp)
 app.register_blueprint(warehouses_bp)
 app.register_blueprint(locations_bp)
+app.register_blueprint(stores_bp)
+
+@app.before_request
+def ensure_active_store():
+    if 'active_store_id' not in session:
+        session['active_store_id'] = 1
 
 def _esc(d):
     for k, v in d.items():
@@ -71,7 +78,20 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS stores (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            code TEXT NOT NULL UNIQUE,
+            is_active INTEGER DEFAULT 1,
+            is_archived INTEGER DEFAULT 0,
+            archived_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute("INSERT OR IGNORE INTO stores (id, name, code) VALUES (1, 'Papeterie AlQalam', '1')")
+
     c.execute('''
         CREATE TABLE IF NOT EXISTS warehouses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -191,31 +211,6 @@ def init_db():
             name_fr TEXT NOT NULL UNIQUE
         )
     ''')
-
-    categories_data = [
-        ('المصاحف', 'Corans'),
-        ('الكتب', 'Livres'),
-        ('الدفاتر', 'Cahiers'),
-        ('المحافظ', 'Cartables'),
-        ('مقلمة', 'Trousses'),
-        ('لانش بوكس', 'Launch Box'),
-        ('آلة حسابية', 'Calculatrices'),
-        ('أدوات الهاتف', 'Accessoires téléphone'),
-        ('نوت بوك / أجندة', 'Notebooks agendas'),
-        ('القصص عامة', 'Histoires'),
-        ('ستيلو/ قلم الرصاص', 'Stylos à bille/Crayons'),
-        ('ملونات الخشب / الشمع', 'Crayons couleur cire'),
-        ('تلوين + feutres', 'Coloriage feutres'),
-        ('بلا نكو + Fluorescent', 'Blanco surligneurs'),
-        ('ادوات الصباغة و الرسم', 'Dessins/peinture'),
-        ('أدوات مكتبية', 'Fournitures bureau'),
-        ('أدوات مدرسية', 'Fournitures scolaires'),
-        ('هدايا الكبار', 'Cadeaux adultes'),
-        ('لعب الأطفال', 'Jouets'),
-        ('روايات', 'Romans'),
-        ('اللوحات', 'Tableaux'),
-        ('ملفات + classeurs + papier', 'Classeurs chemises papier'),
-    ]
 
     # 1. Migrate products to final category names before refreshing categories
     c.execute("UPDATE products SET category='Cartables' WHERE category='Trousses' AND is_deleted=0")
