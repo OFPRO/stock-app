@@ -27,7 +27,7 @@ tracks:
     version: "0.1"
     status: "wip"
 
-current_phase: 6          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
+current_phase: 7          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
 current_epic: "multi-caisse"
 
 phase_history:
@@ -181,13 +181,14 @@ phase_history:
       - "v1.0.0 saved at git tag v1.0.0 (commit 2484fd5) — pre-multi-caisse savepoint"
 
   - phase: 6
-    status: in_progress
+    status: completed
     completed_skills:
       - gstack-ship
     artifacts:
-      - "git commit [hash]"
+      - "git commit 3622da0"
       - "git tag v1.2.0"
       - "pushed to origin main"
+      - "GitHub Release https://github.com/OFPRO/stock-app/releases/tag/v1.2.0"
     blockers: []
 
 state:
