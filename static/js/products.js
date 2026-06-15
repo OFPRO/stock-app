@@ -525,7 +525,10 @@ function openProductModal() {
     document.getElementById('productForm').reset();
     document.getElementById('productModalTitle').textContent = 'Nouveau Produit';
     openModal('barcodeScannerModal');
-    initAddProductScanner();
+    stopAddProductScanner();
+    document.getElementById('addProductScannerStatus').textContent = 'Cliquez sur "Activer le scan" pour utiliser la caméra';
+    var btn = document.getElementById('toggleAddProductScannerBtn');
+    if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Activer le scan';
 }
 
 function cancelBarcodeScan() {
@@ -537,6 +540,8 @@ var addProductScannerStream = null;
 var addProductScannerTid = null;
 
 function initAddProductScanner() {
+    var wrapper = document.getElementById('addProductScannerVideoWrapper');
+    if (wrapper) wrapper.style.display = '';
     var video = document.getElementById('addProductVideo');
     var status = document.getElementById('addProductScannerStatus');
     if (!video) return;
@@ -549,6 +554,8 @@ function initAddProductScanner() {
         video.srcObject = stream;
         video.play();
         status.textContent = 'Positionnez le code-barres devant la caméra';
+        var btn = document.getElementById('toggleAddProductScannerBtn');
+        if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Désactiver le scan';
         if ('BarcodeDetector' in window) {
             startBarcodeDetectLoop();
         } else {
@@ -589,6 +596,21 @@ function stopAddProductScanner() {
     }
     var video = document.getElementById('addProductVideo');
     if (video) video.srcObject = null;
+    var wrapper = document.getElementById('addProductScannerVideoWrapper');
+    if (wrapper) wrapper.style.display = 'none';
+}
+
+function toggleAddProductScanner() {
+    var btn = document.getElementById('toggleAddProductScannerBtn');
+    var status = document.getElementById('addProductScannerStatus');
+    if (addProductScannerStream) {
+        stopAddProductScanner();
+        if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Activer le scan';
+        if (status) status.textContent = 'Cliquez sur "Activer le scan" pour utiliser la caméra';
+    } else {
+        initAddProductScanner();
+        if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Désactiver le scan';
+    }
 }
 
 function onBarcodeEntered() {
@@ -618,7 +640,9 @@ async function checkBarcodeExists(code) {
                 openProductDetail(p.id);
             } else {
                 openModal('barcodeScannerModal');
-                initAddProductScanner();
+                var btn = document.getElementById('toggleAddProductScannerBtn');
+                if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Activer le scan';
+                document.getElementById('addProductScannerStatus').textContent = 'Cliquez sur "Activer le scan" pour utiliser la caméra';
             }
         } else {
             openModal('barcodeUnknownModal');
@@ -638,7 +662,9 @@ function addUnknownBarcodeProduct() {
 function cancelUnknownBarcode() {
     closeModal('barcodeUnknownModal');
     openModal('barcodeScannerModal');
-    initAddProductScanner();
+    var btn = document.getElementById('toggleAddProductScannerBtn');
+    if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Activer le scan';
+    document.getElementById('addProductScannerStatus').textContent = 'Cliquez sur "Activer le scan" pour utiliser la caméra';
 }
 
 function editProductModal(product) {
