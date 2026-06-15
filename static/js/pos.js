@@ -7,41 +7,114 @@ let posRegisterId = 1;
 let posRegisters = [];
 let posEventSource = null;
 
+const POS_REGISTER_KEY = 'stockpro_pos_register_id';
+const POS_SESSION_KEY = 'stockpro_pos_session_id';
+
+function posNotify(msg, type) {
+    type = type || 'info';
+    const container = document.getElementById('posNotifications') || (function() {
+        const d = document.createElement('div');
+        d.id = 'posNotifications';
+        d.style.cssText = 'position:fixed;bottom:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;max-width:400px;';
+        document.body.appendChild(d);
+        return d;
+    })();
+    const el = document.createElement('div');
+    el.style.cssText = 'padding:0.75rem 1rem;border-radius:6px;color:#fff;font-size:0.9rem;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:fadeInUp 0.2s ease;word-break:break-word;';
+    el.style.background = type === 'error' ? '#e74c3c' : type === 'success' ? '#27ae60' : '#3498db';
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 5000);
+}
+
+function posShowError(msg) { posNotify(msg, 'error'); }
+
+function fetchWithTimeout(url, options, timeout) {
+    timeout = timeout || 15000;
+    if (!options) options = {};
+    const controller = new AbortController();
+    const id = setTimeout(function() { controller.abort(); }, timeout);
+    options.signal = controller.signal;
+    return fetch(url, options).then(function(res) {
+        clearTimeout(id);
+        return res;
+    }).catch(function(err) {
+        clearTimeout(id);
+        throw err;
+    });
+}
+
+function debounce(fn, delay) {
+    var timer = null;
+    return function() {
+        var ctx = this, args = arguments;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(function() { fn.apply(ctx, args); }, delay);
+    };
+}
+
+function btnLoading(btn, loading) {
+    if (!btn) return;
+    if (loading) {
+        btn._orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>...';
+    } else {
+        btn.disabled = false;
+        if (btn._orig) btn.innerHTML = btn._orig;
+    }
+}
+
 async function loadPosRegisters() {
     try {
-        const res = await fetch('/api/pos/registers');
+        const res = await fetchWithTimeout('/api/pos/registers');
         posRegisters = await res.json();
         const select = document.getElementById('posRegisterSelect');
         if (select && posRegisters.length > 0) {
-            select.innerHTML = posRegisters.map(r =>
-                '<option value="' + r.id + '">' + r.name + '</option>'
-            ).join('');
-            if (!posRegisters.find(r => r.id === posRegisterId)) {
+            select.innerHTML = posRegisters.map(function(r) {
+                return '<option value="' + r.id + '">' + r.name + '</option>';
+            }).join('');
+            var saved = localStorage.getItem(POS_REGISTER_KEY);
+            if (saved) {
+                var parsed = parseInt(saved);
+                if (posRegisters.find(function(r) { return r.id === parsed; })) {
+                    posRegisterId = parsed;
+                }
+            }
+            if (!posRegisters.find(function(r) { return r.id === posRegisterId; })) {
                 posRegisterId = posRegisters[0].id;
             }
             select.value = posRegisterId;
         }
-    } catch(e) { console.error('Error loading registers:', e); }
+        onRegisterChange();
+    } catch(e) {
+        console.error('Error loading registers:', e);
+        posShowError('Erreur chargement caisses');
+    }
 }
 
 function onRegisterChange() {
-    const select = document.getElementById('posRegisterSelect');
+    var select = document.getElementById('posRegisterSelect');
+    if (!select) return;
     posRegisterId = parseInt(select.value);
+    localStorage.setItem(POS_REGISTER_KEY, String(posRegisterId));
     document.getElementById('posCurrentRegister').textContent =
-        posRegisters.find(r => r.id === posRegisterId)?.name || 'Caisse ' + posRegisterId;
+        (posRegisters.find(function(r) { return r.id === posRegisterId; }) || {}).name || 'Caisse ' + posRegisterId;
     document.getElementById('posRegisterActions').style.display =
-        posSession ? '' : '';
+        posSession ? 'none' : '';
     loadPosSession(posRegisterId);
 }
 
-async function loadPosSession(registerId) {
+async function loadPosSession(registerId, retries) {
+    retries = retries || 0;
     try {
-        const url = registerId ? '/api/pos/sessions?register_id=' + registerId : '/api/pos/sessions';
-        const res = await fetch(url);
-        const sessions = await res.json();
-        const openSession = sessions.find(s => s.status === 'open');
+        var url = registerId ? '/api/pos/sessions?register_id=' + registerId : '/api/pos/sessions';
+        var res = await fetchWithTimeout(url);
+        var sessions = await res.json();
+        var openSession = sessions.find(function(s) { return s.status === 'open'; });
         if (openSession) {
             posSession = openSession;
+            localStorage.setItem(POS_SESSION_KEY, String(openSession.id));
             document.getElementById('posSessionNumber').textContent = 'Session: ' + openSession.session_number;
             document.getElementById('posSessionStatus').textContent = 'Ouverte';
             document.getElementById('posSessionStatus').className = 'badge badge-success';
@@ -56,6 +129,12 @@ async function loadPosSession(registerId) {
         }
     } catch(e) {
         console.error('Error loading POS session:', e);
+        if (retries < 2) {
+            setTimeout(function() { loadPosSession(registerId, retries + 1); }, 1000 * (retries + 1));
+        } else {
+            posShowError('Impossible de charger la session');
+            resetPosSession();
+        }
     }
 }
 
@@ -64,6 +143,7 @@ function resetPosSession() {
         stopSSE();
     }
     posSession = null;
+    localStorage.removeItem(POS_SESSION_KEY);
     document.getElementById('posSessionNumber').textContent = 'Session: ---';
     document.getElementById('posSessionStatus').textContent = 'Fermee';
     document.getElementById('posSessionStatus').className = 'badge badge-warning';
@@ -73,9 +153,11 @@ function resetPosSession() {
 }
 
 async function openPosSession() {
+    var btn = document.getElementById('btnOpenSession');
+    btnLoading(btn, true);
     try {
-        const cashierName = document.getElementById('posCashierName').value.trim();
-        const res = await fetch('/api/pos/sessions', {
+        var cashierName = document.getElementById('posCashierName').value.trim();
+        var res = await fetchWithTimeout('/api/pos/sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -85,16 +167,22 @@ async function openPosSession() {
                 cashier_name: cashierName
             })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
             showTab('pos');
             loadPosSession(posRegisterId);
-            showError('Caisse ouverte: ' + data.session_number);
+            posNotify('Caisse ouverte: ' + data.session_number, 'success');
         } else {
-            showError(data.error || 'Erreur ouverture caisse');
+            posShowError(data.error || 'Erreur ouverture caisse');
         }
     } catch(e) {
-        showError('Erreur ouverture caisse');
+        if (e.name === 'AbortError') {
+            posShowError('Timeout: serveur indisponible');
+        } else {
+            posShowError('Erreur ouverture caisse');
+        }
+    } finally {
+        btnLoading(btn, false);
     }
 }
 
@@ -103,13 +191,14 @@ function startSSE() {
     posEventSource = new EventSource('/api/events');
     posEventSource.addEventListener('stock-update', function(e) {
         try {
-            const data = JSON.parse(e.data);
+            var data = JSON.parse(e.data);
             checkCartConflict(data);
+            loadProducts();
         } catch(ex) {}
     });
     posEventSource.addEventListener('transaction', function(e) {
         try {
-            const data = JSON.parse(e.data);
+            var data = JSON.parse(e.data);
             if (data.session_id !== (posSession ? posSession.id : null)) {
                 loadPosCashMovements();
             }
@@ -128,13 +217,13 @@ function stopSSE() {
 }
 
 function checkCartConflict(data) {
-    const item = posCart.find(i => i.product_id === data.product_id);
+    var item = posCart.find(function(i) { return i.product_id === data.product_id; });
     if (!item) return;
-    const product = products.find(p => p.id === data.product_id);
+    var product = products.find(function(p) { return p.id === data.product_id; });
     if (product && item.quantity > product.quantity) {
-        const regName = data.register_name || 'Autre caisse';
-        const overage = item.quantity - product.quantity;
-        showError(regName + ' a vendu ' + (product.name || 'produit') +
+        var regName = data.register_name || 'Autre caisse';
+        var overage = item.quantity - product.quantity;
+        posShowError(regName + ' a vendu ' + (product.name || 'produit') +
             ' — stock restant: ' + product.quantity +
             (overage > 1 ? ' (excedent: ' + overage + ')' : ''));
     }
@@ -142,34 +231,40 @@ function checkCartConflict(data) {
 
 async function closePosSession() {
     if (!posSession) return;
-    const closingCash = prompt('Montant en caisse:', '0');
+    var closingCash = prompt('Montant en caisse:', posSession.opening_cash ? String(posSession.opening_cash) : '0');
     if (closingCash === null) return;
+    var btn = document.getElementById('btnCloseSession');
+    btnLoading(btn, true);
     try {
-        const res = await fetch('/api/pos/sessions/' + posSession.id + '/close', {
+        var res = await fetchWithTimeout('/api/pos/sessions/' + posSession.id + '/close', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ closing_cash: parseFloat(closingCash) || 0 })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
             stopSSE();
             resetPosSession();
             clearPosCart();
-            showError('Caisse fermee avec succes');
+            posNotify('Caisse fermee avec succes', 'success');
+        } else {
+            posShowError(data.error || 'Erreur fermeture');
         }
     } catch(e) {
-        showError('Erreur fermeture caisse');
+        posShowError('Erreur fermeture caisse');
+    } finally {
+        btnLoading(btn, false);
     }
 }
 
 function searchPosProducts() {
-    const query = document.getElementById('posSearchInput').value.trim();
-    const results = document.getElementById('posSearchResults');
+    var query = document.getElementById('posSearchInput').value.trim();
+    var results = document.getElementById('posSearchResults');
     if (query.length < 2) {
         results.classList.remove('active');
         return;
     }
-    const filtered = products.filter(p => {
+    var filtered = products.filter(function(p) {
         return p.name.toLowerCase().indexOf(query.toLowerCase()) !== -1 ||
                (p.sku && p.sku.toLowerCase().indexOf(query.toLowerCase()) !== -1) ||
                (p.barcode && p.barcode.toLowerCase().indexOf(query.toLowerCase()) !== -1);
@@ -177,10 +272,10 @@ function searchPosProducts() {
     if (filtered.length === 0) {
         results.innerHTML = '<div style="padding:0.75rem;color:var(--text-light);">Aucun produit trouve</div>';
     } else {
-        results.innerHTML = filtered.slice(0, 10).map(p => {
-            const salePrice = p.price_base > 0 ? p.price_base : p.price;
-            const stockClass = p.quantity <= 0 ? 'danger' : (p.quantity <= p.min_quantity ? 'warning' : 'success');
-            const stockLabel = p.quantity <= 0 ? 'Rupture' : p.quantity;
+        results.innerHTML = filtered.slice(0, 10).map(function(p) {
+            var salePrice = p.price_base > 0 ? p.price_base : p.price;
+            var stockClass = p.quantity <= 0 ? 'danger' : (p.quantity <= p.min_quantity ? 'warning' : 'success');
+            var stockLabel = p.quantity <= 0 ? 'Rupture' : p.quantity;
             return '<div class="pos-search-item" onclick="addPosProduct(' + p.id + ')">' +
                 '<div><div class="pos-search-item-name">' + p.name + '</div><small style="color:var(--text-light)">' + (p.sku || p.barcode || '-') + '</small></div>' +
                 '<div style="text-align:right;"><div class="pos-search-item-price">' + (salePrice || 0).toFixed(2) + ' DH</div><span class="badge badge-' + stockClass + '" style="font-size:0.65rem;">Stock: ' + stockLabel + '</span></div></div>';
@@ -190,19 +285,19 @@ function searchPosProducts() {
 }
 
 function addPosProductFromSearch() {
-    const query = document.getElementById('posSearchInput').value.trim();
+    var query = document.getElementById('posSearchInput').value.trim();
     if (query.length < 1) return;
-    const byBarcode = products.find(p => p.barcode && p.barcode === query);
+    var byBarcode = products.find(function(p) { return p.barcode && p.barcode === query; });
     if (byBarcode) {
         addPosProduct(byBarcode.id);
     } else {
-        const byName = products.filter(p => p.name.toLowerCase().indexOf(query.toLowerCase()) !== -1);
+        var byName = products.filter(function(p) { return p.name.toLowerCase().indexOf(query.toLowerCase()) !== -1; });
         if (byName.length === 1) {
             addPosProduct(byName[0].id);
         } else if (byName.length > 1) {
-            showError('Plusieurs produits trouves. Selectionnez un dans la liste.');
+            posShowError('Plusieurs produits trouves. Selectionnez un dans la liste.');
         } else {
-            showError('Produit non trouve');
+            posShowError('Produit non trouve');
         }
     }
     document.getElementById('posSearchInput').value = '';
@@ -210,24 +305,21 @@ function addPosProductFromSearch() {
 }
 
 function posTierPrice(product, tier, customer) {
-    const base = product.price_base > 0 ? product.price_base : (product.price || 0);
+    var base = product.price_base > 0 ? product.price_base : (product.price || 0);
     if (tier === 'price_loyal') return product.price_loyal > 0 ? product.price_loyal : base;
     if (tier === 'price_gros') return product.price_gros > 0 ? product.price_gros : base;
     return base;
 }
 
 function addPosProduct(productId) {
-    const product = products.find(p => p.id === productId);
+    var product = products.find(function(p) { return p.id === productId; });
     if (!product) return;
-    const basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
-
-    const discountSelect = document.getElementById('posDiscountType');
-    const selectedValue = discountSelect ? discountSelect.value : 'price_base';
-
-    const unitPrice = posTierPrice(product, selectedValue, null);
-    const discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
-
-    const existing = posCart.find(item => item.product_id === productId);
+    var basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
+    var discountSelect = document.getElementById('posDiscountType');
+    var selectedValue = discountSelect ? discountSelect.value : 'price_base';
+    var unitPrice = posTierPrice(product, selectedValue, null);
+    var discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
+    var existing = posCart.find(function(item) { return item.product_id === productId; });
     if (existing) {
         existing.quantity += 1;
     } else {
@@ -244,26 +336,26 @@ function addPosProduct(productId) {
     renderPosCart();
 }
 
- function updatePosCartItemQty(productId, delta) {
-    const item = posCart.find(i => i.product_id === productId);
+function updatePosCartItemQty(productId, delta) {
+    var item = posCart.find(function(i) { return i.product_id === productId; });
     if (!item) return;
     item.quantity += delta;
     if (item.quantity <= 0) {
-        posCart = posCart.filter(i => i.product_id !== productId);
+        posCart = posCart.filter(function(i) { return i.product_id !== productId; });
     }
     renderPosCart();
 }
 
 function removePosCartItem(productId) {
-    posCart = posCart.filter(i => i.product_id !== productId);
+    posCart = posCart.filter(function(i) { return i.product_id !== productId; });
     renderPosCart();
 }
 
 function updatePosCartItemPrice(productId, newPrice) {
-    const item = posCart.find(i => i.product_id === productId);
+    var item = posCart.find(function(i) { return i.product_id === productId; });
     if (item) {
-        const newUnitPrice = parseFloat(newPrice) || 0;
-        const oldBase = item.base_price || item.unit_price;
+        var newUnitPrice = parseFloat(newPrice) || 0;
+        var oldBase = item.base_price || item.unit_price;
         item.unit_price = newUnitPrice;
         item.base_price = oldBase;
         if (oldBase > 0) {
@@ -279,14 +371,14 @@ function clearPosCart() {
 }
 
 function renderPosCart() {
-    const container = document.getElementById('posCartItems');
+    var container = document.getElementById('posCartItems');
     if (posCart.length === 0) {
         container.innerHTML = '<div class="pos-cart-empty"><i class="fas fa-shopping-basket"></i><p>Aucun produit ajoute</p></div>';
         updatePosTotals(0, 0, 0);
         updatePosPayButton();
         return;
     }
-    container.innerHTML = posCart.map(item => {
+    container.innerHTML = posCart.map(function(item) {
         return '<div class="pos-cart-item">' +
             '<div class="pos-cart-item-qty">' +
             '<button onclick="updatePosCartItemQty(' + item.product_id + ', -1)">-</button>' +
@@ -296,107 +388,111 @@ function renderPosCart() {
             '<input type="number" class="pos-cart-item-price-input" style="width:80px;padding:4px;border:1px solid var(--border);border-radius:4px;" value="' + item.unit_price.toFixed(2) + '" step="0.01" onchange="updatePosCartItemPrice(' + item.product_id + ', this.value)">' +
             '<i class="fas fa-trash pos-cart-item-remove" onclick="removePosCartItem(' + item.product_id + ')"></i></div>';
     }).join('');
-
-    let subtotal = 0;
-    let tax = 0;
-    let discount = 0;
-    const applyTax = document.getElementById('posTvaToggle').checked;
-    posCart.forEach(item => {
-        const baseTotal = item.quantity * (item.base_price || item.unit_price);
-        const lineHt = item.quantity * item.unit_price;
-        const lineTva = applyTax ? lineHt * 0.20 : 0;
-        subtotal += baseTotal;
+    var subtotal = 0, tax = 0, discount = 0;
+    var applyTax = document.getElementById('posTvaToggle').checked;
+    posCart.forEach(function(item) {
+        var unitPrice = item.unit_price || 0;
+        var lineHt = item.quantity * unitPrice;
+        var lineTva = applyTax ? lineHt * 0.20 : 0;
+        subtotal += lineHt;
         tax += lineTva;
-        discount += (item.base_price || item.unit_price) * item.quantity * (item.discount_percent / 100);
+        discount += lineHt * (item.discount_percent / 100);
     });
-
     updatePosTotals(subtotal, tax, discount);
     updatePosPayButton();
 }
 
 function updatePosTotals(subtotal, tax, discount) {
-    const applyTax = document.getElementById('posTvaToggle').checked;
+    var applyTax = document.getElementById('posTvaToggle').checked;
     document.getElementById('posSubtotal').textContent = subtotal.toFixed(2) + ' DH';
     document.getElementById('posTax').textContent = tax.toFixed(2) + ' DH';
     document.getElementById('posDiscount').textContent = (discount > 0 ? '-' : '') + Math.abs(discount).toFixed(2) + ' DH';
-    const total = subtotal + tax - discount;
+    var total = subtotal + tax - discount;
     document.getElementById('posTotal').textContent = total.toFixed(2) + ' DH';
-    const totalLabel = document.querySelector('.pos-summary-total span:first-child');
+    var totalLabel = document.querySelector('.pos-summary-total span:first-child');
     if (totalLabel) totalLabel.textContent = applyTax ? 'Total TTC:' : 'Total:';
-    if (posPaymentMethod === 'cash' && posTenderedAmount > 0) {
-        const change = Math.max(0, posTenderedAmount - total);
-        document.getElementById('posChange').textContent = change.toFixed(2) + ' DH';
+    var posChangeEl = document.getElementById('posChange');
+    if (posPaymentMethod === 'cash' && posTenderedAmount > 0 && posChangeEl) {
+        var change = Math.max(0, posTenderedAmount - total);
+        posChangeEl.textContent = change.toFixed(2) + ' DH';
     }
 }
 
 function updatePosPayButton() {
-    const btn = document.querySelector('.pos-pay-btn');
-    const total = parseFloat(document.getElementById('posTotal').textContent) || 0;
+    var btn = document.querySelector('.pos-pay-btn');
+    var total = parseFloat(document.getElementById('posTotal').textContent) || 0;
     btn.disabled = posCart.length === 0 || total <= 0 || !posSession;
 }
 
 function setPosPaymentMethod(method) {
     posPaymentMethod = method;
-    document.querySelectorAll('.pos-payment-btn').forEach(btn => {
+    document.querySelectorAll('.pos-payment-btn').forEach(function(btn) {
         btn.classList.toggle('active', btn.dataset.method === method);
     });
     document.getElementById('posCashInput').style.display = method === 'cash' ? 'block' : 'none';
+    var posChangeEl = document.getElementById('posChange');
     if (method === 'card' || method === 'mixed') {
-        const total = parseFloat(document.getElementById('posTotal').textContent.replace(/[^0-9.]/g, '')) || 0;
+        var total = parseFloat(document.getElementById('posTotal').textContent.replace(/[^0-9.]/g, '')) || 0;
         posTenderedAmount = total;
         document.getElementById('posTendered').value = total.toFixed(2);
-        document.getElementById('posChange').textContent = '0.00 DH';
+        if (posChangeEl) posChangeEl.textContent = '0.00 DH';
     } else if (method !== 'cash') {
         posTenderedAmount = 0;
         document.getElementById('posTendered').value = '';
-        document.getElementById('posChange').textContent = '0.00 DH';
+        if (posChangeEl) posChangeEl.textContent = '0.00 DH';
     }
 }
 
 function setPosTenderedQuick() {
-    const total = parseFloat(document.getElementById('posTotal').textContent) || 0;
+    var total = parseFloat(document.getElementById('posTotal').textContent) || 0;
     document.getElementById('posTendered').value = total.toFixed(2);
     posTenderedAmount = total;
     calculatePosChange();
 }
 
 function setPosTenderedRound() {
-    const total = parseFloat(document.getElementById('posTotal').textContent) || 0;
-    const rounded = Math.ceil(total / 10) * 10;
+    var total = parseFloat(document.getElementById('posTotal').textContent) || 0;
+    var rounded = Math.ceil(total / 10) * 10;
     document.getElementById('posTendered').value = rounded.toFixed(2);
     posTenderedAmount = rounded;
     calculatePosChange();
 }
 
 function calculatePosChange() {
-    const tendered = parseFloat(document.getElementById('posTendered').value) || 0;
+    var tendered = parseFloat(document.getElementById('posTendered').value) || 0;
     posTenderedAmount = tendered;
-    const totalText = document.getElementById('posTotal').textContent;
-    const total = parseFloat(totalText.replace(/[^0-9.]/g, '')) || 0;
-    const change = Math.max(0, tendered - total);
-    document.getElementById('posChange').textContent = change.toFixed(2) + ' DH';
+    var totalText = document.getElementById('posTotal').textContent;
+    var total = parseFloat(totalText.replace(/[^0-9.]/g, '')) || 0;
+    var changeEl = document.getElementById('posChange');
+    if (changeEl) {
+        var change = Math.max(0, tendered - total);
+        changeEl.textContent = change.toFixed(2) + ' DH';
+    }
 }
 
 async function processPosPayment() {
     if (!posSession || posCart.length === 0) return;
-    const totalText = document.getElementById('posTotal').textContent;
-    const total = parseFloat(totalText.replace(/[^0-9.]/g, '')) || 0;
+    var btn = document.querySelector('.pos-pay-btn');
+    btnLoading(btn, true);
+    var totalText = document.getElementById('posTotal').textContent;
+    var total = parseFloat(totalText.replace(/[^0-9.]/g, '')) || 0;
     if (posPaymentMethod === 'card') {
         posTenderedAmount = total;
         document.getElementById('posTendered').value = total.toFixed(2);
     }
-    const creditCheckbox = document.getElementById('posCreditCheckbox');
-    const isCredit = creditCheckbox ? creditCheckbox.checked : false;
+    var creditCheckbox = document.getElementById('posCreditCheckbox');
+    var isCredit = creditCheckbox ? creditCheckbox.checked : false;
     if (posPaymentMethod === 'cash' && posTenderedAmount < total && !isCredit) {
-        showError('Montant insuffisant');
+        posShowError('Montant insuffisant');
+        btnLoading(btn, false);
         return;
     }
     try {
-        const customerId = document.getElementById('posCustomer').value;
-        const discountSelect = document.getElementById('posDiscountType');
-        const pricingTier = discountSelect ? discountSelect.value : 'price_base';
-        const applyTax = document.getElementById('posTvaToggle').checked;
-        const res = await fetch('/api/pos/transactions', {
+        var customerId = document.getElementById('posCustomer').value;
+        var discountSelect = document.getElementById('posDiscountType');
+        var pricingTier = discountSelect ? discountSelect.value : 'price_base';
+        var applyTax = document.getElementById('posTvaToggle').checked;
+        var res = await fetchWithTimeout('/api/pos/transactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -411,21 +507,20 @@ async function processPosPayment() {
                 is_credit: isCredit
             })
         });
-        const data = await res.json();
-
+        var data = await res.json();
         if (data.success) {
             if (data.document_type === 'ticket') {
                 window.open('/api/pos/tickets/' + data.document_number, 'ticket', 'width=400,height=700,scrollbars=yes');
             }
-            const docType = data.document_type;
-            const docNum = data.document_number;
-            const docStatus = data.document_status;
-            let msg = (docType === 'facture')
+            var docType = data.document_type;
+            var docNum = data.document_number;
+            var docStatus = data.document_status;
+            var msg = (docType === 'facture')
                 ? (docStatus === 'envoyee' ? 'Facture credit generee (en attente): '
                    : docStatus === 'partiellement_payee' ? 'Facture partiellement payee: '
                    : 'Facture payee: ') + docNum
                 : 'Ticket genere: ' + docNum;
-            showError(msg);
+            posNotify(msg, 'success');
             if (data.change_amount > 0) {
                 alert('Monnaie a rendre: ' + data.change_amount.toFixed(2) + ' DH');
             }
@@ -438,42 +533,45 @@ async function processPosPayment() {
             loadPosCashMovements();
             loadPosTransactions();
         } else {
-            showError(data.error || 'Erreur transaction');
+            posShowError(data.error || 'Erreur transaction');
         }
     } catch(e) {
-        showError('Erreur transaction');
+        if (e.name === 'AbortError') {
+            posShowError('Timeout: transaction interrompue. Verifiez votre connexion.');
+        } else {
+            posShowError('Erreur transaction');
+        }
+    } finally {
+        btnLoading(btn, false);
     }
 }
 
 async function loadPosCustomers() {
     try {
-        const res = await fetch('/api/customers');
-        const data = await res.json();
+        var res = await fetchWithTimeout('/api/customers');
+        var data = await res.json();
         customers = data;
-        const select = document.getElementById('posCustomer');
+        var select = document.getElementById('posCustomer');
         if (select) {
             select.innerHTML = '<option value="">Client au comptoir (sans facture)</option>' +
-                data.map(c => '<option value="' + c.id + '">' + c.name + ' (' + (c.client_code || '-') + ')</option>').join('');
+                data.map(function(c) { return '<option value="' + c.id + '">' + c.name + ' (' + (c.client_code || '-') + ')</option>'; }).join('');
         }
-    } catch(e) { console.error(e); }
+    } catch(e) {
+        console.error(e);
+    }
 }
 
 function onCustomerChange() {
-    const discountSelect = document.getElementById('posDiscountType');
-    const customerSelect = document.getElementById('posCustomer');
-    const customerId = customerSelect ? parseInt(customerSelect.value) : null;
-    const creditSection = document.getElementById('posCreditSection');
-    const creditCheckbox = document.getElementById('posCreditCheckbox');
-    const customer = customerId && !isNaN(customerId) ? customers.find(c => c.id === customerId) : null;
-
+    var discountSelect = document.getElementById('posDiscountType');
+    var customerSelect = document.getElementById('posCustomer');
+    var customerId = customerSelect ? parseInt(customerSelect.value) : null;
+    var creditSection = document.getElementById('posCreditSection');
+    var creditCheckbox = document.getElementById('posCreditCheckbox');
+    var customer = customerId && !isNaN(customerId) ? customers.find(function(c) { return c.id === customerId; }) : null;
     if (customer) {
-        if (customer.type === 'fidele') {
-            discountSelect.value = 'price_loyal';
-        } else if (customer.type === 'gros') {
-            discountSelect.value = 'price_gros';
-        } else {
-            discountSelect.value = 'price_base';
-        }
+        if (customer.type === 'fidele') discountSelect.value = 'price_loyal';
+        else if (customer.type === 'gros') discountSelect.value = 'price_gros';
+        else discountSelect.value = 'price_base';
         if (creditSection) creditSection.style.display = '';
     } else {
         discountSelect.value = 'price_base';
@@ -484,67 +582,70 @@ function onCustomerChange() {
 }
 
 function applyPosDiscount() {
-    const discountSelect = document.getElementById('posDiscountType');
-    const selectedValue = discountSelect ? discountSelect.value : 'price_base';
-
-    posCart.forEach(item => {
-        const product = products.find(p => p.id === item.product_id);
+    var discountSelect = document.getElementById('posDiscountType');
+    var selectedValue = discountSelect ? discountSelect.value : 'price_base';
+    posCart.forEach(function(item) {
+        var product = products.find(function(p) { return p.id === item.product_id; });
         if (!product) return;
-        const basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
-        const unitPrice = posTierPrice(product, selectedValue, null);
-        const discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
+        var basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
+        var unitPrice = posTierPrice(product, selectedValue, null);
+        var discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
         item.base_price = basePrice;
         item.unit_price = unitPrice;
         item.discount_percent = discountPct;
     });
-
     renderPosCart();
 }
 
 function handlePosCashIn() {}
+function handlePosCashOut() {}
 
 function formatReason(reason, note) {
     if (!reason) return 'Mouvement';
     if (reason === 'sale') return 'Vente';
     if (reason === 'change') return 'Monnaie rendu';
     if (reason === 'expense' && note) return note;
-    if (reason === 'in') return 'Entrée';
+    if (reason === 'in') return 'Entree';
     return reason;
 }
 
 async function loadPosCashMovements() {
-    if (!posSession) return;
     try {
-        const res = await fetch('/api/pos/cash-movements');
-        const movements = await res.json();
-        const container = document.getElementById('posCashMovementsList');
-
-        movements.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-        let balance = 0;
-        const opening = posSession.opening_cash || 0;
-        movements.forEach(m => {
-            if (m.type === 'in') balance += m.amount;
-            else balance -= m.amount;
-        });
-        balance += opening;
-        document.getElementById('posCashBalance').textContent = balance.toFixed(2) + ' DH';
-
+        var container = document.getElementById('posCashMovementsList');
+        container.innerHTML = '<p class="text-muted text-center"><i class="fas fa-spinner fa-spin"></i> Chargement...</p>';
+        var allResPromise = fetchWithTimeout('/api/pos/cash-movements?limit=50');
+        var sessionResPromise = posSession
+            ? fetchWithTimeout('/api/pos/cash-movements?session_id=' + posSession.id)
+            : Promise.resolve({ json: function() { return []; } });
+        var results = await Promise.all([allResPromise, sessionResPromise]);
+        var movements = await results[0].json();
+        var sessionMovements = await results[1].json();
+        var balance = 0;
+        if (posSession) {
+            var opening = posSession.opening_cash || 0;
+            sessionMovements.forEach(function(m) {
+                if (m.type === 'in') balance += m.amount;
+                else if (m.reason !== 'change') balance -= m.amount;
+            });
+            balance += opening;
+        }
+        document.getElementById('posCashBalance').textContent =
+            posSession ? balance.toFixed(2) + ' DH' : '---';
         if (movements.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Aucun mouvement</p>';
         } else {
-            container.innerHTML = movements.map(m => {
-                const date = new Date(m.created_at);
-                const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-
-                let icon = 'coins';
+            container.innerHTML = movements.map(function(m) {
+                var date = new Date(m.created_at);
+                var timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                var dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+                var icon = 'coins';
                 if (m.reason === 'sale') icon = 'shopping-cart';
                 else if (m.reason === 'change') icon = 'receipt';
                 else if (m.reason === 'expense') icon = 'coffee';
-
+                var registerTag = m.register_name ? '<span class="badge badge-info" style="margin-right:0.25rem;">' + m.register_name + '</span>' : '';
                 return '<div class="pos-cash-movement-item ' + m.type + '">' +
                     '<div class="pos-cash-movement-info">' +
-                    '<span class="pos-cash-movement-reason"><i class="fas fa-' + icon + '"></i> ' + formatReason(m.reason, m.note) + '</span>' +
+                    '<span class="pos-cash-movement-reason">' + registerTag + '<i class="fas fa-' + icon + '"></i> ' + formatReason(m.reason, m.note) + '</span>' +
                     '<span class="pos-cash-movement-time"><i class="fas fa-clock"></i> ' + dateStr + ' ' + timeStr + '</span></div>' +
                     '<span class="pos-cash-movement-amount ' + m.type + '">' + (m.type === 'in' ? '+' : '-') + m.amount.toFixed(2) + ' DH</span></div>';
             }).join('');
@@ -553,106 +654,86 @@ async function loadPosCashMovements() {
 }
 
 async function loadPosTransactions() {
-    if (!posSession) return;
     try {
-        const res = await fetch('/api/pos/transactions/recent?session_id=' + posSession.id + '&limit=20');
-        const transactions = await res.json();
-        const container = document.getElementById('posTransactionsList');
-
+        var container = document.getElementById('posTransactionsList');
+        container.innerHTML = '<p class="text-muted text-center"><i class="fas fa-spinner fa-spin"></i> Chargement...</p>';
+        var res = await fetchWithTimeout('/api/pos/transactions/recent?limit=50');
+        var transactions = await res.json();
         if (!transactions || transactions.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Aucune transaction</p>';
             return;
         }
-
-        container.innerHTML = transactions.map(t => {
-            const date = new Date(t.created_at);
-            const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-            const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-            const customer = t.customer_name || 'Client Comptoir';
-            const isInvoice = t.source === 'invoice';
-            const methodIcon = t.payment_method === 'cash' ? '<i class="fas fa-money-bill-wave"></i>' :
+        container.innerHTML = transactions.map(function(t) {
+            var date = new Date(t.created_at);
+            var timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            var dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+            var customer = t.customer_name || 'Client Comptoir';
+            var isInvoice = t.source === 'invoice';
+            var methodIcon = t.payment_method === 'cash' ? '<i class="fas fa-money-bill-wave"></i>' :
                             t.payment_method === 'card' ? '<i class="fas fa-credit-card"></i>' :
                             '<i class="fas fa-wallet"></i>';
-            const methodText = t.payment_method === 'cash' ? 'Especes' :
-                            t.payment_method === 'card' ? 'Carte' :
-                            'Mixed';
-            const icon = isInvoice ? '<i class="fas fa-file-invoice"></i>' : '<i class="fas fa-receipt"></i>';
-            const label = isInvoice ? 'Facture' : (t.ticket_number || t.transaction_number || '-');
-
+            var methodText = t.payment_method === 'cash' ? 'Especes' :
+                            t.payment_method === 'card' ? 'Carte' : 'Mixed';
+            var icon = isInvoice ? '<i class="fas fa-file-invoice"></i>' : '<i class="fas fa-receipt"></i>';
+            var label = isInvoice ? 'Facture' : (t.ticket_number || t.transaction_number || '-');
+            var registerTag = t.register_name ? '<span class="badge badge-info" style="margin-right:0.25rem;">' + t.register_name + '</span>' : '';
             return '<div class="pos-transaction-item">' +
                 '<div class="pos-transaction-info">' +
-                '<span class="pos-transaction-number">' + icon + ' ' + label + '</span>' +
+                '<span class="pos-transaction-number">' + registerTag + icon + ' ' + label + '</span>' +
                 '<span class="pos-transaction-time"><i class="fas fa-clock"></i> ' + dateStr + ' ' + timeStr + ' | ' + customer + ' | ' + methodIcon + ' ' + methodText + '</span></div>' +
                 '<span class="pos-transaction-total">' + t.total.toFixed(2) + ' DH</span></div>';
         }).join('');
     } catch(e) { console.error('Error loading transactions:', e); }
 }
 
-function handlePosCashOut() {}
-
 async function savePosCashIn() {
-    if (!posSession) {
-        showError('Aucune session ouverte');
-        return;
-    }
-    const reason = document.getElementById('posCashInReason').value;
-    const amount = parseFloat(document.getElementById('posCashInAmount').value) || 0;
-    if (!reason || amount <= 0) {
-        showError('Selectionnez une raison et un montant');
-        return;
-    }
+    if (!posSession) { posShowError('Aucune session ouverte'); return; }
+    var reason = document.getElementById('posCashInReason').value;
+    var amount = parseFloat(document.getElementById('posCashInAmount').value) || 0;
+    if (!reason || amount <= 0) { posShowError('Selectionnez une raison et un montant'); return; }
+    var btn = document.querySelector('.pos-cash-inline-row .btn-success');
+    btnLoading(btn, true);
     try {
-        const res = await fetch('/api/pos/cash-movements', {
+        var res = await fetchWithTimeout('/api/pos/cash-movements', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'in',
-                amount: amount,
-                reason: reason
-            })
+            body: JSON.stringify({ type: 'in', amount: amount, reason: reason, session_id: posSession.id })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
             document.getElementById('posCashInAmount').value = '';
             document.getElementById('posCashInReason').value = '';
             loadPosCashMovements();
-            showError('Entree enregistree');
+            posNotify('Entree enregistree', 'success');
+        } else {
+            posShowError(data.error || 'Erreur');
         }
-    } catch(e) {
-        showError('Erreur');
-    }
+    } catch(e) { posShowError('Erreur'); }
+    finally { btnLoading(btn, false); }
 }
 
 async function savePosCashOut() {
-    if (!posSession) {
-        showError('Aucune session ouverte');
-        return;
-    }
-    const reason = document.getElementById('posCashOutReason').value;
-    const amount = parseFloat(document.getElementById('posCashOutAmount').value) || 0;
-    if (!reason || amount <= 0) {
-        showError('Selectionnez un motif et un montant');
-        return;
-    }
+    if (!posSession) { posShowError('Aucune session ouverte'); return; }
+    var reason = document.getElementById('posCashOutReason').value;
+    var amount = parseFloat(document.getElementById('posCashOutAmount').value) || 0;
+    if (!reason || amount <= 0) { posShowError('Selectionnez un motif et un montant'); return; }
+    var btn = document.querySelector('.pos-cash-inline-row .btn-danger');
+    btnLoading(btn, true);
     try {
-        const res = await fetch('/api/pos/cash-movements', {
+        var res = await fetchWithTimeout('/api/pos/cash-movements', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'out',
-                amount: amount,
-                reason: 'expense',
-                note: reason
-            })
+            body: JSON.stringify({ type: 'out', amount: amount, reason: 'expense', note: reason, session_id: posSession.id })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
             document.getElementById('posCashOutAmount').value = '';
             document.getElementById('posCashOutReason').value = '';
             loadPosCashMovements();
-            showError('Sortie enregistree');
+            posNotify('Sortie enregistree', 'success');
+        } else {
+            posShowError(data.error || 'Erreur');
         }
-    } catch(e) {
-        showError('Erreur');
-    }
+    } catch(e) { posShowError('Erreur'); }
+    finally { btnLoading(btn, false); }
 }

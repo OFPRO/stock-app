@@ -17,6 +17,7 @@ import {
   deleteProduct,
   getCategories,
   getWarehouses,
+  type Category,
   type Product,
   type ProductFormData,
   type Warehouse,
@@ -102,7 +103,7 @@ function ProductForm({
             value={data.category ?? ""}
             onChange={(v) => onChange({ ...data, category: v || undefined })}
             placeholder={t("common.select")}
-            options={categories.map((c) => ({ value: c, label: c }))}
+            options={categories.map((c) => ({ value: c.name_fr, label: c.name_ar + ' / ' + c.name_fr }))}
           />
         </div>
         <div className="space-y-1">
@@ -202,7 +203,7 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("__all__")
-  const [categories, setCategories] = useState<string[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }])
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -350,9 +351,10 @@ export function ProductsPage() {
     {
       accessorKey: "category",
       header: t("products.category"),
-      cell: ({ getValue }) => {
-        const v = getValue() as string
-        return v ? <span className="text-xs">{v}</span> : null
+      cell: ({ row }) => {
+        const cat = row.original.category
+        const catAr = row.original.category_ar
+        return cat ? <span className="text-xs">{catAr ? catAr + ' / ' : ''}{cat}</span> : null
       },
     },
     {
@@ -453,7 +455,7 @@ export function ProductsPage() {
           <SelectContent>
             <SelectItem value="__all__">{t("products.all_categories")}</SelectItem>
             {categories.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
+              <SelectItem key={c.id} value={c.name_fr}>{c.name_ar} / {c.name_fr}</SelectItem>
             ))}
           </SelectContent>
         </Select>

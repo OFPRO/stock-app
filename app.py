@@ -183,6 +183,78 @@ def init_db():
             c.execute(col_def)
         except Exception:
             pass
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name_ar TEXT NOT NULL,
+            name_fr TEXT NOT NULL UNIQUE
+        )
+    ''')
+
+    categories_data = [
+        ('المصاحف', 'Corans'),
+        ('الكتب', 'Livres'),
+        ('الدفاتر', 'Cahiers'),
+        ('المحافظ', 'Cartables'),
+        ('مقلمة', 'Trousses'),
+        ('لانش بوكس', 'Launch Box'),
+        ('آلة حسابية', 'Calculatrices'),
+        ('أدوات الهاتف', 'Accessoires téléphone'),
+        ('نوت بوك / أجندة', 'Notebooks agendas'),
+        ('القصص عامة', 'Histoires'),
+        ('ستيلو/ قلم الرصاص', 'Stylos à bille/Crayons'),
+        ('ملونات الخشب / الشمع', 'Crayons couleur cire'),
+        ('تلوين + feutres', 'Coloriage feutres'),
+        ('بلا نكو + Fluorescent', 'Blanco surligneurs'),
+        ('ادوات الصباغة و الرسم', 'Dessins/peinture'),
+        ('أدوات مكتبية', 'Fournitures bureau'),
+        ('أدوات مدرسية', 'Fournitures scolaires'),
+        ('هدايا الكبار', 'Cadeaux adultes'),
+        ('لعب الأطفال', 'Jouets'),
+        ('روايات', 'Romans'),
+        ('اللوحات', 'Tableaux'),
+        ('ملفات + classeurs + papier', 'Classeurs chemises papier'),
+    ]
+
+    # 1. Migrate products to final category names before refreshing categories
+    c.execute("UPDATE products SET category='Cartables' WHERE category='Trousses' AND is_deleted=0")
+    c.execute("UPDATE products SET category='Trousses' WHERE category='Carnets' AND is_deleted=0")
+    c.execute("UPDATE products SET category='Launch Box' WHERE category='Pochettes classeurs' AND is_deleted=0")
+    c.execute("UPDATE products SET category='Calculatrices' WHERE category='Fournitures calcul' AND is_deleted=0")
+    c.execute("UPDATE products SET category='Stylos à bille/Crayons' WHERE category='Stylos correcteurs crayons' AND is_deleted=0")
+    c.execute("UPDATE products SET category='Dessins/peinture' WHERE category='Dessin arts plastiques' AND is_deleted=0")
+
+    # 2. Clean refresh of categories table (no FK constraint on products.category)
+    c.execute("DELETE FROM categories")
+    for ar, fr in categories_data:
+        c.execute("INSERT INTO categories (name_ar, name_fr) VALUES (?, ?)", (ar, fr))
+
+    mapping = {
+        'Accessoires': 'Fournitures bureau',
+        'Bureautique': 'Fournitures bureau',
+        'Câbles': 'Accessoires téléphone',
+        'Fournitures': 'Fournitures bureau',
+        'Général': 'Cadeaux adultes',
+        'Informatique': 'Fournitures bureau',
+        'Papeterie': 'Fournitures scolaires',
+        'Éclairage': 'Fournitures bureau',
+        'Bureautique ': 'Fournitures bureau',
+    }
+    for old_cat, new_cat in mapping.items():
+        c.execute('UPDATE products SET category = ? WHERE category = ?', (new_cat, old_cat))
+    # Specific product overrides
+    c.execute("UPDATE products SET category = 'Calculatrices' WHERE name IN ('Calculatrice scientifique', 'Compas géométrie', 'Equerre plastique', 'Rapporteur 180°')")
+    c.execute("UPDATE products SET category = 'Trousses' WHERE name IN ('Livre briquet 100p', 'livret 30p black', 'Livre camel 30p')")
+    c.execute("UPDATE products SET category = 'Cartables' WHERE name = 'Trousse scolaire'")
+    c.execute("UPDATE products SET category = 'Cahiers' WHERE name LIKE 'Cahier%'")
+    c.execute("UPDATE products SET category = 'Notebooks agendas' WHERE name = 'Bloc-notes A5'")
+    c.execute("UPDATE products SET category = 'Cadeaux adultes' WHERE name IN ('Deep Darkwood', 'Bouteil Eau Aquafina', 'Badges magnétiques')")
+    c.execute("UPDATE products SET category = 'Classeurs chemises papier' WHERE name IN ('Classeur rigide A4', 'Classeur souple A4', 'Feuilles perforées A4 (500)')")
+    c.execute("UPDATE products SET category = 'Stylos à bille/Crayons' WHERE name = 'Crayon à papier HB'")
+    c.execute("UPDATE products SET category = 'Blanco surligneurs' WHERE name IN ('Marqueurs fluorescents (lot 6)', 'Stylo fluorescent vert')")
+    c.execute("UPDATE products SET category = 'Accessoires téléphone' WHERE name IN ('Enceinte Bluetooth', 'Câble HDMI 2m', 'Câble HDMI 5m', 'Câble VGA 2m')")
+
     c.execute('''
         CREATE TABLE IF NOT EXISTS stock (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -507,11 +579,10 @@ def init_db():
     except Exception:
         pass
 
-    default_register = c.execute('SELECT id FROM pos_registers LIMIT 1').fetchone()
-    if not default_register:
-        c.execute('''
-            INSERT INTO pos_registers (name, code) VALUES ('Caisse 1', 'CAISSE-01')
-        ''')
+    c.execute("UPDATE pos_registers SET is_active = 0 WHERE name NOT IN ('Caisse 1', 'Caisse 2')")
+    c.execute("INSERT OR IGNORE INTO pos_registers (name, code) VALUES ('Caisse 1', 'CAISSE-01')")
+    c.execute("INSERT OR IGNORE INTO pos_registers (name, code) VALUES ('Caisse 2', 'CAISSE-02')")
+    c.execute("UPDATE pos_registers SET is_active = 1 WHERE name IN ('Caisse 1', 'Caisse 2')")
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS main_account (
@@ -2015,7 +2086,12 @@ def create_pos_transaction():
     conn = get_db()
     
     # Verify session is open
-    session = conn.execute('SELECT * FROM pos_sessions WHERE id = ?', (session_id,)).fetchone()
+    session = conn.execute('''
+        SELECT s.*, r.name as register_name
+        FROM pos_sessions s
+        LEFT JOIN pos_registers r ON s.register_id = r.id
+        WHERE s.id = ?
+    ''', (session_id,)).fetchone()
     if not session or session['status'] != 'open':
         conn.close()
         return jsonify({'error': 'Session fermée ou inexistante'}), 400
@@ -2090,7 +2166,8 @@ def create_pos_transaction():
         unit_price = item.get('unit_price', 0) or 0
         discount_pct = item.get('discount_percent', 0) or 0
         line_ht = qty * unit_price * (1 - discount_pct / 100)
-        line_total = line_ht * 1.20
+        tax_mult = 1.20 if data.get('apply_tax', True) else 1.0
+        line_total = line_ht * tax_mult
         
         prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (product_id,)).fetchone()
         product_name = prod['name'] if prod else item.get('product_name', '')
@@ -2102,7 +2179,7 @@ def create_pos_transaction():
                 quantity, unit_price, discount_percent, tax_rate, line_total
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (trans_id, product_id, product_name, product_sku,
-              qty, unit_price, discount_pct, 20, line_total))
+              qty, unit_price, discount_pct, 20 if apply_tax else 0, line_total))
         
         cur = conn.execute('''
             UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?
@@ -2238,7 +2315,7 @@ def create_pos_transaction():
     conn.commit()
     conn.close()
 
-    register_name = session.get('register_name') or session.get('cashier_name') or ''
+    register_name = session['register_name'] if session['register_name'] else (session['cashier_name'] or '')
     stock_updates = []
     for item in items:
         stock_updates.append({
@@ -2273,19 +2350,29 @@ def create_pos_transaction():
 
 @app.route('/api/pos/cash-movements', methods=['GET'])
 def get_pos_cash_movements():
-    """Get cash movements for current session"""
+    """Get cash movements — all registers or filtered by session_id"""
     conn = get_db()
+    session_id = request.args.get('session_id')
+    limit = _safe_int(request.args.get('limit', 50), 50)
     
-    session = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").fetchone()
-    if not session:
-        conn.close()
-        return jsonify([])
-    
-    movements = conn.execute('''
-        SELECT * FROM pos_cash_movements 
-        WHERE session_id = ?
-        ORDER BY created_at DESC
-    ''', (session['id'],)).fetchall()
+    if session_id:
+        movements = conn.execute('''
+            SELECT m.*, r.name as register_name, s.session_number
+            FROM pos_cash_movements m
+            LEFT JOIN pos_sessions s ON m.session_id = s.id
+            LEFT JOIN pos_registers r ON s.register_id = r.id
+            WHERE m.session_id = ?
+            ORDER BY m.created_at DESC
+        ''', (session_id,)).fetchall()
+    else:
+        movements = conn.execute('''
+            SELECT m.*, r.name as register_name, s.session_number
+            FROM pos_cash_movements m
+            LEFT JOIN pos_sessions s ON m.session_id = s.id
+            LEFT JOIN pos_registers r ON s.register_id = r.id
+            ORDER BY m.created_at DESC
+            LIMIT ?
+        ''', (limit,)).fetchall()
     
     conn.close()
     return jsonify([dict(m) for m in movements])
@@ -2298,10 +2385,14 @@ def create_pos_cash_movement():
     amount = data.get('amount', 0)
     reason = data.get('reason', '')
     note = data.get('note', '')
+    session_id = data.get('session_id')
     
     conn = get_db()
     
-    session = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").fetchone()
+    if session_id:
+        session = conn.execute("SELECT id FROM pos_sessions WHERE id = ? AND status = 'open'", (session_id,)).fetchone()
+    else:
+        session = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1").fetchone()
     if not session:
         conn.close()
         return jsonify({'error': 'Aucune session ouverte'}), 400
@@ -2313,7 +2404,13 @@ def create_pos_cash_movement():
     conn.commit()
     
     movement_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-    movement = conn.execute('SELECT * FROM pos_cash_movements WHERE id = ?', (movement_id,)).fetchone()
+    movement = conn.execute('''
+        SELECT m.*, r.name as register_name, s.session_number
+        FROM pos_cash_movements m
+        LEFT JOIN pos_sessions s ON m.session_id = s.id
+        LEFT JOIN pos_registers r ON s.register_id = r.id
+        WHERE m.id = ?
+    ''', (movement_id,)).fetchone()
     
     conn.close()
     return jsonify({'success': True, 'movement': dict(movement)})
@@ -2340,17 +2437,23 @@ def get_pos_recent_transactions():
     
     if session_id:
         transactions = conn.execute('''
-            SELECT t.*, c.name as customer_name, 'ticket' as source
+            SELECT t.*, c.name as customer_name, 'ticket' as source,
+                   r.name as register_name, s.session_number
             FROM pos_transactions t
             LEFT JOIN customers c ON t.customer_id = c.id
+            LEFT JOIN pos_sessions s ON t.session_id = s.id
+            LEFT JOIN pos_registers r ON s.register_id = r.id
             WHERE t.session_id = ?
             ORDER BY t.created_at DESC
         ''', (session_id,)).fetchall()
     else:
         transactions = conn.execute('''
-            SELECT t.*, c.name as customer_name, 'ticket' as source
+            SELECT t.*, c.name as customer_name, 'ticket' as source,
+                   r.name as register_name, s.session_number
             FROM pos_transactions t
             LEFT JOIN customers c ON t.customer_id = c.id
+            LEFT JOIN pos_sessions s ON t.session_id = s.id
+            LEFT JOIN pos_registers r ON s.register_id = r.id
             ORDER BY t.created_at DESC
             LIMIT ?
         ''', (limit,)).fetchall()
@@ -2665,7 +2768,7 @@ def get_pos_transaction_by_invoice(invoice_number):
 def get_pos_registers():
     conn = get_db()
     registers = conn.execute(
-        'SELECT * FROM pos_registers WHERE is_active = 1 ORDER BY id'
+        'SELECT * FROM pos_registers WHERE is_active = 1 ORDER BY id LIMIT 2'
     ).fetchall()
     conn.close()
     return jsonify([dict(r) for r in registers])

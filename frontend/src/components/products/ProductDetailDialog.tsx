@@ -102,7 +102,7 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
                     <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><Info className="size-3.5" />{t("product_detail.general_info")}</h4>
                     <DetailRow label={t("common.name")} value={p?.name} />
                     <DetailRow label={t("product_detail.arabic_name")} value={p?.name_ar} />
-                    <DetailRow label={t("products.category")} value={p?.category} />
+                    <DetailRow label={t("products.category")} value={p?.category_ar ? p.category_ar + ' / ' + p.category : p?.category} />
                     <DetailRow label={t("products.barcode")} value={p?.barcode} />
                     <DetailRow label={t("products.warehouse")} value={p?.warehouse_name} />
                     <DetailRow label={t("product_detail.locations")} value={p?.location_name} />
