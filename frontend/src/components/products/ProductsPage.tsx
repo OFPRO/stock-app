@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback, useMemo } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Pencil, Trash2, Search, Package, Eye } from "lucide-react"
+import { Plus, Pencil, Trash2, Search, Package, Eye, ScanBarcode } from "lucide-react"
+import { toast } from "sonner"
 import {
   type ColumnDef,
   type SortingState,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -61,11 +63,15 @@ function ProductForm({
   onChange,
   categories,
   warehouses,
+  scanEnabled,
+  onToggleScan,
 }: {
   data: ProductFormData
   onChange: (d: ProductFormData) => void
-  categories: string[]
+  categories: Category[]
   warehouses: Warehouse[]
+  scanEnabled: boolean
+  onToggleScan: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -175,11 +181,31 @@ function ProductForm({
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium">{t("products.barcode")}</label>
-          <Input
-            value={data.barcode ?? ""}
-            onChange={(e) => onChange({ ...data, barcode: e.target.value })}
-            placeholder={t("common.optional")}
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              value={data.barcode ?? ""}
+              onChange={(e) => onChange({ ...data, barcode: e.target.value })}
+              placeholder={t("common.optional")}
+              className="flex-1"
+            />
+            <Switch
+              checked={scanEnabled}
+              onCheckedChange={onToggleScan}
+              aria-label="Scanner avec la caméra"
+            />
+          </div>
+          {scanEnabled && (
+            <div className="mt-2">
+              <div
+                id="barcode-scanner-preview"
+                className="w-full aspect-video rounded-lg overflow-hidden bg-black"
+              />
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <ScanBarcode className="size-3" />
+                Scan en cours...
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -212,6 +238,69 @@ export function ProductsPage() {
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [detailProductId, setDetailProductId] = useState<number | null>(null)
+  const [scanEnabled, setScanEnabled] = useState(false)
+  const scannerInstanceRef = useRef<{ stop: () => Promise<void> } | null>(null)
+
+  const stopScanner = useCallback(async () => {
+    if (scannerInstanceRef.current) {
+      await scannerInstanceRef.current.stop().catch(() => {})
+      scannerInstanceRef.current = null
+    }
+    setScanEnabled(false)
+  }, [])
+
+  const startScanner = useCallback(async () => {
+    try {
+      await import("html5-qrcode")
+      const Html5Qrcode = (window as unknown as Record<string, unknown>).Html5Qrcode as new (
+        id: string,
+      ) => {
+        start: (config: Record<string, unknown>, cb: (text: string) => void) => Promise<void>
+        stop: () => Promise<void>
+      }
+      if (!Html5Qrcode) throw new Error("html5-qrcode not loaded")
+
+      const scanner = new Html5Qrcode("barcode-scanner-preview")
+      scannerInstanceRef.current = scanner
+      setScanEnabled(true)
+      await scanner.start(
+        { fps: 10, qrbox: { width: 200, height: 100 } },
+        (decodedText: string) => {
+          setFormData((prev) => ({ ...prev, barcode: decodedText }))
+          scanner.stop().catch(() => {})
+          scannerInstanceRef.current = null
+          setScanEnabled(false)
+          toast.success(`Code-barres scanné: ${decodedText}`)
+        },
+      )
+    } catch {
+      toast.error("Erreur caméra : vérifiez les permissions")
+      setScanEnabled(false)
+    }
+  }, [])
+
+  const handleToggleScan = useCallback(() => {
+    if (scanEnabled) {
+      stopScanner()
+    } else {
+      startScanner()
+    }
+  }, [scanEnabled, stopScanner, startScanner])
+
+  useEffect(() => {
+    return () => {
+      if (scannerInstanceRef.current) {
+        scannerInstanceRef.current.stop().catch(() => {})
+        scannerInstanceRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!dialogOpen && scanEnabled) {
+      stopScanner()
+    }
+  }, [dialogOpen, scanEnabled, stopScanner])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -524,6 +613,8 @@ export function ProductsPage() {
             onChange={setFormData}
             categories={categories}
             warehouses={warehouses}
+            scanEnabled={scanEnabled}
+            onToggleScan={handleToggleScan}
           />
           <DialogFooter>
             <DialogClose asChild>
