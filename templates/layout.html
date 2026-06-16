@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GLM Stock{% endblock %}</title>
+    <link rel="icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -25,14 +26,14 @@
         
         .app { display: flex; min-height: 100vh; }
         
-        .sidebar { width: var(--sidebar-width); background: var(--text); color: white; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100; }
-        .sidebar-header { padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-logo { font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
-        .sidebar-logo i { color: var(--primary-light); }
-        .nav-menu { padding: 1rem 0; }
-        .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem; color: rgba(255,255,255,0.7); cursor: pointer; transition: all 0.2s; text-decoration: none; }
-        .nav-item:hover { background: rgba(255,255,255,0.1); color: white; }
-        .nav-item.active { background: var(--primary); color: white; }
+        .sidebar { width: var(--sidebar-width); background: var(--text); color: white; position: fixed; top: 0; left: 0; height: 100vh; overflow-y: auto; z-index: 100; display: flex; flex-direction: column; }
+        .sidebar-header { border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; min-height: 72px; padding: 0.75rem 1.5rem; }
+        .sidebar-logo { display: flex; align-items: center; justify-content: center; }
+        .sidebar-logo-img { height: 52px; width: auto; max-width: 100%; display: block; filter: brightness(0) invert(1); }
+        .nav-menu { padding: 1rem 0; flex: 1; }
+        .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.5rem; color: rgba(255,255,255,0.7); cursor: pointer; transition: all 0.2s; text-decoration: none; border-left: 3px solid transparent; }
+        .nav-item:hover { background: rgba(255,255,255,0.1); color: white; border-left-color: rgba(255,255,255,0.3); }
+        .nav-item.active { background: linear-gradient(90deg, var(--primary) 0%, transparent 100%); color: white; border-left-color: var(--primary); font-weight: 600; }
         .nav-item i { width: 20px; text-align: center; }
         
         .main { flex: 1; margin-left: var(--sidebar-width); }
@@ -52,7 +53,7 @@
     <aside class="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">
-                <i class="fas fa-cubes"></i> GLM Stock
+                <img src="/static/img/logo.png" alt="GLM Stock" class="sidebar-logo-img">
             </div>
         </div>
         <nav class="nav-menu">

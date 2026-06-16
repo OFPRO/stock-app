@@ -407,8 +407,8 @@ def init_store_db(store_id, name):
         CREATE TABLE IF NOT EXISTS main_account (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             name TEXT DEFAULT 'Compte Principal',
-            initial_balance REAL DEFAULT 10000.00,
-            current_balance REAL DEFAULT 10000.00,
+            initial_balance REAL DEFAULT 0,
+            current_balance REAL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -475,7 +475,7 @@ def init_store_db(store_id, name):
     for ar, fr in categories_data:
         c.execute("INSERT OR IGNORE INTO categories (name_ar, name_fr) VALUES (?, ?)", (ar, fr))
 
-    c.execute("INSERT OR IGNORE INTO main_account (id, name) VALUES (1, 'Compte Principal')")
+    c.execute("INSERT OR IGNORE INTO main_account (id, name, initial_balance, current_balance) VALUES (1, 'Compte Principal', 0, 0)")
 
     existing = c.execute("SELECT id FROM warehouses WHERE is_default=1").fetchone()
     if not existing:

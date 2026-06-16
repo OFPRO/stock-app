@@ -2,7 +2,7 @@
 ; Build with: iscc installer.iss
 
 #define MyAppName "StockPro"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "Bibliotheque Badr"
 #define MyAppURL "http://localhost:5001"
 #define MyAppExeName "stock-app.exe"
