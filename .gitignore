@@ -18,3 +18,5 @@ designs/
 node_modules/
 package.json
 package-lock.json
+receipts/
+logs/printing.log

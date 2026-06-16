@@ -19,6 +19,7 @@ import { ReportsPage } from "@/components/reports/ReportsPage"
 import { InvoicesPage } from "@/components/invoices/InvoicesPage"
 import { PosPage } from "@/components/pos/PosPage"
 import { ScannerPage } from "@/components/scanner/ScannerPage"
+import { SettingsPage } from "@/components/settings/SettingsPage"
 
 export function App() {
   return (
@@ -44,6 +45,7 @@ export function App() {
           <Route path="sessions" element={<SessionsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="scanner" element={<ScannerPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

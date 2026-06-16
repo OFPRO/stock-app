@@ -1,5 +1,8 @@
+from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 from routes.db import get_catalog_db, get_db, categories_data, init_store_db, resolve_db_path
+from services.printing_service import check_printer_status, list_printers, discover_printers
+from services.escpos_receipt import EscposPrinter, build_escpos_commands
 
 stores_bp = Blueprint('stores', __name__)
 
@@ -145,3 +148,106 @@ def delete_category(cat_id):
     conn.commit()
     conn.close()
     return jsonify({'message': 'Catégorie supprimée'})
+
+
+@stores_bp.route('/api/settings/printer', methods=['GET'])
+def get_printer_settings():
+    conn = get_db()
+    settings = conn.execute('SELECT * FROM printer_settings WHERE id = 1').fetchone()
+    conn.close()
+    if not settings:
+        return jsonify({
+            'connection_type': 'network', 'host': '', 'port': 9100,
+            'usb_vendor_id': '', 'usb_product_id': '',
+            'printer_name': '', 'auto_print': True, 'paper_width': 80,
+        })
+    return jsonify({
+        'connection_type': settings['connection_type'],
+        'host': settings['host'],
+        'port': settings['port'],
+        'usb_vendor_id': settings['usb_vendor_id'],
+        'usb_product_id': settings['usb_product_id'],
+        'printer_name': settings['printer_name'],
+        'auto_print': bool(settings['auto_print']),
+        'paper_width': settings['paper_width'],
+    })
+
+
+@stores_bp.route('/api/settings/printer', methods=['PUT'])
+def update_printer_settings():
+    data = request.get_json() or {}
+    conn = get_db()
+    conn.execute('''
+        UPDATE printer_settings SET
+            connection_type = ?, host = ?, port = ?,
+            usb_vendor_id = ?, usb_product_id = ?,
+            printer_name = ?, auto_print = ?, paper_width = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = 1
+    ''', (
+        data.get('connection_type', 'network'),
+        data.get('host', ''),
+        int(data.get('port', 9100)),
+        data.get('usb_vendor_id', ''),
+        data.get('usb_product_id', ''),
+        data.get('printer_name', ''),
+        1 if data.get('auto_print', True) else 0,
+        int(data.get('paper_width', 80)),
+    ))
+    conn.commit()
+    conn.close()
+    return jsonify({'message': 'Paramètres imprimante mis à jour'})
+
+
+@stores_bp.route('/api/settings/printer/status', methods=['GET'])
+def printer_status():
+    conn = get_db()
+    settings = conn.execute('SELECT * FROM printer_settings WHERE id = 1').fetchone()
+    conn.close()
+    if not settings:
+        return jsonify({'status': 'not_configured'})
+    result = check_printer_status(dict(settings))
+    return jsonify(result)
+
+
+@stores_bp.route('/api/settings/printer/discover', methods=['GET'])
+def discover_printers_endpoint():
+    printers = discover_printers()
+    return jsonify(printers)
+
+
+@stores_bp.route('/api/settings/printer/test', methods=['POST'])
+def test_printer():
+    conn = get_db()
+    settings = conn.execute('SELECT * FROM printer_settings WHERE id = 1').fetchone()
+    conn.close()
+    if not settings:
+        return jsonify({'error': 'Imprimante non configurée'}), 400
+    config = dict(settings)
+    test_data = {
+        'ticket_number': 'TEST-0001',
+        'created_at': datetime.now().isoformat(),
+        'session_number': 'TEST',
+        'items': [
+            {'product_name': 'Article test 1', 'quantity': 2, 'unit_price': 15.00, 'line_total': 30.00},
+            {'product_name': 'Article test 2', 'quantity': 1, 'unit_price': 25.50, 'line_total': 25.50},
+        ],
+        'subtotal': 55.50,
+        'discount_total': 0,
+        'tax_amount': 11.10,
+        'total': 66.60,
+        'payment_method': 'cash',
+        'tendered_amount': 70.00,
+        'change_amount': 3.40,
+        'customer_name': 'Test',
+        'register_name': 'Test',
+    }
+    try:
+        from services.printing_service import print_receipt
+        result = print_receipt(test_data, config)
+        if result.get('print_status') == 'success':
+            return jsonify({'message': 'Impression test réussie', 'details': result})
+        else:
+            return jsonify({'error': result.get('print_error', 'Échec impression'), 'details': result}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

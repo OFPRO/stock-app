@@ -24,6 +24,8 @@ from routes.suppliers import suppliers_bp
 from routes.warehouses import warehouses_bp
 from routes.locations import locations_bp
 from routes.stores import stores_bp
+import threading
+from services.printing_service import auto_print_async
 
 # SSE event bus for real-time multi-caisse sync
 sse_clients = []
@@ -644,7 +646,24 @@ def init_db():
     current = c.execute('SELECT MAX(version) FROM _schema_version').fetchone()[0]
     if not current:
         c.execute('INSERT INTO _schema_version (version) VALUES (1)')
-    
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS printer_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            connection_type TEXT DEFAULT 'network',
+            host TEXT DEFAULT '',
+            port INTEGER DEFAULT 9100,
+            usb_vendor_id TEXT DEFAULT '',
+            usb_product_id TEXT DEFAULT '',
+            printer_name TEXT DEFAULT '',
+            auto_print INTEGER DEFAULT 1,
+            paper_width INTEGER DEFAULT 80,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    c.execute("INSERT OR IGNORE INTO printer_settings (id, connection_type, host) VALUES (1, 'network', '')")
+
     conn.commit()
     conn.close()
 
@@ -2309,6 +2328,38 @@ def create_pos_transaction():
     
     conn.commit()
     conn.close()
+
+    # --- Auto-print hook ---
+    try:
+        _pconn = get_db()
+        printer_config = _pconn.execute('SELECT * FROM printer_settings WHERE id = 1').fetchone()
+        _pconn.close()
+        if printer_config and printer_config['auto_print']:
+            ticket_data = {
+                'ticket_number': doc_number,
+                'created_at': datetime.now().isoformat(),
+                'session_number': session['session_number'] if session else '',
+                'items': [{
+                    'product_name': it.get('product_name', ''),
+                    'product_sku': it.get('product_sku', ''),
+                    'quantity': it.get('quantity', 1),
+                    'unit_price': it.get('unit_price', 0),
+                    'discount_percent': it.get('discount_percent', 0),
+                    'line_total': it.get('line_total', 0),
+                } for it in items],
+                'subtotal': subtotal,
+                'discount_total': discount,
+                'tax_amount': tax,
+                'total': total,
+                'payment_method': payment_method,
+                'tendered_amount': tendered_amount,
+                'change_amount': change_amount,
+                'customer_name': customer_name if not is_client_comptoir else 'Client Comptoir',
+                'register_name': session['register_name'] if session and session['register_name'] else (session['cashier_name'] if session else ''),
+            }
+            threading.Thread(target=auto_print_async, args=(ticket_data, dict(printer_config)), daemon=True).start()
+    except Exception:
+        pass
 
     register_name = session['register_name'] if session['register_name'] else (session['cashier_name'] or '')
     stock_updates = []

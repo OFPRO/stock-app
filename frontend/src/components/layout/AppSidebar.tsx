@@ -17,6 +17,7 @@ import {
   Bell,
   RefreshCw,
   ClipboardCheck,
+  Settings,
 } from "lucide-react"
 import {
   Sidebar,
@@ -50,6 +51,7 @@ const navItems = [
   { key: "nav.pos", icon: ShoppingCart, href: "/pos" },
   { key: "nav.mainAccount", icon: Landmark, href: "/main-account" },
   { key: "nav.notifications", icon: Bell, href: "/notifications" },
+  { key: "nav.settings", icon: Settings, href: "/settings" },
 ]
 
 export function AppSidebar() {

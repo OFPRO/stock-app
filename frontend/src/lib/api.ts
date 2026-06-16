@@ -1020,4 +1020,50 @@ export function getReplenishment(warehouseId?: string): Promise<ReplenishmentIte
   return fetchJson(`/replenishment${warehouseId ? `?warehouse_id=${warehouseId}` : ""}`)
 }
 
+// Printer Settings
+export interface PrinterSettings {
+  connection_type: string
+  host: string
+  port: number
+  usb_vendor_id: string
+  usb_product_id: string
+  printer_name: string
+  auto_print: boolean
+  paper_width: number
+}
+
+export function getPrinterSettings(): Promise<PrinterSettings> {
+  return fetchJson("/settings/printer")
+}
+
+export function updatePrinterSettings(data: Partial<PrinterSettings>): Promise<{ message: string }> {
+  return fetch(BASE + "/settings/printer", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).then((r) => r.json())
+}
+
+export function checkPrinterStatus(): Promise<{ status: string; error?: string }> {
+  return fetchJson("/settings/printer/status")
+}
+
+export function testPrinter(): Promise<{ message: string; details?: object; error?: string }> {
+  return fetch(BASE + "/settings/printer/test", { method: "POST" }).then((r) => r.json())
+}
+
+export interface UsbPrinter {
+  name: string
+  vendor_id: string
+  product_id: string
+  manufacturer: string
+  description: string
+  bus: string
+  address: string
+}
+
+export function discoverPrinters(): Promise<UsbPrinter[]> {
+  return fetchJson("/settings/printer/discover")
+}
+
 

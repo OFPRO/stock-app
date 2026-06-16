@@ -15,6 +15,7 @@ document.addEventListener('click', function(e) {
 function loadSettings() {
     loadStoresList();
     loadSettingsCategories();
+    loadPrinterSettings();
 }
 
 function loadStoresList() {
@@ -187,6 +188,163 @@ function deleteCategory(id) {
     .then(function(r) { return r.json(); })
     .then(function() { loadSettingsCategories(); })
     .catch(function(err) { showError('Erreur: ' + err); });
+}
+
+function loadPrinterSettings() {
+    fetch('/api/settings/printer').then(function(r) { return r.json(); }).then(function(config) {
+        fetch('/api/settings/printer/status').then(function(r) { return r.json(); }).then(function(status) {
+            renderPrinterSettings(config, status);
+        }).catch(function() { renderPrinterSettings(config, {}); });
+    }).catch(function() {
+        document.getElementById('printerSettingsBody').innerHTML = '<div class="empty"><i class="fas fa-print"></i><p>Erreur de chargement</p></div>';
+    });
+}
+
+function renderPrinterSettings(config, status) {
+    var badge = document.getElementById('printerStatusBadge');
+    if (status.status === 'online') {
+        badge.style.display = 'inline-block';
+        badge.className = 'badge badge-success';
+        badge.innerHTML = '<i class="fas fa-check-circle"></i> Connectée';
+    } else if (status.status === 'offline') {
+        badge.style.display = 'inline-block';
+        badge.className = 'badge badge-danger';
+        badge.innerHTML = '<i class="fas fa-exclamation-circle"></i> Hors ligne';
+    } else {
+        badge.style.display = 'inline-block';
+        badge.className = 'badge badge-secondary';
+        badge.innerHTML = '<i class="fas fa-question-circle"></i> Non configurée';
+    }
+
+    var html = '';
+    html += '<div class="form-group" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">';
+    html += '  <label style="margin:0;font-weight:600;">Impression automatique</label>';
+    html += '  <input type="checkbox" id="printerAutoPrint" ' + (config.auto_print ? 'checked' : '') + ' onchange="savePrinterSetting(\'auto_print\', this.checked)" style="width:18px;height:18px;cursor:pointer;">';
+    html += '</div>';
+
+    html += '<div class="form-group">';
+    html += '  <label>Type de connexion</label>';
+    html += '  <select id="printerConnectionType" class="form-control" onchange="onPrinterTypeChange(); savePrinterSetting(\'connection_type\', this.value)" style="max-width:250px;">';
+    html += '    <option value="network"' + (config.connection_type === 'network' ? ' selected' : '') + '>WiFi / Réseau</option>';
+    html += '    <option value="usb"' + (config.connection_type === 'usb' ? ' selected' : '') + '>USB</option>';
+    html += '  </select>';
+    html += '</div>';
+
+    if (config.connection_type === 'network') {
+        html += '<div class="form-row" style="display:flex;gap:12px;flex-wrap:wrap;">';
+        html += '  <div class="form-group" style="flex:2;min-width:200px;">';
+        html += '    <label>Adresse IP</label>';
+        html += '    <input type="text" class="form-control" id="printerHost" value="' + escapeHtml(config.host || '') + '" placeholder="192.168.1.100" onchange="savePrinterSetting(\'host\', this.value)">';
+        html += '  </div>';
+        html += '  <div class="form-group" style="flex:1;min-width:100px;">';
+        html += '    <label>Port</label>';
+        html += '    <input type="number" class="form-control" id="printerPort" value="' + (config.port || 9100) + '" onchange="savePrinterSetting(\'port\', parseInt(this.value) || 9100)">';
+        html += '  </div>';
+        html += '</div>';
+    } else {
+        html += '<div class="form-group">';
+        html += '  <label>Imprimantes USB détectées</label>';
+        html += '  <div id="usbPrinterList" style="margin-bottom:8px;">';
+        html += '    <p style="color:var(--text-light);font-size:13px;">Cliquez sur "Rechercher" pour lister les imprimantes USB branchées</p>';
+        html += '  </div>';
+        html += '  <button class="btn btn-sm btn-outline" onclick="scanUsbPrinters()"><i class="fas fa-search"></i> Rechercher les imprimantes</button>';
+        html += '</div>';
+    }
+
+    html += '<div class="form-group" style="margin-top:12px;">';
+    html += '  <button class="btn btn-primary" onclick="testPrinterConnection()" id="printerTestBtn"><i class="fas fa-play"></i> Tester l\'impression</button>';
+    html += '  <span id="printerTestResult" style="margin-left:12px;font-size:13px;"></span>';
+    html += '</div>';
+
+    document.getElementById('printerSettingsBody').innerHTML = html;
+}
+
+function savePrinterSetting(key, value) {
+    var data = {};
+    data[key] = value;
+    fetch('/api/settings/printer', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        if (res.error) showError(res.error);
+    }).catch(function(err) { showError('Erreur: ' + err); });
+}
+
+function scanUsbPrinters() {
+    var container = document.getElementById('usbPrinterList');
+    container.innerHTML = '<p style="color:var(--text-light);font-size:13px;"><i class="fas fa-spinner fa-spin"></i> Recherche en cours...</p>';
+    fetch('/api/settings/printer/discover')
+        .then(function(r) { return r.json(); })
+        .then(function(printers) {
+            if (!printers.length) {
+                container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Aucune imprimante USB détectée. Branchez-en une et réessayez.</p>';
+                return;
+            }
+            var html = '<div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">';
+            printers.forEach(function(p, i) {
+                html += '<div class="printer-item" onclick="selectUsbPrinter(\'' + p.vendor_id + '\', \'' + p.product_id + '\', this)" ';
+                html += 'style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;transition:background 0.15s;"';
+                html += ' onmouseover="this.style.background=\'var(--bg-hover)\'" onmouseout="this.style.background=\'\'"';
+                html += '>';
+                html += '  <i class="fas fa-print" style="color:var(--primary);font-size:18px;"></i>';
+                html += '  <div style="flex:1;">';
+                html += '    <div style="font-weight:600;font-size:14px;">' + escapeHtml(p.name) + '</div>';
+                html += '    <div style="font-size:12px;color:var(--text-light);">VID: ' + p.vendor_id + ' &nbsp; PID: ' + p.product_id + ' &nbsp; ' + escapeHtml(p.manufacturer || '') + '</div>';
+                html += '  </div>';
+                html += '  <i class="fas fa-check-circle" style="color:var(--success);display:none;"></i>';
+                html += '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        })
+        .catch(function(err) {
+            container.innerHTML = '<p style="color:var(--danger);font-size:13px;">Erreur: ' + err + '</p>';
+        });
+}
+
+function selectUsbPrinter(vendorId, productId, el) {
+    var items = document.querySelectorAll('.printer-item');
+    items.forEach(function(i) { i.style.background = ''; i.querySelector('.fa-check-circle').style.display = 'none'; });
+    el.style.background = 'var(--bg-hover)';
+    el.querySelector('.fa-check-circle').style.display = 'inline-block';
+    savePrinterSetting('usb_vendor_id', vendorId);
+    savePrinterSetting('usb_product_id', productId);
+}
+
+function onPrinterTypeChange() {
+    var type = document.getElementById('printerConnectionType').value;
+    var config = { connection_type: type, host: '', port: 9100, usb_vendor_id: '', usb_product_id: '', auto_print: true };
+    renderPrinterSettings(config, {});
+}
+
+function testPrinterConnection() {
+    var btn = document.getElementById('printerTestBtn');
+    var result = document.getElementById('printerTestResult');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Impression...';
+    result.textContent = '';
+    result.style.color = '';
+
+    fetch('/api/settings/printer/test', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) {
+            result.textContent = 'Échec: ' + data.error;
+            result.style.color = 'var(--danger)';
+        } else {
+            result.textContent = 'Test réussi!';
+            result.style.color = 'var(--success)';
+        }
+    })
+    .catch(function(err) {
+        result.textContent = 'Erreur: ' + err;
+        result.style.color = 'var(--danger)';
+    })
+    .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play"></i> Tester l\'impression';
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
