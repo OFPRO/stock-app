@@ -4,19 +4,24 @@ import threading
 from datetime import datetime
 
 from services.escpos_receipt import EscposPrinter, build_escpos_commands
-from services.pdf_saver import save_receipt_pdf, RECEIPTS_DIR
+from services.pdf_saver import save_receipt_pdf
 
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+LOG_DIR = os.environ.get('STOCKPRO_DATA_DIR', os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs'))
 LOG_FILE = os.path.join(LOG_DIR, 'printing.log')
 
-os.makedirs(LOG_DIR, exist_ok=True)
+try:
+    os.makedirs(LOG_DIR, exist_ok=True)
+except OSError:
+    LOG_DIR = None
+    LOG_FILE = None
 
 logger = logging.getLogger('printing')
 logger.setLevel(logging.DEBUG)
-_fh = logging.FileHandler(LOG_FILE, encoding='utf-8')
-_fh.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
-logger.addHandler(_fh)
+if LOG_FILE:
+    _fh = logging.FileHandler(LOG_FILE, encoding='utf-8')
+    _fh.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+    logger.addHandler(_fh)
 logger.propagate = False
 
 
