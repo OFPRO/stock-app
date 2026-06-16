@@ -614,8 +614,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS main_account (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             name TEXT DEFAULT 'Compte Principal',
-            initial_balance REAL DEFAULT 10000.00,
-            current_balance REAL DEFAULT 10000.00,
+            initial_balance REAL DEFAULT 0,
+            current_balance REAL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -649,11 +649,7 @@ def init_db():
     if not existing_account:
         c.execute('''
             INSERT INTO main_account (id, name, initial_balance, current_balance)
-            VALUES (1, 'Compte Principal', 10000.00, 10000.00)
-        ''')
-        c.execute('''
-            INSERT INTO main_account_transactions (type, amount, reason, note)
-            VALUES ('in', 10000.00, 'initial', 'Solde initial du compte')
+            VALUES (1, 'Compte Principal', 0, 0)
         ''')
     
     default_warehouse = c.execute('SELECT id FROM warehouses LIMIT 1').fetchone()
