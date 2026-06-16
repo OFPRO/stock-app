@@ -7,6 +7,8 @@ import sys
 import json
 import uuid
 import queue
+import threading
+import time
 import argparse
 import webbrowser
 from io import StringIO
@@ -2998,12 +3000,14 @@ if __name__ == '__main__':
         print(f'Accès réseau : http://<IP_DU_PC>:{args.port}')
     print(f'=====================\n')
 
-    if args.open_browser:
-        def _open_browser():
-            import time
-            time.sleep(1.5)
-            webbrowser.open(url)
-        import threading
-        threading.Thread(target=_open_browser, daemon=True).start()
+    try:
+        if args.open_browser:
+            t = threading.Thread(target=lambda: [time.sleep(1.5), webbrowser.open(url)])
+            t.daemon = True
+            t.start()
 
-    app.run(host=args.host, debug=False, port=args.port, threaded=True)
+        app.run(host=args.host, debug=False, port=args.port, threaded=True)
+    except Exception as e:
+        print(f'\nERREUR : {e}')
+        print('Le serveur n\'a pas pu démarrer.')
+        input('\nAppuyez sur Entrée pour fermer...')
