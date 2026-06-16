@@ -20,3 +20,4 @@ package.json
 package-lock.json
 receipts/
 logs/printing.log
+static/uploads/

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate } from "react-router-dom"
-import { Package, Info, Boxes, DollarSign, Truck, History, MapPin, ShoppingCart, AlertTriangle, ArrowLeft } from "lucide-react"
+import { Package, Info, Boxes, DollarSign, Truck, History, MapPin, ShoppingCart, AlertTriangle, ArrowLeft, Image as ImageIcon } from "lucide-react"
 import { getProduct, type ProductDetail } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -90,6 +90,15 @@ export function ProductDetailPage() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/products")}>
           <ArrowLeft className="size-5" />
         </Button>
+        <div className="shrink-0">
+          {p.image_url ? (
+            <img src={p.image_url} alt="" className="size-14 rounded-lg object-cover border" />
+          ) : (
+            <div className="size-14 rounded-lg border flex items-center justify-center bg-muted">
+              <ImageIcon className="size-6 text-muted-foreground" />
+            </div>
+          )}
+        </div>
         <div className="flex-1">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Package className="size-5" />

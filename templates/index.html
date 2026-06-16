@@ -1162,6 +1162,7 @@
             
             <!-- Product Quick Info -->
             <div class="product-quick-info">
+                <img id="productDetailImage" src="/static/img/no-image.png" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" onerror="this.style.display='none'">
                 <div class="product-stock-badge" id="productDetailStockBadge">
                     <span class="stock-value" id="productDetailQty">0</span>
                     <span class="stock-label">en stock</span>
@@ -1531,6 +1532,15 @@
                         <select id="productCategory" class="form-select" required>
                             <option value="">-- Sélectionner --</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Image du produit</label>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <img id="productImagePreview" src="/static/img/no-image.png" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">
+                            <input type="file" id="productImageInput" accept="image/*" style="display:none;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('productImageInput').click()"><i class="fas fa-upload"></i> Choisir une image</button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="clearProductImage()" id="productImageClearBtn" style="display:none;"><i class="fas fa-times"></i></button>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
