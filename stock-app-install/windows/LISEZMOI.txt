@@ -1,4 +1,4 @@
-=== StockPro v1.3.5 - Installation Windows ===
+=== StockPro v1.3.6 - Installation Windows ===
 
 Installation :
   1. Lancer StockPro-Setup.exe

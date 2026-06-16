@@ -27,7 +27,6 @@ from routes.suppliers import suppliers_bp
 from routes.warehouses import warehouses_bp
 from routes.locations import locations_bp
 from routes.stores import stores_bp
-import threading
 from services.printing_service import auto_print_async
 
 # SSE event bus for real-time multi-caisse sync
@@ -2976,31 +2975,31 @@ def parse_args():
     return parser.parse_args()
 
 if __name__ == '__main__':
-    args = parse_args()
-
-    if args.data_dir:
-        os.makedirs(args.data_dir, exist_ok=True)
-        db_path = os.path.join(args.data_dir, 'stock.db')
-        os.environ['STOCKPRO_DB_PATH'] = db_path
-
-    init_db()
-
-    if args.service:
-        pid_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.pid')
-        with open(pid_file, 'w') as f:
-            f.write(str(os.getpid()))
-        log_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.log')
-        sys.stdout = open(log_file, 'a')
-        sys.stderr = open(log_file, 'a')
-
-    url = f'http://localhost:{args.port}'
-    print(f'\n=== StockPro prêt ===')
-    print(f'Accès local  : {url}')
-    if args.host == '0.0.0.0':
-        print(f'Accès réseau : http://<IP_DU_PC>:{args.port}')
-    print(f'=====================\n')
-
     try:
+        args = parse_args()
+
+        if args.data_dir:
+            os.makedirs(args.data_dir, exist_ok=True)
+            db_path = os.path.join(args.data_dir, 'stock.db')
+            os.environ['STOCKPRO_DB_PATH'] = db_path
+
+        init_db()
+
+        if args.service:
+            pid_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.pid')
+            with open(pid_file, 'w') as f:
+                f.write(str(os.getpid()))
+            log_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.log')
+            sys.stdout = open(log_file, 'a')
+            sys.stderr = open(log_file, 'a')
+
+        url = f'http://localhost:{args.port}'
+        print(f'\n=== StockPro prêt ===')
+        print(f'Accès local  : {url}')
+        if args.host == '0.0.0.0':
+            print(f'Accès réseau : http://<IP_DU_PC>:{args.port}')
+        print(f'=====================\n')
+
         if args.open_browser:
             t = threading.Thread(target=lambda: [time.sleep(1.5), webbrowser.open(url)])
             t.daemon = True
@@ -3008,6 +3007,6 @@ if __name__ == '__main__':
 
         app.run(host=args.host, debug=False, port=args.port, threaded=True)
     except Exception as e:
-        print(f'\nERREUR : {e}')
-        print('Le serveur n\'a pas pu démarrer.')
+        print(f'\nERREUR : {e}', flush=True)
+        print('Le serveur n\'a pas pu démarrer.', flush=True)
         input('\nAppuyez sur Entrée pour fermer...')
