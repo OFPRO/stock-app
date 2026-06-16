@@ -281,6 +281,7 @@ export interface Product {
   supplier_phone?: string
   warehouse_name: string | null
   location_name: string | null
+  image_url?: string
   is_deleted: number
   created_at: string
   updated_at: string
@@ -311,6 +312,7 @@ export interface ProductFormData {
   warehouse_id?: number
   location_id?: number | null
   supplier_id?: number | null
+  image_url?: string | null
 }
 
 export function getProducts(params?: string): Promise<Product[]> {

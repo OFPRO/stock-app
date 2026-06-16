@@ -116,16 +116,18 @@ def add_product():
                 count = conn.execute('SELECT COALESCE(MAX(id), 0) + 1 FROM products').fetchone()[0]
                 sku = 'SKU-' + str(count).zfill(4)
             
+            image_url = data.get('image_url') or None
             conn.execute('''
                 INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price,
-                price_base, price_loyal, price_gros, purchase_price_avg, tax_category, category, warehouse_id, location_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                price_base, price_loyal, price_gros, purchase_price_avg, tax_category, category, warehouse_id, location_id, image_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data.get('name', ''), data.get('description', ''), sku, data.get('barcode', ''),
                 data.get('quantity', 0), data.get('min_quantity', 5), data.get('max_quantity', 100),
                 data.get('price', 0), data.get('price_base', 0), data.get('price_loyal', 0),
                 data.get('price_gros', 0), data.get('purchase_price_avg', 0), data.get('tax_category', '20'),
-                data.get('category', 'Général'), data.get('warehouse_id', 1), data.get('location_id')
+                data.get('category', 'Général'), data.get('warehouse_id', 1), data.get('location_id'),
+                image_url
             ))
             conn.commit()
             return jsonify({'success': True})
@@ -142,10 +144,11 @@ def update_product(product_id):
         price_gros = float(data.get('price_gros', 0))
 
         purchase_price_avg = float(data.get('purchase_price_avg', 0))
+        image_url = data.get('image_url') or None
         conn.execute('''
             UPDATE products SET name=?, description=?, sku=?, barcode=?, quantity=?, min_quantity=?, max_quantity=?, price=?,
             price_base=?, price_loyal=?, price_gros=?, purchase_price_avg=?, tax_category=?,
-            lot_number=?, serial_number=?, expiry_date=?, supplier_id=?, category=?, warehouse_id=?, location_id=?
+            lot_number=?, serial_number=?, expiry_date=?, supplier_id=?, category=?, warehouse_id=?, location_id=?, image_url=?
             WHERE id=?
         ''', (
             data.get('name', ''), data.get('description', ''), data.get('sku', ''), data.get('barcode', ''),
@@ -153,7 +156,8 @@ def update_product(product_id):
             price_base, price_loyal, price_gros, purchase_price_avg,
             data.get('tax_category', '20'), data.get('lot_number', ''), data.get('serial_number', ''),
             data.get('expiry_date', ''), data.get('supplier_id'), data.get('category', 'Général'),
-            data.get('warehouse_id', 1), data.get('location_id'), product_id
+            data.get('warehouse_id', 1), data.get('location_id'),
+            image_url, product_id
         ))
         
         extra = data.get('extra_prices')

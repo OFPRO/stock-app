@@ -156,7 +156,9 @@
       "max_qty": "الحد الأقصى",
       "price_normal": "السعر العادي",
       "price_loyal": "سعر العميل المخلص",
-      "price_bulk": "سعر الجملة"
+      "price_bulk": "سعر الجملة",
+      "image": "صورة المنتج",
+      "upload_image": "رفع"
     },
     "stock_badge": {
       "out_of_stock": "نفد",

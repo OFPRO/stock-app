@@ -156,7 +156,9 @@
       "max_qty": "Qté Max",
       "price_normal": "Prix Normal",
       "price_loyal": "Prix Fidèle",
-      "price_bulk": "Prix Gros"
+      "price_bulk": "Prix Gros",
+      "image": "Image du produit",
+      "upload_image": "Uploader"
     },
     "stock_badge": {
       "out_of_stock": "Rupture",

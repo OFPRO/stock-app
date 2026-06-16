@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Pencil, Trash2, Search, Package, Eye, ScanBarcode } from "lucide-react"
+import { Plus, Pencil, Trash2, Search, Package, Eye, ScanBarcode, Image as ImageIcon, Upload, X } from "lucide-react"
 import { toast } from "sonner"
 import {
   type ColumnDef,
@@ -74,8 +74,65 @@ function ProductForm({
   onToggleScan: () => void
 }) {
   const { t } = useTranslation()
+  const [uploading, setUploading] = useState(false)
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
+      const result = await res.json()
+      if (result.url) {
+        onChange({ ...data, image_url: result.url })
+      }
+    } catch (err) {
+      console.error("Upload failed:", err)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function clearImage() {
+    onChange({ ...data, image_url: null })
+  }
+
   return (
     <div className="grid gap-3">
+      <div className="flex items-center gap-3">
+        <div className="shrink-0">
+          {data.image_url ? (
+            <div className="relative">
+              <img src={data.image_url} alt="" className="size-16 rounded-lg object-cover border" />
+              <button type="button" onClick={clearImage} className="absolute -top-1.5 -right-1.5 size-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center">
+                <X className="size-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="size-16 rounded-lg border flex items-center justify-center bg-muted">
+              <ImageIcon className="size-6 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium">{t("products.form.image")}</label>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" className="relative" disabled={uploading}>
+              <Upload className="size-3.5 mr-1" />
+              {uploading ? t("common.loading") : t("products.form.upload_image")}
+              <input
+                type="file"
+                accept="image/*"
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                onChange={handleImageUpload}
+                disabled={uploading}
+              />
+            </Button>
+          </div>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <label className="text-xs font-medium">{t("products.form.name")}</label>
@@ -421,11 +478,30 @@ export function ProductsPage() {
 
   const columns = useMemo<ColumnDef<Product>[]>(() => [
     {
+      id: "image",
+      header: "",
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          {row.original.image_url ? (
+            <img
+              src={row.original.image_url}
+              alt=""
+              className="size-9 rounded-md object-cover border"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          ) : (
+            <div className="size-9 rounded-md border flex items-center justify-center bg-muted">
+              <ImageIcon className="size-4 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
       accessorKey: "name",
       header: t("products.name"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <Package className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="font-medium">{row.original.name}</span>
         </div>
       ),

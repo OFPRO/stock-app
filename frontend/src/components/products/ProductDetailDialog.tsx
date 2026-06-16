@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { Package, Info, Boxes, DollarSign, Truck, History, MapPin, ShoppingCart, AlertTriangle, ExternalLink } from "lucide-react"
+import { Package, Info, Boxes, DollarSign, Truck, History, MapPin, ShoppingCart, AlertTriangle, ExternalLink, Image as ImageIcon } from "lucide-react"
 import { getProduct, type ProductDetail } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import {
@@ -71,9 +71,18 @@ export function ProductDetailDialog({ productId, open, onOpenChange }: Props) {
             <Package className="size-4" />
             {loading ? t("common.loading") : p?.name ?? t("product_detail.dialog.title")}
           </DialogTitle>
-          <DialogDescription>
-            {p ? <>SKU: <span className="font-mono">{p.sku}</span>{p.barcode ? <> &middot; {t("product_detail.barcode_prefix")} {p.barcode}</> : null}</> : ""}
-          </DialogDescription>
+          <div className="flex items-center gap-3 mt-2">
+            {p?.image_url ? (
+              <img src={p.image_url} alt="" className="size-12 rounded-lg object-cover border shrink-0" />
+            ) : (
+              <div className="size-12 rounded-lg border flex items-center justify-center bg-muted shrink-0">
+                <ImageIcon className="size-5 text-muted-foreground" />
+              </div>
+            )}
+            <DialogDescription className="mt-0">
+              {p ? <>SKU: <span className="font-mono">{p.sku}</span>{p.barcode ? <> &middot; {t("product_detail.barcode_prefix")} {p.barcode}</> : null}</> : ""}
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
         {loading ? (

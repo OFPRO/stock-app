@@ -5,6 +5,7 @@ import html
 import os
 import sys
 import json
+import uuid
 import queue
 import argparse
 import webbrowser
@@ -52,6 +53,30 @@ app.register_blueprint(suppliers_bp)
 app.register_blueprint(warehouses_bp)
 app.register_blueprint(locations_bp)
 app.register_blueprint(stores_bp)
+
+UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier fourni'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'Fichier vide'}), 400
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Format non autorisé (png, jpg, jpeg, gif, webp)'}), 400
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    file.save(os.path.join(UPLOAD_FOLDER, filename))
+    return jsonify({'url': f'/static/uploads/{filename}'})
+
 
 @app.before_request
 def ensure_active_store():
@@ -191,6 +216,10 @@ def init_db():
         pass
     try:
         c.execute("ALTER TABLE products ADD COLUMN extra_prices TEXT DEFAULT '[]'")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE products ADD COLUMN image_url TEXT DEFAULT NULL")
     except Exception:
         pass
     for col_def in [

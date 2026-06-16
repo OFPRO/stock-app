@@ -53,13 +53,15 @@ function renderProducts(filter) {
         container.innerHTML = '<div class="empty">Aucun produit</div>';
         return;
     }
-    let html = '<table class="table"><thead><tr><th>Produit</th><th>SKU</th><th>Qte</th><th>Prix</th><th>Actions</th></tr></thead><tbody>';
+    let html = '<table class="table"><thead><tr><th></th><th>Produit</th><th>SKU</th><th>Qte</th><th>Prix</th><th>Actions</th></tr></thead><tbody>';
     for (let i = 0; i < filtered.length; i++) {
         const p = filtered[i];
         const isDeleted = p.is_deleted == 1;
         const rowClass = isDeleted ? ' style="opacity:0.5;text-decoration:line-through;"' : '';
         const statusClass = p.quantity <= p.min_quantity ? 'badge-danger' : (p.quantity <= p.min_quantity * 1.5 ? 'badge-warning' : 'badge-success');
+        const imgSrc = p.image_url || '/static/img/no-image.png';
         html += '<tr' + rowClass + '>';
+        html += '<td style="width:44px;"><img src="' + imgSrc + '" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px;" onerror="this.src=\'/static/img/no-image.png\'"></td>';
         html += '<td><a href="#" onclick="openProductDetail(' + p.id + ')" class="product-link">' + p.name + (isDeleted ? ' <span class="badge badge-danger">Supprimé</span>' : '') + '</a></td>';
         html += '<td>' + (p.sku || '-') + '</td>';
         html += '<td><span class="badge ' + statusClass + '">' + p.quantity + '</span></td>';
@@ -91,6 +93,11 @@ async function openProductDetail(productId) {
         document.getElementById('productDetailTitle').textContent = p.name;
         document.getElementById('productDetailSku').textContent = 'SKU: ' + (p.sku || '-') + ' | ' + (p.barcode || 'Sans barcode');
         document.getElementById('productDetailQty').textContent = p.quantity;
+        var detailImg = document.getElementById('productDetailImage');
+        if (detailImg) {
+            detailImg.src = p.image_url || '/static/img/no-image.png';
+            detailImg.style.display = '';
+        }
 
         const stockBadge = document.getElementById('productDetailStockBadge');
         stockBadge.className = 'product-stock-badge';
@@ -524,12 +531,37 @@ function openProductModal() {
     document.getElementById('productId').value = '';
     document.getElementById('productForm').reset();
     document.getElementById('productModalTitle').textContent = 'Nouveau Produit';
+    document.getElementById('productImagePreview').src = '/static/img/no-image.png';
+    document.getElementById('productImageClearBtn').style.display = 'none';
     openModal('barcodeScannerModal');
     stopAddProductScanner();
     document.getElementById('addProductScannerStatus').textContent = 'Cliquez sur "Activer le scan" pour utiliser la caméra';
     var btn = document.getElementById('toggleAddProductScannerBtn');
     if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Activer le scan';
 }
+
+function clearProductImage() {
+    document.getElementById('productImageInput').value = '';
+    document.getElementById('productImagePreview').src = '/static/img/no-image.png';
+    document.getElementById('productImageClearBtn').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var imgInput = document.getElementById('productImageInput');
+    if (imgInput) {
+        imgInput.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById('productImagePreview').src = ev.target.result;
+                    document.getElementById('productImageClearBtn').style.display = '';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
 
 function cancelBarcodeScan() {
     stopAddProductScanner();
@@ -682,6 +714,11 @@ function editProductModal(product) {
     document.getElementById('productMinQty').value = product.min_quantity || 5;
     document.getElementById('productMaxQty').value = product.max_quantity || 100;
     document.getElementById('productModalTitle').textContent = 'Modifier Produit';
+    var imgPreview = document.getElementById('productImagePreview');
+    if (imgPreview) {
+        imgPreview.src = product.image_url || '/static/img/no-image.png';
+        document.getElementById('productImageClearBtn').style.display = product.image_url ? '' : 'none';
+    }
     openModal('productModal');
 }
 
@@ -692,7 +729,7 @@ async function saveProduct(e) {
     var pricePurchase = parseFloat(document.getElementById('productPurchasePrice').value) || 0;
     var priceLoyal = parseFloat(document.getElementById('productLoyalPrice').value) || 0;
     var priceGros = parseFloat(document.getElementById('productGrosPrice').value) || 0;
-    const data = {
+    var data = {
         name: document.getElementById('productName').value,
         description: document.getElementById('productDescription').value,
         sku: document.getElementById('productSku').value,
@@ -707,6 +744,25 @@ async function saveProduct(e) {
         min_quantity: parseInt(document.getElementById('productMinQty').value) || 5,
         max_quantity: parseInt(document.getElementById('productMaxQty').value) || 100
     };
+    var imgInput = document.getElementById('productImageInput');
+    var currentPreview = document.getElementById('productImagePreview').src;
+    if (imgInput && imgInput.files && imgInput.files[0]) {
+        var formData = new FormData();
+        formData.append('file', imgInput.files[0]);
+        try {
+            var uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+            var uploadResult = await uploadRes.json();
+            if (uploadResult.url) {
+                data.image_url = uploadResult.url;
+            }
+        } catch(e) {
+            console.error('Upload failed:', e);
+        }
+    } else if (currentPreview && currentPreview.indexOf('/static/uploads/') !== -1) {
+        data.image_url = currentPreview;
+    } else {
+        data.image_url = null;
+    }
     try {
         const method = id ? 'PUT' : 'POST';
         const url = id ? '/api/products/' + id : '/api/products';
