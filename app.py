@@ -2991,7 +2991,19 @@ if __name__ == '__main__':
         sys.stdout = open(log_file, 'a')
         sys.stderr = open(log_file, 'a')
 
+    url = f'http://localhost:{args.port}'
+    print(f'\n=== StockPro prêt ===')
+    print(f'Accès local  : {url}')
+    if args.host == '0.0.0.0':
+        print(f'Accès réseau : http://<IP_DU_PC>:{args.port}')
+    print(f'=====================\n')
+
     if args.open_browser:
-        webbrowser.open(f'http://localhost:{args.port}')
+        def _open_browser():
+            import time
+            time.sleep(1.5)
+            webbrowser.open(url)
+        import threading
+        threading.Thread(target=_open_browser, daemon=True).start()
 
     app.run(host=args.host, debug=False, port=args.port, threaded=True)
