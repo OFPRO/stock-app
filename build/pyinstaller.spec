@@ -1,8 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 import sys
+import escpos
 
 ROOT = os.getcwd()
+ESCROOT = os.path.dirname(escpos.__file__)
 block_cipher = None
 
 a = Analysis(
@@ -13,6 +15,7 @@ a = Analysis(
         (os.path.join(ROOT, 'templates'), 'templates'),
         (os.path.join(ROOT, 'static'), 'static'),
         (os.path.join(ROOT, 'routes'), 'routes'),
+        (os.path.join(ESCROOT, 'capabilities.json'), 'escpos'),
         (os.path.join(ROOT, 'VERSION'), '.'),
     ],
     hiddenimports=[
@@ -34,6 +37,8 @@ a = Analysis(
         'http.client',
         'email',
         'email.mime',
+        'threading',
+        'time',
     ],
     hookspath=[],
     hooksconfig={},
