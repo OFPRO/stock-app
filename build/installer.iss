@@ -2,9 +2,9 @@
 ; Build with: iscc installer.iss
 
 #define MyAppName "StockPro"
-#define MyAppVersion "1.3.2"
+#define MyAppVersion "1.3.3"
 #define MyAppPublisher "Bibliotheque Badr"
-#define MyAppURL "http://localhost:5001"
+#define MyAppURL "http://<IP_DU_PC>:5001"
 #define MyAppExeName "stock-app.exe"
 
 [Setup]
@@ -44,15 +44,15 @@ Source: "..\dist\stock-app.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "postinstall.cmd"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\StockPro"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--data-dir ""{code:GetDataDir}"" --open-browser"; WorkingDir: "{app}"
+Name: "{group}\StockPro"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--data-dir ""{code:GetDataDir}"" --host 0.0.0.0 --open-browser"; WorkingDir: "{app}"
 Name: "{group}\Désinstaller StockPro"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\StockPro"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--data-dir ""{code:GetDataDir}"" --open-browser"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{commondesktop}\StockPro"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--data-dir ""{code:GetDataDir}"" --host 0.0.0.0 --open-browser"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Créer une icône sur le bureau"; GroupDescription: "Icônes supplémentaires:"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--data-dir ""{code:GetDataDir}"" --open-browser"; Description: "Lancer StockPro"; Flags: postinstall nowait skipifsilent shellexec
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--data-dir ""{code:GetDataDir}"" --host 0.0.0.0 --open-browser"; Description: "Lancer StockPro"; Flags: postinstall nowait skipifsilent shellexec
 
 [Code]
 var

@@ -1,4 +1,4 @@
-=== StockPro v1.3.2 - Installation Windows ===
+=== StockPro v1.3.3 - Installation Windows ===
 
 Installation :
   1. Lancer StockPro-Setup.exe
@@ -9,4 +9,7 @@ Aucune dépendance requise. Python est intégré dans l'application.
 
 Données stockées dans %LOCALAPPDATA%\StockPro\ (choisissable à l'installation).
 
-Accès : http://127.0.0.1:5001
+Accès local    : http://127.0.0.1:5001
+Accès réseau   : http://<IP_DU_PC>:5001 (ex: http://192.168.1.42:5001)
+
+Pour connaître l'IP du PC : ouvrir cmd et taper  ipconfig
