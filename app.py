@@ -7,14 +7,12 @@ import sys
 import json
 import uuid
 import queue
-import threading
-import time
 import argparse
 import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, Response, send_from_directory, session
-from routes.db import get_db, get_price_by_tier, _safe_int, validate_id, categories_data
+from routes.db import get_db, get_price_by_tier, DB_NAME, _safe_int, validate_id, categories_data
 try:
     from reset_test_db import reset_transactional_data
     _HAS_RESET = True
@@ -27,6 +25,7 @@ from routes.suppliers import suppliers_bp
 from routes.warehouses import warehouses_bp
 from routes.locations import locations_bp
 from routes.stores import stores_bp
+import threading
 from services.printing_service import auto_print_async
 
 # SSE event bus for real-time multi-caisse sync
@@ -56,6 +55,7 @@ app.register_blueprint(locations_bp)
 app.register_blueprint(stores_bp)
 
 UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 
@@ -102,11 +102,7 @@ def next_sequence(conn, name):
     return result
 
 def init_db():
-    db_path = os.environ.get('STOCKPRO_DB_PATH', 'stock.db')
-    if not os.path.isabs(db_path):
-        data_dir = os.environ.get('STOCKPRO_DATA_DIR', os.getcwd())
-        db_path = os.path.abspath(os.path.join(data_dir, db_path))
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -2978,41 +2974,36 @@ def parse_args():
     return parser.parse_args()
 
 if __name__ == '__main__':
-    try:
-        args = parse_args()
+    args = parse_args()
 
-        if args.data_dir:
-            os.makedirs(args.data_dir, exist_ok=True)
-            db_path = os.path.join(args.data_dir, 'stock.db')
-            os.environ['STOCKPRO_DB_PATH'] = db_path
-            os.environ['STOCKPRO_DATA_DIR'] = args.data_dir
+    if args.data_dir:
+        os.makedirs(args.data_dir, exist_ok=True)
+        db_path = os.path.join(args.data_dir, 'stock.db')
+        os.environ['STOCKPRO_DB_PATH'] = db_path
 
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    init_db()
 
-        init_db()
+    if args.service:
+        pid_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.pid')
+        with open(pid_file, 'w') as f:
+            f.write(str(os.getpid()))
+        log_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.log')
+        sys.stdout = open(log_file, 'a')
+        sys.stderr = open(log_file, 'a')
 
-        if args.service:
-            pid_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.pid')
-            with open(pid_file, 'w') as f:
-                f.write(str(os.getpid()))
-            log_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.log')
-            sys.stdout = open(log_file, 'a')
-            sys.stderr = open(log_file, 'a')
+    url = f'http://localhost:{args.port}'
+    print(f'\n=== StockPro prêt ===')
+    print(f'Accès local  : {url}')
+    if args.host == '0.0.0.0':
+        print(f'Accès réseau : http://<IP_DU_PC>:{args.port}')
+    print(f'=====================\n')
 
-        url = f'http://localhost:{args.port}'
-        print(f'\n=== StockPro prêt ===')
-        print(f'Accès local  : {url}')
-        if args.host == '0.0.0.0':
-            print(f'Accès réseau : http://<IP_DU_PC>:{args.port}')
-        print(f'=====================\n')
+    if args.open_browser:
+        def _open_browser():
+            import time
+            time.sleep(1.5)
+            webbrowser.open(url)
+        import threading
+        threading.Thread(target=_open_browser, daemon=True).start()
 
-        if args.open_browser:
-            t = threading.Thread(target=lambda: [time.sleep(1.5), webbrowser.open(url)])
-            t.daemon = True
-            t.start()
-
-        app.run(host=args.host, debug=False, port=args.port, threaded=True)
-    except Exception as e:
-        print(f'\nERREUR : {e}', flush=True)
-        print('Le serveur n\'a pas pu démarrer.', flush=True)
-        input('\nAppuyez sur Entrée pour fermer...')
+    app.run(host=args.host, debug=False, port=args.port, threaded=True)

@@ -3,12 +3,11 @@ import os
 import sqlite3
 import flask
 
-def _get_db_path():
-    db_path = os.environ.get('STOCKPRO_DB_PATH', 'stock.db')
-    if not os.path.isabs(db_path):
-        data_dir = os.environ.get('STOCKPRO_DATA_DIR', os.getcwd())
-        db_path = os.path.abspath(os.path.join(data_dir, db_path))
-    return db_path
+DB_NAME = os.environ.get('STOCKPRO_DB_PATH', 'stock.db')
+
+STOCKPRO_DATA_DIR = os.environ.get('STOCKPRO_DATA_DIR', os.getcwd())
+CATALOG_DB = DB_NAME if os.path.isabs(DB_NAME) else os.path.join(STOCKPRO_DATA_DIR, DB_NAME)
+CATALOG_DB = os.path.abspath(CATALOG_DB)
 
 categories_data = [
     ('المصاحف', 'Corans'),
@@ -64,10 +63,9 @@ def resolve_db_path(store_id=None):
             store_id = flask.session.get('active_store_id', 1)
         except RuntimeError:
             store_id = 1
-    catalog_db = _get_db_path()
     if store_id == 1:
-        return catalog_db
-    basedir = os.path.dirname(catalog_db)
+        return CATALOG_DB
+    basedir = os.path.dirname(CATALOG_DB)
     return os.path.join(basedir, f'stock_{store_id}.db')
 
 def _connect(db_path):
@@ -94,11 +92,11 @@ def get_db_ctx(store_id=None):
         conn.close()
 
 def get_catalog_db():
-    return _connect(_get_db_path())
+    return _connect(CATALOG_DB)
 
 @contextmanager
 def get_catalog_db_ctx():
-    conn = _connect(_get_db_path())
+    conn = _connect(CATALOG_DB)
     try:
         yield conn
         conn.commit()
