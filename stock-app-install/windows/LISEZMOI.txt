@@ -1,13 +1,12 @@
-=== StockPro v1.0.0 - Installation Windows ===
+=== StockPro v1.3.2 - Installation Windows ===
 
-Option 1 - Version portable (recommandée) :
-  1. Décompresser StockPro-Portable.zip
-  2. Lancer start.bat
-  3. StockPro s'ouvre dans votre navigateur
+Installation :
+  1. Lancer StockPro-Setup.exe
+  2. Suivre les étapes de l'installateur
+  3. StockPro s'ouvre automatiquement dans votre navigateur
 
-Option 2 - Installateur complet (nécessite Windows + Inno Setup) :
-  - Se placer dans le dossier build/ du projet source
-  - Exécuter : python make_installer.py
-  - Cela génère StockPro-Setup.exe
- 
-Données stockées dans %APPDATA%\StockPro\ ou --data-dir.
+Aucune dépendance requise. Python est intégré dans l'application.
+
+Données stockées dans %LOCALAPPDATA%\StockPro\ (choisissable à l'installation).
+
+Accès : http://127.0.0.1:5001

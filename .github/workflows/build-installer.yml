@@ -32,9 +32,6 @@ jobs:
       - name: PyInstaller bundle
         run: pyinstaller build/pyinstaller.spec --distpath dist --workpath build/_tmp
 
-      - name: PyInstaller service wrapper
-        run: pyinstaller --onefile build/service_wrapper.py --distpath dist --workpath build/_tmp_service
-
       - name: Build Inno Setup installer
         run: |
           & "$env:ISCC_PATH" build/installer.iss

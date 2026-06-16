@@ -2,7 +2,7 @@
 ; Build with: iscc installer.iss
 
 #define MyAppName "StockPro"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "1.3.2"
 #define MyAppPublisher "Bibliotheque Badr"
 #define MyAppURL "http://localhost:5001"
 #define MyAppExeName "stock-app.exe"
@@ -37,7 +37,6 @@ Name: "custom"; Description: "Installation personnalisée"; Flags: iscustom
 
 [Components]
 Name: "app"; Description: "Application StockPro"; Types: typical custom; Flags: fixed
-Name: "service"; Description: "Installer comme service Windows (démarrage automatique)"; Types: typical
 Name: "desktopicon"; Description: "Icône sur le bureau"; Types: custom
 
 [Files]
@@ -54,11 +53,6 @@ Name: "desktopicon"; Description: "Créer une icône sur le bureau"; GroupDescri
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--data-dir ""{code:GetDataDir}"" --open-browser"; Description: "Lancer StockPro"; Flags: postinstall nowait skipifsilent shellexec
-; Install service if component selected
-Filename: "{app}\service_wrapper.exe"; Parameters: "install ""{code:GetDataDir}"" 5001"; Description: "Installer le service StockPro"; Flags: runhidden; Components: service
-
-[UninstallRun]
-Filename: "{app}\service_wrapper.exe"; Parameters: "uninstall"; Flags: runhidden; Components: service
 
 [Code]
 var
