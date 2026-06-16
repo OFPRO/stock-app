@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -48,4 +50,3 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: dist/StockPro-Setup.exe
-          generate_release_notes: true
