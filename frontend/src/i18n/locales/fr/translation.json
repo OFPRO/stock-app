@@ -16,7 +16,8 @@
     "scanner": "Scanner",
     "pos": "Caisse",
     "mainAccount": "Compte Principal",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "settings": "Paramètres"
   },
   "footer": {
     "company": "Bibliothèque Badr — Marrakech"
@@ -609,5 +610,40 @@
     "stock": "Stock",
     "price": "Prix",
     "view_product": "Voir le produit"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "general": "Général",
+    "printer": "Imprimante",
+    "theme": "Thème",
+    "theme_desc": "Choisissez l'apparence de l'application",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "printer_config": "Configuration imprimante",
+    "printer_config_desc": "Configurer l'impression automatique des tickets de caisse",
+    "auto_print": "Impression automatique",
+    "connection_type": "Type de connexion",
+    "network": "WiFi / Réseau",
+    "usb": "USB",
+    "printer_host": "Adresse IP",
+    "printer_port": "Port",
+    "usb_vendor_id": "ID Vendor (USB)",
+    "usb_product_id": "ID Produit (USB)",
+    "test_print": "Tester l'impression",
+    "testing": "Impression en cours...",
+    "save_success": "Paramètres sauvegardés",
+    "save_error": "Erreur de sauvegarde",
+    "test_error": "Erreur lors du test d'impression",
+    "load_error": "Erreur de chargement des paramètres",
+    "printer_online": "Connectée",
+    "printer_offline": "Hors ligne",
+    "printer_not_configured": "Non configurée",
+    "usb_printers": "Imprimantes USB",
+    "scan_usb": "Rechercher",
+    "scanning": "Recherche...",
+    "no_usb_printers": "Aucune imprimante USB trouvée",
+    "scan_error": "Erreur lors de la recherche",
+    "usb_printers_hint": "Cliquez sur 'Rechercher' pour lister les imprimantes USB branchées"
   }
 }

@@ -16,7 +16,8 @@
     "scanner": "الماسح",
     "pos": "نقطة البيع",
     "mainAccount": "الحساب الرئيسي",
-    "notifications": "الإشعارات"
+    "notifications": "الإشعارات",
+    "settings": "الإعدادات"
   },
   "footer": {
     "company": "مكتبة بدر — مراكش"
@@ -609,5 +610,40 @@
     "stock": "المخزون",
     "price": "السعر",
     "view_product": "عرض المنتج"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "general": "عام",
+    "printer": "الطابعة",
+    "theme": "المظهر",
+    "theme_desc": "اختر مظهر التطبيق",
+    "light": "فاتح",
+    "dark": "داكن",
+    "system": "النظام",
+    "printer_config": "إعدادات الطابعة",
+    "printer_config_desc": "تكوين الطباعة التلقائية لإيصالات البيع",
+    "auto_print": "الطباعة التلقائية",
+    "connection_type": "نوع الاتصال",
+    "network": "WiFi / الشبكة",
+    "usb": "USB",
+    "printer_host": "عنوان IP",
+    "printer_port": "المنفذ",
+    "usb_vendor_id": "معرف البائع (USB)",
+    "usb_product_id": "معرف المنتج (USB)",
+    "test_print": "اختبار الطباعة",
+    "testing": "جاري الطباعة...",
+    "save_success": "تم حفظ الإعدادات",
+    "save_error": "خطأ في الحفظ",
+    "test_error": "خطأ في اختبار الطباعة",
+    "load_error": "خطأ في تحميل الإعدادات",
+    "printer_online": "متصلة",
+    "printer_offline": "غير متصلة",
+    "printer_not_configured": "غير مهيأة",
+    "usb_printers": "الطابعات USB",
+    "scan_usb": "بحث",
+    "scanning": "جاري البحث...",
+    "no_usb_printers": "لم يتم العثور على طابعات USB",
+    "scan_error": "خطأ في البحث",
+    "usb_printers_hint": "انقر على 'بحث' لعرض الطابعات USB المتصلة"
   }
 }
