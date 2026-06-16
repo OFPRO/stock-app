@@ -3,7 +3,8 @@ from datetime import datetime
 from fpdf import FPDF
 
 
-RECEIPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'receipts')
+def _get_receipts_dir():
+    return os.environ.get('STOCKPRO_DATA_DIR', os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'receipts'))
 
 
 class ReceiptPdf:
@@ -117,10 +118,11 @@ class ReceiptPdf:
 
 
 def save_receipt_pdf(ticket_data):
-    os.makedirs(RECEIPTS_DIR, exist_ok=True)
+    receipts_dir = _get_receipts_dir()
+    os.makedirs(receipts_dir, exist_ok=True)
     ticket_number = ticket_data.get('ticket_number', 'unknown')
     filename = f'{ticket_number}.pdf'
-    filepath = os.path.join(RECEIPTS_DIR, filename)
+    filepath = os.path.join(receipts_dir, filename)
     pdf = ReceiptPdf()
     doc = pdf.build(ticket_data)
     doc.output(filepath)

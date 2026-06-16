@@ -14,7 +14,7 @@ import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, Response, send_from_directory, session
-from routes.db import get_db, get_price_by_tier, DB_NAME, _safe_int, validate_id, categories_data
+from routes.db import get_db, get_price_by_tier, _safe_int, validate_id, categories_data
 try:
     from reset_test_db import reset_transactional_data
     _HAS_RESET = True
@@ -56,7 +56,6 @@ app.register_blueprint(locations_bp)
 app.register_blueprint(stores_bp)
 
 UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 
@@ -103,7 +102,11 @@ def next_sequence(conn, name):
     return result
 
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
+    db_path = os.environ.get('STOCKPRO_DB_PATH', 'stock.db')
+    if not os.path.isabs(db_path):
+        data_dir = os.environ.get('STOCKPRO_DATA_DIR', os.getcwd())
+        db_path = os.path.abspath(os.path.join(data_dir, db_path))
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -2982,6 +2985,9 @@ if __name__ == '__main__':
             os.makedirs(args.data_dir, exist_ok=True)
             db_path = os.path.join(args.data_dir, 'stock.db')
             os.environ['STOCKPRO_DB_PATH'] = db_path
+            os.environ['STOCKPRO_DATA_DIR'] = args.data_dir
+
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
         init_db()
 
