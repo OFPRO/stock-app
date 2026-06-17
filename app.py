@@ -1274,7 +1274,7 @@ def reset_data():
     conn = get_db()
     reset_transactional_data(conn)
     conn.close()
-    return jsonify({'success': True, 'message': 'Données transactionnelles réinitialisées'})
+    return jsonify({'success': True, 'message': 'Toutes les données ont été réinitialisées'})
 
 @app.route('/api/seed-data', methods=['POST'])
 def seed_data():

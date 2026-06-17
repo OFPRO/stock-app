@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import threading
 from datetime import datetime
@@ -33,7 +34,70 @@ _KNOWN_PRINTER_IDS = {
 }
 
 
-def discover_printers():
+def _discover_windows():
+    devices = []
+    try:
+        import winreg
+        base = r'SYSTEM\CurrentControlSet\Enum\USB'
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base)
+        i = 0
+        while True:
+            try:
+                subkey_name = winreg.EnumKey(key, i)
+                i += 1
+                if not subkey_name.startswith('VID_'):
+                    continue
+                try:
+                    dev_key = winreg.OpenKey(key, subkey_name)
+                except OSError:
+                    continue
+                j = 0
+                while True:
+                    try:
+                        instance = winreg.EnumKey(dev_key, j)
+                        j += 1
+                    except OSError:
+                        break
+                    inst_key = winreg.OpenKey(dev_key, instance)
+                    try:
+                        svc, _ = winreg.QueryValueEx(inst_key, 'Service')
+                    except OSError:
+                        svc = ''
+                    try:
+                        desc, _ = winreg.QueryValueEx(inst_key, 'DeviceDesc')
+                    except OSError:
+                        desc = ''
+                    if svc.lower() != 'usbprint' and 'usbprint' not in desc.upper():
+                        winreg.CloseKey(inst_key)
+                        continue
+                    parts = subkey_name.replace('VID_', '').split('&PID_')
+                    if len(parts) != 2:
+                        winreg.CloseKey(inst_key)
+                        continue
+                    vid = parts[0].lower()
+                    pid = parts[1].split('&')[0].lower()
+                    name = desc.split(';')[-1].strip() if ';' in desc else desc
+                    manufacturer = _KNOWN_PRINTER_IDS.get(int(vid, 16), 'USB Printer')
+                    devices.append({
+                        'name': name or f'USB Printer ({vid}:{pid})',
+                        'vendor_id': f'0x{vid}',
+                        'product_id': f'0x{pid}',
+                        'instance_id': instance,
+                        'manufacturer': manufacturer,
+                        'description': name,
+                        'connection_type': 'windows',
+                    })
+                    winreg.CloseKey(inst_key)
+                winreg.CloseKey(dev_key)
+            except OSError:
+                break
+        winreg.CloseKey(key)
+    except ImportError:
+        pass
+    return devices
+
+
+def _discover_pyusb():
     devices = []
     try:
         import usb.core
@@ -72,13 +136,26 @@ def discover_printers():
     return devices
 
 
+def discover_printers():
+    if sys.platform == 'win32':
+        devices = _discover_windows()
+        if devices:
+            return devices
+    return _discover_pyusb()
+
+
 def list_printers():
     result = discover_printers()
     return result
 
 
 def check_printer_status(config):
-    if not config or not config.get('host'):
+    if not config:
+        return {'status': 'not_configured'}
+    conn_type = config.get('connection_type', 'network')
+    if conn_type == 'network' and not config.get('host'):
+        return {'status': 'not_configured'}
+    if conn_type in ('usb', 'windows') and not config.get('usb_vendor_id'):
         return {'status': 'not_configured'}
     try:
         printer = EscposPrinter(config)

@@ -227,6 +227,7 @@ function renderPrinterSettings(config, status) {
     html += '  <select id="printerConnectionType" class="form-control" onchange="onPrinterTypeChange(); savePrinterSetting(\'connection_type\', this.value)" style="max-width:250px;">';
     html += '    <option value="network"' + (config.connection_type === 'network' ? ' selected' : '') + '>WiFi / Réseau</option>';
     html += '    <option value="usb"' + (config.connection_type === 'usb' ? ' selected' : '') + '>USB</option>';
+    html += '    <option value="windows"' + (config.connection_type === 'windows' ? ' selected' : '') + '>Imprimante Windows</option>';
     html += '  </select>';
     html += '</div>';
 
@@ -240,6 +241,19 @@ function renderPrinterSettings(config, status) {
         html += '    <label>Port</label>';
         html += '    <input type="number" class="form-control" id="printerPort" value="' + (config.port || 9100) + '" onchange="savePrinterSetting(\'port\', parseInt(this.value) || 9100)">';
         html += '  </div>';
+        html += '</div>';
+    } else if (config.connection_type === 'windows') {
+        html += '<div class="form-group">';
+        html += '  <label>Nom de l\'imprimante (Windows)</label>';
+        html += '  <input type="text" class="form-control" id="printerHost" value="' + escapeHtml(config.host || '') + '" placeholder="XP-80" onchange="savePrinterSetting(\'host\', this.value)" style="max-width:350px;">';
+        html += '  <p style="color:var(--text-light);font-size:12px;margin-top:4px;">Le nom apparaît dans Paramètres &gt; Périphériques &gt; Imprimantes</p>';
+        html += '</div>';
+        html += '<div class="form-group">';
+        html += '  <label>Imprimantes USB détectées</label>';
+        html += '  <div id="usbPrinterList" style="margin-bottom:8px;">';
+        html += '    <p style="color:var(--text-light);font-size:13px;">Cliquez sur "Rechercher" pour lister les imprimantes USB branchées</p>';
+        html += '  </div>';
+        html += '  <button class="btn btn-sm btn-outline" onclick="scanUsbPrinters()"><i class="fas fa-search"></i> Rechercher les imprimantes</button>';
         html += '</div>';
     } else {
         html += '<div class="form-group">';
@@ -283,7 +297,9 @@ function scanUsbPrinters() {
             }
             var html = '<div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">';
             printers.forEach(function(p, i) {
-                html += '<div class="printer-item" onclick="selectUsbPrinter(\'' + p.vendor_id + '\', \'' + p.product_id + '\', this)" ';
+                var connType = p.connection_type || 'usb';
+                var instId = p.instance_id || '';
+                html += '<div class="printer-item" onclick="selectUsbPrinter(\'' + p.vendor_id + '\', \'' + p.product_id + '\', \'' + connType + '\', \'' + escapeHtml(p.name) + '\', \'' + escapeHtml(instId) + '\', this)" ';
                 html += 'style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;transition:background 0.15s;"';
                 html += ' onmouseover="this.style.background=\'var(--bg-hover)\'" onmouseout="this.style.background=\'\'"';
                 html += '>';
@@ -303,19 +319,31 @@ function scanUsbPrinters() {
         });
 }
 
-function selectUsbPrinter(vendorId, productId, el) {
+function selectUsbPrinter(vendorId, productId, connType, printerName, instanceId, el) {
     var items = document.querySelectorAll('.printer-item');
     items.forEach(function(i) { i.style.background = ''; i.querySelector('.fa-check-circle').style.display = 'none'; });
     el.style.background = 'var(--bg-hover)';
     el.querySelector('.fa-check-circle').style.display = 'inline-block';
+    if (connType === 'windows') {
+        var hostInput = document.getElementById('printerHost');
+        if (hostInput) hostInput.value = printerName;
+        savePrinterSetting('connection_type', 'windows');
+        savePrinterSetting('host', printerName);
+    }
     savePrinterSetting('usb_vendor_id', vendorId);
     savePrinterSetting('usb_product_id', productId);
+    if (instanceId) {
+        savePrinterSetting('instance_id', instanceId);
+    }
 }
 
 function onPrinterTypeChange() {
     var type = document.getElementById('printerConnectionType').value;
     var config = { connection_type: type, host: '', port: 9100, usb_vendor_id: '', usb_product_id: '', auto_print: true };
     renderPrinterSettings(config, {});
+    if (type === 'windows') {
+        savePrinterSetting('connection_type', 'windows');
+    }
 }
 
 function testPrinterConnection() {

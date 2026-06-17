@@ -40,6 +40,8 @@ a = Analysis(
         'threading',
         'time',
         'PIL',
+        'win32print',
+        'win32file',
     ],
     hookspath=[],
     hooksconfig={},

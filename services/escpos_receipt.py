@@ -124,6 +124,126 @@ class EscposReceiptBuilder:
         return '\n'.join(self.lines)
 
 
+_USBPRINT_GUID = '{28d78fad-5a12-11d1-ae5b-0000f803a963}'
+
+
+def _build_usbprint_path(vid, pid, instance_id):
+    vid_clean = vid.replace('0x', '').lower().zfill(4)
+    pid_clean = pid.replace('0x', '').lower().zfill(4)
+    return (
+        f'\\\\?\\USB#VID_{vid_clean}&PID_{pid_clean}#{instance_id}'
+        f'#{_USBPRINT_GUID}'
+    )
+
+
+class _WindowsRawPrinter:
+    def __init__(self, printer_name, vid='', pid='', instance_id=''):
+        self._handle = None
+        self._printer_name = printer_name
+        self._vid = vid
+        self._pid = pid
+        self._instance_id = instance_id
+        self._open()
+
+    def _open(self):
+        import win32file
+        path = _build_usbprint_path(self._vid, self._pid, self._instance_id)
+        share_mode = 1 | 2
+        try:
+            self._handle = win32file.CreateFile(
+                path,
+                win32file.GENERIC_WRITE,
+                share_mode,
+                None,
+                win32file.OPEN_EXISTING,
+                0,
+                None,
+            )
+            self._is_file = True
+            return
+        except Exception:
+            pass
+        try:
+            if self._printer_name:
+                import win32print
+                self._handle = win32print.OpenPrinter(self._printer_name)
+                return
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"Impossible d'ouvrir l'imprimante: {self._printer_name}. "
+            f"Vérifiez qu'elle est branchée et que le pilote Windows est installé."
+        )
+
+    def _ensure_doc(self):
+        if hasattr(self, '_doc_started') and self._doc_started:
+            return
+        if hasattr(self, '_is_file'):
+            return
+        import win32print
+        win32print.StartDocPrinter(self._handle, 1, ('StockPro', None, 'RAW'))
+        win32print.StartPagePrinter(self._handle)
+        self._doc_started = True
+
+    def _raw(self, data):
+        self._ensure_doc()
+        if hasattr(self, '_is_file'):
+            import win32file
+            win32file.WriteFile(self._handle, data)
+        else:
+            import win32print
+            win32print.WritePrinter(self._handle, data)
+
+    def text(self, text):
+        self._raw(text.encode('cp437', errors='replace'))
+
+    def set(self, align='left', font='a', width=1, height=1, density=8, invert=0, smooth=False, bold=False):
+        pass
+
+    def close(self):
+        if self._handle is not None:
+            try:
+                if hasattr(self, '_doc_started') and self._doc_started and not hasattr(self, '_is_file'):
+                    import win32print
+                    win32print.EndPagePrinter(self._handle)
+                    win32print.EndDocPrinter(self._handle)
+            except Exception:
+                pass
+            try:
+                if hasattr(self, '_is_file'):
+                    import win32file
+                    win32file.CloseHandle(self._handle)
+                else:
+                    import win32print
+                    win32print.ClosePrinter(self._handle)
+            except Exception:
+                pass
+            self._handle = None
+
+    def cut(self):
+        self._raw(b'\x1d\x56\x42\x00')
+
+    def qr(self, content, size=6, center=True):
+        if center:
+            self._raw(b'\x1b\x61\x01')
+        data = content.encode('utf-8')
+        pl = len(data) + 3
+        ph = pl >> 8
+        pl = pl & 0xFF
+        self._raw(b'\x1d\x28\x6b' + bytes([pl, ph, 49, 80, 48]))
+        self._raw(b'\x1d\x28\x6b' + bytes([len(data) + 3, (len(data) + 3) >> 8, 49, 81, 48]) + data)
+        self._raw(b'\x1d\x28\x6b' + bytes([3, 0, 49, 82, size * 16 + 0]))
+
+    def barcode(self, content, bc='CODE128', height=50, width=2):
+        data = content.encode('utf-8')
+        self._raw(b'\x1d\x68' + bytes([height]))
+        self._raw(b'\x1d\x77' + bytes([width]))
+        if bc == 'CODE128':
+            self._raw(b'\x1d\x6b\x49' + bytes([len(data)]) + data)
+        else:
+            self._raw(b'\x1d\x6b\x45' + data + b'\x00')
+
+
 class EscposPrinter:
     def __init__(self, config):
         self.config = config
@@ -142,6 +262,14 @@ class EscposPrinter:
                 self._printer = Usb(int(vendor, 16), int(product, 16))
             else:
                 raise RuntimeError("Configuration USB incomplète")
+        elif conn_type == 'windows':
+            printer_name = self.config.get('printer_name') or self.config.get('host', '')
+            if not printer_name:
+                raise RuntimeError("Nom d'imprimante Windows manquant")
+            vid = self.config.get('usb_vendor_id', '')
+            pid = self.config.get('usb_product_id', '')
+            instance_id = self.config.get('instance_id', '')
+            self._printer = _WindowsRawPrinter(printer_name, vid, pid, instance_id)
         else:
             raise RuntimeError(f"Type de connexion inconnu: {conn_type}")
 
