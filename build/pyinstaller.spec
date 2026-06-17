@@ -42,6 +42,7 @@ a = Analysis(
         'PIL',
         'win32print',
         'win32file',
+        'win32setupapi',
     ],
     hookspath=[],
     hooksconfig={},

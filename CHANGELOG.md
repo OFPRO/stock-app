@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.4.2 (2026-06-17)
+
+### Correctif — Connexion imprimante Windows via SetupAPI
+
+- **Bug** : Le chemin USBPRINT construit manuellement (`\\?\USB#VID_...&PID_...#INSTANCE_...#{GUID}`) échouait car l'instance_id du Registre ne correspond pas toujours au chemin attendu par Windows.
+- **Fix** : Nouvelle fonction `_find_usbprint_device_path()` utilise `SetupDiGetClassDevs` / `SetupDiEnumDeviceInterfaces` / `SetupDiGetDeviceInterfaceDetail` (API officielle Windows via `win32setupapi`) pour obtenir le chemin exact du périphérique USBPRINT.
+- **Triple fallback** : ① SetupAPI → ② chemin construit depuis le Registre → ③ `win32print.OpenPrinter()` si l'imprimante est installée dans Windows.
+- `build/pyinstaller.spec` : ajout de `win32setupapi` aux `hiddenimports`.
+
 ## v1.4.1 (2026-06-17)
 
 ### Correctif — Sauvegarde paramètres imprimante
