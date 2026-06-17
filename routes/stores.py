@@ -177,6 +177,18 @@ def get_printer_settings():
 def update_printer_settings():
     data = request.get_json() or {}
     conn = get_db()
+    current = conn.execute('SELECT * FROM printer_settings WHERE id = 1').fetchone()
+    if current:
+        merged = dict(current)
+        merged.update({k: v for k, v in data.items() if k in merged})
+    else:
+        merged = {
+            'connection_type': 'network',
+            'host': '', 'port': 9100,
+            'usb_vendor_id': '', 'usb_product_id': '',
+            'printer_name': '', 'auto_print': 1, 'paper_width': 80,
+        }
+        merged.update(data)
     conn.execute('''
         UPDATE printer_settings SET
             connection_type = ?, host = ?, port = ?,
@@ -185,14 +197,14 @@ def update_printer_settings():
             updated_at = CURRENT_TIMESTAMP
         WHERE id = 1
     ''', (
-        data.get('connection_type', 'network'),
-        data.get('host', ''),
-        int(data.get('port', 9100)),
-        data.get('usb_vendor_id', ''),
-        data.get('usb_product_id', ''),
-        data.get('printer_name', ''),
-        1 if data.get('auto_print', True) else 0,
-        int(data.get('paper_width', 80)),
+        merged.get('connection_type', 'network'),
+        merged.get('host', ''),
+        int(merged.get('port', 9100)),
+        merged.get('usb_vendor_id', ''),
+        merged.get('usb_product_id', ''),
+        merged.get('printer_name', ''),
+        1 if merged.get('auto_print', True) else 0,
+        int(merged.get('paper_width', 80)),
     ))
     conn.commit()
     conn.close()

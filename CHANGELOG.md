@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.4.1 (2026-06-17)
+
+### Correctif — Sauvegarde paramètres imprimante
+
+- **Bug** : `PUT /api/settings/printer` écrasait tous les champs avec des valeurs par défaut quand un seul champ était envoyé. Par exemple `{"host": "XP-80"}` réinitialisait `connection_type` à `"network"`.
+- **Fix** : la fonction `update_printer_settings()` lit d'abord les réglages existants, fusionne avec les données reçues, puis sauvegarde le résultat. Les champs non envoyés conservent leur valeur précédente.
+
 ## v1.4.0 (2026-06-17)
 
 ### Reset DB — Réécriture complète
