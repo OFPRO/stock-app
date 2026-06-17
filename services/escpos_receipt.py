@@ -136,6 +136,42 @@ def _build_usbprint_path(vid, pid, instance_id):
     )
 
 
+def _find_usbprint_device_path(vid, pid):
+    import win32setupapi
+    vid_clean = vid.replace('0x', '').lower().zfill(4)
+    pid_clean = pid.replace('0x', '').lower().zfill(4)
+    target = f"vid_{vid_clean}&pid_{pid_clean}"
+    hdev = win32setupapi.SetupDiGetClassDevs(
+        _USBPRINT_GUID, None, None,
+        win32setupapi.DIGCF_DEVICEINTERFACE | win32setupapi.DIGCF_PRESENT
+    )
+    if not hdev or hdev == win32setupapi.INVALID_HANDLE_VALUE:
+        return None
+    try:
+        index = 0
+        while True:
+            try:
+                iface_data = win32setupapi.SetupDiEnumDeviceInterfaces(
+                    hdev, None, _USBPRINT_GUID, index
+                )
+            except Exception:
+                break
+            try:
+                detail = win32setupapi.SetupDiGetDeviceInterfaceDetail(hdev, iface_data)
+                path = detail.device_path
+                if target in path.lower():
+                    return path
+            except Exception:
+                pass
+            index += 1
+    finally:
+        try:
+            win32setupapi.SetupDiDestroyDeviceInfoList(hdev)
+        except Exception:
+            pass
+    return None
+
+
 class _WindowsRawPrinter:
     def __init__(self, printer_name, vid='', pid='', instance_id=''):
         self._handle = None
@@ -147,22 +183,33 @@ class _WindowsRawPrinter:
 
     def _open(self):
         import win32file
-        path = _build_usbprint_path(self._vid, self._pid, self._instance_id)
         share_mode = 1 | 2
-        try:
-            self._handle = win32file.CreateFile(
-                path,
-                win32file.GENERIC_WRITE,
-                share_mode,
-                None,
-                win32file.OPEN_EXISTING,
-                0,
-                None,
-            )
-            self._is_file = True
-            return
-        except Exception:
-            pass
+
+        if self._vid and self._pid:
+            path = _find_usbprint_device_path(self._vid, self._pid)
+            if path:
+                try:
+                    self._handle = win32file.CreateFile(
+                        path, win32file.GENERIC_WRITE, share_mode,
+                        None, win32file.OPEN_EXISTING, 0, None,
+                    )
+                    self._is_file = True
+                    return
+                except Exception:
+                    pass
+
+        if self._vid and self._pid and self._instance_id:
+            path = _build_usbprint_path(self._vid, self._pid, self._instance_id)
+            try:
+                self._handle = win32file.CreateFile(
+                    path, win32file.GENERIC_WRITE, share_mode,
+                    None, win32file.OPEN_EXISTING, 0, None,
+                )
+                self._is_file = True
+                return
+            except Exception:
+                pass
+
         try:
             if self._printer_name:
                 import win32print
@@ -170,6 +217,7 @@ class _WindowsRawPrinter:
                 return
         except Exception:
             pass
+
         raise RuntimeError(
             f"Impossible d'ouvrir l'imprimante: {self._printer_name}. "
             f"Vérifiez qu'elle est branchée et que le pilote Windows est installé."
