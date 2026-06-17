@@ -1,4 +1,5 @@
 import json
+import re
 from flask import Blueprint, request, jsonify
 from routes.db import get_db_ctx as get_db, get_price_by_tier, validate_id
 
@@ -116,19 +117,27 @@ def add_product():
                 count = conn.execute('SELECT COALESCE(MAX(id), 0) + 1 FROM products').fetchone()[0]
                 sku = 'SKU-' + str(count).zfill(4)
             
+            barcode = re.sub(r'[^\x20-\x7E]', '', data.get('barcode', '')).strip()
             image_url = data.get('image_url') or None
-            conn.execute('''
+            cursor = conn.execute('''
                 INSERT INTO products (name, description, sku, barcode, quantity, min_quantity, max_quantity, price,
                 price_base, price_loyal, price_gros, purchase_price_avg, tax_category, category, warehouse_id, location_id, image_url)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                data.get('name', ''), data.get('description', ''), sku, data.get('barcode', ''),
+                data.get('name', ''), data.get('description', ''), sku, barcode,
                 data.get('quantity', 0), data.get('min_quantity', 5), data.get('max_quantity', 100),
                 data.get('price', 0), data.get('price_base', 0), data.get('price_loyal', 0),
                 data.get('price_gros', 0), data.get('purchase_price_avg', 0), data.get('tax_category', '20'),
                 data.get('category', 'Général'), data.get('warehouse_id', 1), data.get('location_id'),
                 image_url
             ))
+            new_id = cursor.lastrowid
+            qty = int(data.get('quantity', 0))
+            if qty > 0:
+                conn.execute('''
+                    INSERT INTO stock_movements (product_id, type, quantity, dest_location_id, note)
+                    VALUES (?, 'in', ?, ?, 'Entrée initiale - création du produit')
+                ''', (new_id, qty, data.get('location_id')))
             conn.commit()
             return jsonify({'success': True})
         except Exception as e:
@@ -145,13 +154,14 @@ def update_product(product_id):
 
         purchase_price_avg = float(data.get('purchase_price_avg', 0))
         image_url = data.get('image_url') or None
+        barcode = re.sub(r'[^\x20-\x7E]', '', data.get('barcode', '')).strip()
         conn.execute('''
             UPDATE products SET name=?, description=?, sku=?, barcode=?, quantity=?, min_quantity=?, max_quantity=?, price=?,
             price_base=?, price_loyal=?, price_gros=?, purchase_price_avg=?, tax_category=?,
             lot_number=?, serial_number=?, expiry_date=?, supplier_id=?, category=?, warehouse_id=?, location_id=?, image_url=?
             WHERE id=?
         ''', (
-            data.get('name', ''), data.get('description', ''), data.get('sku', ''), data.get('barcode', ''),
+            data.get('name', ''), data.get('description', ''), data.get('sku', ''), barcode,
             data.get('quantity', 0), data.get('min_quantity', 5), data.get('max_quantity', 100), price,
             price_base, price_loyal, price_gros, purchase_price_avg,
             data.get('tax_category', '20'), data.get('lot_number', ''), data.get('serial_number', ''),

@@ -103,6 +103,8 @@ function showTab(tab) {
     const titleEl = document.getElementById('pageTitle');
     const breadcrumbEl = document.getElementById('breadcrumbNav');
     if (tabEl) tabEl.classList.add('active');
+    const navItem = document.querySelector(`.nav-item[data-arg="${tab}"]`);
+    if (navItem) navItem.classList.add('active');
     if (titleEl) titleEl.textContent = i18n.t('nav.' + tab);
     if (breadcrumbEl) breadcrumbEl.textContent = i18n.t('nav.' + tab);
     if (typeof i18n !== 'undefined') i18n.applyDOM();

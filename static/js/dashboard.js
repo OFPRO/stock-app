@@ -112,6 +112,10 @@ async function loadDashboard() {
         document.getElementById('tauxEncaissement').textContent = receivables.taux_encaissement || 0;
         document.getElementById('valeurStock').textContent = (dashboard.total_value || 0).toLocaleString();
         document.getElementById('rupturesStock').textContent = dashboard.out_of_stock || 0;
+        document.getElementById('valeurStockPA').textContent = (dashboard.total_value_purchase || 0).toLocaleString();
+        var noPa = dashboard.products_no_purchase_price || 0;
+        document.getElementById('valeurStockPANote').textContent = noPa > 0 ? noPa + ' produit(s) sans PA' : '';
+        document.getElementById('produitsEnStock').textContent = dashboard.products_in_stock || 0;
 
         const methods = paymentMethods.methods || {};
         document.getElementById('posTotalEncaissement').textContent = (paymentMethods.total || 0).toLocaleString();
@@ -277,14 +281,14 @@ function initDashboardDates() {
 }
 
 async function resetAllTransactionalData() {
-    const msg = '⚠️ RÉINITIALISER TOUTES LES DONNÉES TRANSACTIONNELLES ?\n\n' +
-        'Cette action supprime :\n' +
-        '- Factures clients\n' +
-        '- Transactions POS\n' +
-        '- Mouvements de stock\n' +
-        '- Commandes fournisseurs\n' +
-        '- Notifications et règles de réapprovisionnement\n\n' +
-        'Les produits, stocks, clients et fournisseurs sont conservés.';
+    const msg = '⚠️ RÉINITIALISER TOUTES LES DONNÉES ?\n\n' +
+        'Cette action supprime TOUTES les données :\n' +
+        '- Produits, stocks, clients, fournisseurs\n' +
+        '- Factures, transactions POS, mouvements de stock\n' +
+        '- Commandes fournisseurs, notifications\n' +
+        '- Soldes du compte principal\n\n' +
+        'Sont conservés : catégories, caisses (Caisse 1 & 2), paramètres imprimante\n' +
+        'Un entrepôt par défaut sera recréé.';
     if (!confirm(msg)) return;
     if (!confirm('⚠️ Confirmation : cette action est IRRÉVERSIBLE. Continuer ?')) return;
     try {

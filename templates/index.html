@@ -237,6 +237,22 @@
                                 <div class="kpi-card-value primary" id="valeurStock">0</div>
                                 <div class="kpi-card-sub">DH</div>
                             </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="325">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon warning"><i class="fas fa-coins"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Valeur Stock (PA)</div>
+                                <div class="kpi-card-value warning" id="valeurStockPA">0</div>
+                                <div class="kpi-card-sub" style="font-size:0.65rem;color:var(--text-light);" id="valeurStockPANote"></div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="337">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon primary"><i class="fas fa-cubes"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Produits en Stock</div>
+                                <div class="kpi-card-value primary" id="produitsEnStock">0</div>
+                                <div class="kpi-card-sub">produits (qty &gt; 0)</div>
+                            </div>
                             <div class="kpi-card" data-aos="fade-up" data-aos-delay="350">
                                 <div class="kpi-card-header">
                                     <div class="kpi-card-icon danger"><i class="fas fa-exclamation-circle"></i></div>
@@ -1436,7 +1452,7 @@
                 </div>
                 <div id="addProductScannerStatus" style="font-size:0.85rem;color:var(--text-light);margin-bottom:0.75rem;">Cliquez sur "Activer le scan" pour utiliser la caméra</div>
                 <div style="display:flex;gap:0.5rem;align-items:center;">
-                    <input type="text" id="addProductBarcodeInput" class="form-input" placeholder="Ou saisir le code-barres manuellement" style="flex:1;" onkeydown="if(event.key==='Enter')onBarcodeEntered()">
+                    <input type="text" id="addProductBarcodeInput" class="form-input" placeholder="Ou saisir le code-barres manuellement" style="flex:1;" data-scanner="add-product">
                     <button class="btn btn-primary" onclick="onBarcodeEntered()"><i class="fas fa-search"></i></button>
                 </div>
             </div>

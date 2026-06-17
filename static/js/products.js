@@ -645,9 +645,81 @@ function toggleAddProductScanner() {
     }
 }
 
+// === Barcode Scanner Buffer (physical scanner) ===
+// Uses event.code (QWERTY key position) instead of event.key or .value
+// to bypass OS keyboard layout mapping (scanner envoie keycodes US, OS peut être AZERTY)
+var _scanBuf = '';
+var _scanTimer = null;
+
+function _flushScan(action) {
+    if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null; }
+    if (!_scanBuf) return;
+    var code = _scanBuf;
+    _scanBuf = '';
+    var inp = document.getElementById('addProductBarcodeInput');
+    if (inp) inp.value = '';
+    if (action === 'add-product') {
+        checkBarcodeExists(code);
+    }
+}
+
+document.addEventListener('keydown', function _scannerKeydown(e) {
+    var el = e.target.closest('[data-scanner]');
+    if (!el) return;
+    var action = el.getAttribute('data-scanner');
+    var ch = null;
+
+    if (e.code.startsWith('Digit')) {
+        ch = e.code.slice(5);
+    } else if (e.code.startsWith('Numpad')) {
+        var s = e.code.slice(6);
+        if (s === 'Decimal') ch = '.';
+        else if (s === 'Add') ch = '+';
+        else if (s === 'Subtract') ch = '-';
+        else ch = s;
+    } else if (e.code.startsWith('Key')) {
+        ch = e.code.charAt(3);
+    } else if (e.code === 'Minus') {
+        ch = '-';
+    } else if (e.code === 'Enter') {
+        e.preventDefault();
+        _flushScan(action);
+        return;
+    } else if (e.code === 'Tab') {
+        _flushScan(action);
+        return;
+    } else if (e.code === 'Backspace') {
+        if (_scanBuf.length > 0) {
+            e.preventDefault();
+            _scanBuf = _scanBuf.slice(0, -1);
+            el.value = _scanBuf;
+        }
+        return;
+    }
+    if (ch === null) return;
+
+    e.preventDefault();
+    _scanBuf += ch;
+    el.value = _scanBuf;
+
+    if (_scanTimer) clearTimeout(_scanTimer);
+    _scanTimer = setTimeout(function () {
+        if (_scanBuf.length >= 4) _flushScan(action);
+    }, 150);
+});
+
 function onBarcodeEntered() {
+    if (_scanTimer) { clearTimeout(_scanTimer); _scanTimer = null; }
+    if (_scanBuf) {
+        var code = _scanBuf;
+        _scanBuf = '';
+        var inp = document.getElementById('addProductBarcodeInput');
+        if (inp) inp.value = '';
+        onBarcodeScanned(code);
+        return;
+    }
     var input = document.getElementById('addProductBarcodeInput');
-    var code = input.value.trim();
+    var code = input.value.replace(/[^\x20-\x7E]/g, '').trim();
     if (!code) return;
     onBarcodeScanned(code);
 }

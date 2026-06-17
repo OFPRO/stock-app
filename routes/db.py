@@ -483,5 +483,9 @@ def init_store_db(store_id, name):
         wh_id = c.lastrowid
         c.execute("INSERT INTO locations (warehouse_id, name, type) VALUES (?, 'Zone principale', 'zone')", (wh_id,))
 
+    c.execute("INSERT OR IGNORE INTO pos_registers (name, code) VALUES ('Caisse 1', 'CAISSE-01')")
+    c.execute("INSERT OR IGNORE INTO pos_registers (name, code) VALUES ('Caisse 2', 'CAISSE-02')")
+    c.execute("UPDATE pos_registers SET is_active = 1 WHERE name IN ('Caisse 1', 'Caisse 2')")
+
     conn.commit()
     conn.close()

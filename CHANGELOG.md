@@ -1,5 +1,47 @@
 # Changelog
 
+## v1.4.0 (2026-06-17)
+
+### Reset DB — Réécriture complète
+
+- **Nouvelle fonction** `reset_transactional_data()` dans `reset_test_db.py` : vide TOUTES les données (produits, stock, clients, fournisseurs, factures, POS, commandes, mouvements, notifications, séquences, entrepôts, emplacements, compte principal) en préservant uniquement les catégories
+- Reconstruction automatique : entrepôt par défaut + emplacement "Zone principale", Caisse 1 & Caisse 2, compte principal à 0
+- `init_store_db()` dans `routes/db.py` : seed des `pos_registers` avec Caisse 1 et Caisse 2
+
+### Nouveau KPI — Produits en Stock
+
+- **Nouveau champ** `products_in_stock` dans `routes/kpis.py` : décompte des produits avec quantité > 0 ET `is_deleted = 0` (filtre entrepôt actif + branche globale)
+- **Carte KPI** dans `templates/index.html` : nouvelle carte entre "Valeur Stock PA" et "Ruptures" avec icône `fa-cubes`
+- **Dashboard JS** : `static/js/dashboard.js` populate `produitsEnStock` + message de confirmation reset mis à jour
+
+### Mouvement de Stock à la Création Produit
+
+- `routes/products.py` : `add_product()` crée désormais un enregistrement `stock_movements` de type `'in'` avec la note "Entrée initiale - création du produit" lorsque la quantité initiale est > 0
+
+### Correctif Sidebar — Onglet Actif
+
+- `static/js/app.js` : `showTab()` réajoute la classe `active` sur l'élément `.nav-item[data-arg="${tab}"]` après l'avoir retirée de tous les items — le fond dégradé ne disparaît plus au changement d'onglet
+
+### Scanner Code-Barres — Correctif QWERTY→AZERTY
+
+- `static/js/products.js` : Le handler clavier utilise `event.code` (position physique de la touche) au lieu de `event.key` (caractère), ce qui fonctionne quel que soit le pavé clavier (QWERTY, AZERTY...)
+- Nettoyage côté serveur : suppression des caractères non-numériques dans les codes-barres scannés
+
+### Imprimantes Thermiques — Support Windows
+
+- **Nouvelle fonction** `_discover_windows()` dans `services/printing_service.py` : scanne le Registre Windows (`HKLM\SYSTEM\CurrentControlSet\Enum\USB`) pour détecter les imprimantes USB utilisant `usbprint.sys` (VID, PID, instance_id, nom)
+- `discover_printers()` sélectionne automatiquement la méthode selon la plateforme : Registry Windows → pyusb (fallback)
+- `check_printer_status()` gère désormais les connexions USB/Windows sans champ `host`
+
+- **Nouvelle classe** `_WindowsRawPrinter` dans `services/escpos_receipt.py` :
+  - Connexion directe via `CreateFile` sur le chemin `\\?\USB#VID_...&PID_...#INSTANCE_...#{GUID_USBPRINT}` avec `FILE_SHARE_WRITE`
+  - Fallback `win32print.OpenPrinter()` si l'imprimante est installée dans Windows
+  - Implémentation complète : `_raw()`, `text()`, `set()`, `close()`, `cut()`, `qr()`, `barcode()`
+  - Toutes les importations `pywin32` sont conditionnelles (try/except) → pas d'impact sur macOS/Linux
+
+- **UI** : `static/js/settings.js` ajoute l'option "Imprimante Windows" dans le menu Type de connexion + champ pour le nom + scan détecte et remplit automatiquement
+- **PyInstaller** : `build/pyinstaller.spec` ajoute `win32print` et `win32file` aux `hiddenimports`
+
 ## v1.3.0 (2026-06-15)
 
 ### Module Paramètres — Magasins Multi-Base + Catégories

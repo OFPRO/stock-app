@@ -20,24 +20,32 @@ def get_kpis():
             avg_price = conn.execute('SELECT COALESCE(AVG(price), 0) FROM products WHERE warehouse_id=? AND category=?', all_params).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND warehouse_id=? AND category=?', all_params).fetchone()[0]
             out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND warehouse_id=? AND category=?', all_params).fetchone()[0]
+            total_value_purchase = conn.execute("SELECT COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) FROM products WHERE warehouse_id=? AND category=?", all_params).fetchone()[0]
+            products_no_pa = conn.execute("SELECT COUNT(*) FROM products WHERE (purchase_price_avg IS NULL OR purchase_price_avg = 0) AND warehouse_id=? AND category=?", all_params).fetchone()[0]
         elif warehouse_id:
             total_products = conn.execute('SELECT COUNT(*) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             avg_price = conn.execute('SELECT COALESCE(AVG(price), 0) FROM products WHERE warehouse_id=?', (warehouse_id,)).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
             out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
+            total_value_purchase = conn.execute("SELECT COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) FROM products WHERE warehouse_id=?", (warehouse_id,)).fetchone()[0]
+            products_no_pa = conn.execute("SELECT COUNT(*) FROM products WHERE (purchase_price_avg IS NULL OR purchase_price_avg = 0) AND warehouse_id=?", (warehouse_id,)).fetchone()[0]
         elif category:
             total_products = conn.execute('SELECT COUNT(*) FROM products WHERE category=?', (category,)).fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products WHERE category=?', (category,)).fetchone()[0]
             avg_price = conn.execute('SELECT COALESCE(AVG(price), 0) FROM products WHERE category=?', (category,)).fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity AND category=?', (category,)).fetchone()[0]
             out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND category=?', (category,)).fetchone()[0]
+            total_value_purchase = conn.execute("SELECT COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) FROM products WHERE category=?", (category,)).fetchone()[0]
+            products_no_pa = conn.execute("SELECT COUNT(*) FROM products WHERE (purchase_price_avg IS NULL OR purchase_price_avg = 0) AND category=?", (category,)).fetchone()[0]
         else:
             total_products = conn.execute('SELECT COUNT(*) FROM products').fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products').fetchone()[0]
             avg_price = conn.execute('SELECT COALESCE(AVG(price), 0) FROM products').fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity <= min_quantity').fetchone()[0]
             out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL)').fetchone()[0]
+            total_value_purchase = conn.execute("SELECT COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) FROM products").fetchone()[0]
+            products_no_pa = conn.execute("SELECT COUNT(*) FROM products WHERE (purchase_price_avg IS NULL OR purchase_price_avg = 0)").fetchone()[0]
         
         if date_start and date_end:
             date_params = (date_start, date_end)
@@ -69,7 +77,9 @@ def get_kpis():
             'rotation_rate': round(rotation_rate, 1),
             'period': period,
             'date_start': date_start,
-            'date_end': date_end
+            'date_end': date_end,
+            'total_value_purchase': round(total_value_purchase, 2),
+            'products_no_purchase_price': products_no_pa
         })
 
 @kpis_bp.route('/api/kpis/dashboard', methods=['GET'])
@@ -84,12 +94,18 @@ def get_dashboard_kpis():
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity < min_quantity AND is_deleted = 0 AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
             out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND is_deleted = 0 AND warehouse_id=?', (warehouse_id,)).fetchone()[0]
             products_to_order = conn.execute('SELECT id, name, sku, quantity, min_quantity, (min_quantity - quantity) as needed FROM products WHERE quantity < min_quantity AND is_deleted = 0 AND warehouse_id=? ORDER BY needed DESC LIMIT 10', (warehouse_id,)).fetchall()
+            total_value_purchase = conn.execute("SELECT COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) FROM products WHERE warehouse_id=?", (warehouse_id,)).fetchone()[0]
+            products_no_pa = conn.execute("SELECT COUNT(*) FROM products WHERE (purchase_price_avg IS NULL OR purchase_price_avg = 0) AND warehouse_id=?", (warehouse_id,)).fetchone()[0]
+            products_in_stock = conn.execute("SELECT COUNT(*) FROM products WHERE quantity > 0 AND is_deleted = 0 AND warehouse_id=?", (warehouse_id,)).fetchone()[0]
         else:
             total_products = conn.execute('SELECT COUNT(*) FROM products').fetchone()[0]
             total_value = conn.execute('SELECT COALESCE(SUM(quantity * price), 0) FROM products').fetchone()[0]
             low_stock = conn.execute('SELECT COUNT(*) FROM products WHERE quantity < min_quantity AND is_deleted = 0').fetchone()[0]
             out_of_stock = conn.execute('SELECT COUNT(*) FROM products WHERE (quantity <= 0 OR quantity IS NULL) AND is_deleted = 0').fetchone()[0]
             products_to_order = conn.execute('SELECT id, name, sku, quantity, min_quantity, (min_quantity - quantity) as needed FROM products WHERE quantity < min_quantity AND is_deleted = 0 ORDER BY needed DESC LIMIT 10').fetchall()
+            total_value_purchase = conn.execute("SELECT COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) FROM products").fetchone()[0]
+            products_no_pa = conn.execute("SELECT COUNT(*) FROM products WHERE (purchase_price_avg IS NULL OR purchase_price_avg = 0)").fetchone()[0]
+            products_in_stock = conn.execute("SELECT COUNT(*) FROM products WHERE quantity > 0 AND is_deleted = 0").fetchone()[0]
         
         avg_price = total_value / total_products if total_products > 0 else 0
         
@@ -118,7 +134,10 @@ def get_dashboard_kpis():
         
         return jsonify({
             'total_products': total_products,
+            'products_in_stock': products_in_stock,
             'total_value': round(total_value, 2),
+            'total_value_purchase': round(total_value_purchase, 2),
+            'products_no_purchase_price': products_no_pa,
             'avg_price': round(avg_price, 2),
             'low_stock': low_stock,
             'out_of_stock': out_of_stock,
