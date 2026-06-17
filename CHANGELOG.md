@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.3 (2026-06-17)
+
+### Correctif — Connexion imprimante Windows via ctypes/setupapi.dll
+
+- **Bug** : `win32setupapi` non disponible dans l'environnement PyInstaller → `No module named 'win32setupapi'` au test.
+- **Fix** : `_find_usbprint_device_path()` réécrite avec `ctypes` (stdlib Python) qui appelle `setupapi.dll` directement — aucune dépendance binaire, toujours disponible sur Windows.
+- Retrait de `win32setupapi` des `hiddenimports` PyInstaller (plus nécessaire).
+
 ## v1.4.2 (2026-06-17)
 
 ### Correctif — Connexion imprimante Windows via SetupAPI
