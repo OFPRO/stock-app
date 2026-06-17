@@ -137,38 +137,77 @@ def _build_usbprint_path(vid, pid, instance_id):
 
 
 def _find_usbprint_device_path(vid, pid):
-    import win32setupapi
-    vid_clean = vid.replace('0x', '').lower().zfill(4)
-    pid_clean = pid.replace('0x', '').lower().zfill(4)
-    target = f"vid_{vid_clean}&pid_{pid_clean}"
-    hdev = win32setupapi.SetupDiGetClassDevs(
-        _USBPRINT_GUID, None, None,
-        win32setupapi.DIGCF_DEVICEINTERFACE | win32setupapi.DIGCF_PRESENT
-    )
-    if not hdev or hdev == win32setupapi.INVALID_HANDLE_VALUE:
+    if not vid or not pid:
         return None
     try:
+        import ctypes
+        from ctypes import wintypes
+        setupapi = ctypes.windll.setupapi
+        kernel32 = ctypes.windll.kernel32
+
+        class GUID(ctypes.Structure):
+            _fields_ = [
+                ('Data1', wintypes.DWORD),
+                ('Data2', wintypes.WORD),
+                ('Data3', wintypes.WORD),
+                ('Data4', wintypes.BYTE * 8),
+            ]
+
+        g_parts = _USBPRINT_GUID.strip('{}').split('-')
+        guid = GUID(
+            int(g_parts[0], 16), int(g_parts[1], 16), int(g_parts[2], 16),
+            (wintypes.BYTE * 8)(*bytes.fromhex(g_parts[3] + g_parts[4]))
+        )
+
+        vid_clean = vid.replace('0x', '').lower().zfill(4)
+        pid_clean = pid.replace('0x', '').lower().zfill(4)
+        target = f"vid_{vid_clean}&pid_{pid_clean}"
+
+        hdev = setupapi.SetupDiGetClassDevsW(
+            ctypes.byref(guid), None, None, 0x12
+        )
+        if not hdev or hdev == ctypes.c_void_p(-1).value:
+            return None
+
+        class SP_DEVICE_INTERFACE_DATA(ctypes.Structure):
+            _fields_ = [
+                ('cbSize', wintypes.DWORD),
+                ('InterfaceClassGuid', GUID),
+                ('Flags', wintypes.DWORD),
+                ('Reserved', ctypes.c_ulong),
+            ]
+
         index = 0
         while True:
-            try:
-                iface_data = win32setupapi.SetupDiEnumDeviceInterfaces(
-                    hdev, None, _USBPRINT_GUID, index
-                )
-            except Exception:
+            iface_data = SP_DEVICE_INTERFACE_DATA()
+            iface_data.cbSize = ctypes.sizeof(SP_DEVICE_INTERFACE_DATA)
+            if not setupapi.SetupDiEnumDeviceInterfaces(
+                hdev, None, ctypes.byref(guid), index,
+                ctypes.byref(iface_data)
+            ):
                 break
-            try:
-                detail = win32setupapi.SetupDiGetDeviceInterfaceDetail(hdev, iface_data)
-                path = detail.device_path
+            req_size = wintypes.DWORD(0)
+            setupapi.SetupDiGetDeviceInterfaceDetailW(
+                hdev, ctypes.byref(iface_data), None, 0,
+                ctypes.byref(req_size), None
+            )
+            if kernel32.GetLastError() != 122:
+                index += 1
+                continue
+            buf = ctypes.create_string_buffer(req_size.value)
+            ctypes.memmove(buf, ctypes.byref(wintypes.DWORD(4)), 4)
+            if setupapi.SetupDiGetDeviceInterfaceDetailW(
+                hdev, ctypes.byref(iface_data),
+                buf, req_size.value, None, None
+            ):
+                path = ctypes.wstring_at(ctypes.addressof(buf) + 4)
                 if target in path.lower():
+                    setupapi.SetupDiDestroyDeviceInfoList(hdev)
                     return path
-            except Exception:
-                pass
             index += 1
-    finally:
-        try:
-            win32setupapi.SetupDiDestroyDeviceInfoList(hdev)
-        except Exception:
-            pass
+        setupapi.SetupDiDestroyDeviceInfoList(hdev)
+    except Exception:
+        pass
     return None
 
 
