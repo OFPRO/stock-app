@@ -1,8 +1,42 @@
 import io
+import os
 from datetime import datetime
 
 from escpos.printer import Network, Usb
 from escpos import escpos
+
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_LOGO_PATH = os.path.join(_PROJECT_ROOT, 'static', 'img', 'logo.png')
+
+
+def _render_logo_escpos(max_width=384):
+    try:
+        from PIL import Image
+        img = Image.open(_LOGO_PATH).convert('L')
+        w, h = img.size
+        if w > max_width:
+            ratio = max_width / w
+            w, h = int(w * ratio), int(h * ratio)
+        img = img.resize((w, h), Image.LANCZOS)
+        pixels = list(img.getdata())
+        xl = (w + 7) // 8
+        cmd = b'\x1b\x61\x01'
+        cmd += b'\x1d\x76\x30\x00'
+        cmd += bytes([xl & 0xFF, (xl >> 8) & 0xFF, h & 0xFF, (h >> 8) & 0xFF])
+        row = bytearray()
+        for y in range(h):
+            for xb in range(xl):
+                byte_val = 0
+                for b in range(8):
+                    px = xb * 8 + b
+                    if px < w and pixels[y * w + px] < 128:
+                        byte_val |= 1 << (7 - b)
+                row.append(byte_val)
+        cmd += bytes(row)
+        return cmd
+    except Exception:
+        return b''
 
 
 def _encode(text):
@@ -44,11 +78,7 @@ class EscposReceiptBuilder:
         return self
 
     def header(self, ticket_number):
-        self._add_empty()
-        self._add(_center('Bibliotheque Badr', self.width))
-        self._add(_center('Rue Mohammed V, Gueliz', self.width))
-        self._add(_center('Marrakech, Maroc', self.width))
-        self._add_empty()
+        self._add_empty(3)
         self._add(_center('REÇU DE CAISSE', self.width))
         self._add(_center(ticket_number, self.width))
         self._add(_sep(self.width))
@@ -391,6 +421,11 @@ class EscposPrinter:
     def print_receipt_escpos(self, text):
         if not self._printer:
             self.connect()
+        logo_bytes = _render_logo_escpos()
+        if logo_bytes:
+            self._printer._raw(logo_bytes)
+            self._printer._raw(b'\x1b\x61\x00')
+            self._printer._raw(b'\x1bd\x03')
         lines = text.split('\n')
         for line in lines:
             if line.startswith('CENTER:'):

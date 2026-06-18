@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { useEffect, useState, useCallback, useMemo } from "react"
+import { toast } from "sonner"
 import { Plus, Search, Eye } from "lucide-react"
 import { type ColumnDef, type SortingState, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
 import { getOrders, getOrderItems, updateOrderStatus, type PurchaseOrder, type OrderItem } from "@/lib/api"
@@ -54,8 +55,16 @@ export function OrdersPage() {
   }, [])
 
   const handleStatusChange = useCallback(async (orderId: number, status: string) => {
-    const res = await updateOrderStatus(orderId, status)
-    if (res.success) load()
+    try {
+      const res = await updateOrderStatus(orderId, status)
+      if (res.success) {
+        load()
+      } else {
+        toast.error(res.error || "Erreur lors du changement de statut")
+      }
+    } catch {
+      toast.error("Erreur réseau")
+    }
   }, [load])
 
   const columns = useMemo<ColumnDef<PurchaseOrder>[]>(() => [

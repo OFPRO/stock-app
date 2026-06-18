@@ -301,7 +301,9 @@
       "receive": "Réceptionner",
       "mark_paid": "Marquer payée",
       "convert_to_invoice": "Convertir en facture",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "error": "Erreur lors du changement de statut",
+      "network_error": "Erreur réseau"
     },
     "create": {
       "title": "Nouvelle commande",

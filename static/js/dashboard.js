@@ -69,7 +69,7 @@ async function loadDashboard() {
             fetch('/api/kpis/invoices-status?' + params.toString()),
             fetch('/api/kpis/dashboard?period=' + period + (warehouse ? '&warehouse_id=' + warehouse : '')),
             fetch('/api/kpis/sales-daily?period=' + period),
-            fetch('/api/kpis/categories-distribution'),
+            fetch('/api/kpis/categories-distribution?' + params.toString()),
             fetch('/api/kpis/top-selling-products?limit=10&' + params.toString()),
             fetch('/api/kpis/trends?period=' + period),
             fetch('/api/kpis/alertes' + (warehouse ? '?warehouse_id=' + warehouse : '')),

@@ -27,10 +27,12 @@ class ReceiptPdf:
         self.pdf.cell(0, 2, char * 48, align='C', new_x='LMARGIN', new_y='NEXT')
 
     def header(self, ticket_number):
-        self._add_line('Bibliotheque Badr', size=12, bold=True)
-        self._add_line('Rue Mohammed V, Gueliz', size=7)
-        self._add_line('Marrakech, Maroc', size=7)
-        self._add_line('', size=2)
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static', 'img', 'logo.png')
+        if os.path.exists(logo_path):
+            logo_w = 55
+            x = self.pdf.l_margin + (self.pdf.epw - logo_w) / 2
+            self.pdf.image(logo_path, x=x, w=logo_w)
+            self.pdf.ln(5)
         self._add_line('REÇU DE CAISSE', size=10, bold=True)
         self._add_line(ticket_number, size=8)
         self._add_separator()

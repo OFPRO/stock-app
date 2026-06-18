@@ -301,7 +301,9 @@
       "receive": "استلام",
       "mark_paid": "تحديد كمدفوعة",
       "convert_to_invoice": "تحويل إلى فاتورة",
-      "cancel": "إلغاء"
+      "cancel": "إلغاء",
+      "error": "خطأ أثناء تغيير الحالة",
+      "network_error": "خطأ في الشبكة"
     },
     "create": {
       "title": "طلبية جديدة",
