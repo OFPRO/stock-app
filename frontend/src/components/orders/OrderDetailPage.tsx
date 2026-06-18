@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 import { ArrowLeft, Package, ShoppingCart, Truck, CheckCircle, CreditCard, XCircle, ExternalLink } from "lucide-react"
 import { getOrders, getOrderItems, updateOrderStatus, getCustomers, createInvoice, type PurchaseOrder, type OrderItem, type Customer } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,7 @@ export function OrderDetailPage() {
   const [convCustomer, setConvCustomer] = useState(0)
   const [convDueDate, setConvDueDate] = useState("")
   const [converting, setConverting] = useState(false)
+  const [payConfirmOpen, setPayConfirmOpen] = useState(false)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -50,14 +52,30 @@ export function OrderDetailPage() {
 
   const handleStatusChange = async (status: string) => {
     if (!order) return
-    await updateOrderStatus(order.id, status)
-    load()
+    try {
+      const res = await updateOrderStatus(order.id, status)
+      if (res.success) {
+        load()
+      } else {
+        toast.error(res.error || t("orders.action.error"))
+      }
+    } catch {
+      toast.error(t("orders.action.network_error"))
+    }
   }
 
   const handleCancel = async () => {
     if (!order) return
-    await updateOrderStatus(order.id, "annulee")
-    load()
+    try {
+      const res = await updateOrderStatus(order.id, "annulee")
+      if (res.success) {
+        load()
+      } else {
+        toast.error(res.error || t("orders.action.error"))
+      }
+    } catch {
+      toast.error(t("orders.action.network_error"))
+    }
   }
 
   const openConvert = async () => {
@@ -80,7 +98,11 @@ export function OrderDetailPage() {
       if (res.success) {
         setConvOpen(false)
         load()
+      } else {
+        toast.error(res.error || "Erreur lors de la conversion")
       }
+    } catch {
+      toast.error("Erreur réseau lors de la conversion")
     } finally {
       setConverting(false)
     }
@@ -175,7 +197,26 @@ export function OrderDetailPage() {
 
       <div className="flex flex-wrap gap-2 mb-6">
         {canReceive && <Button onClick={() => handleStatusChange("recue")}><CheckCircle className="size-4 mr-1" />{t("orders.action.receive")}</Button>}
-        {canPay && <Button onClick={() => handleStatusChange("paye")}><CreditCard className="size-4 mr-1" />{t("orders.action.mark_paid")}</Button>}
+        {canPay && <AlertDialog open={payConfirmOpen} onOpenChange={setPayConfirmOpen}>
+          <AlertDialogTrigger asChild>
+            <Button><CreditCard className="size-4 mr-1" />{t("orders.action.mark_paid")}</Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmer le paiement</AlertDialogTitle>
+              <AlertDialogDescription>
+                Le montant de <strong>{order?.total.toFixed(2)} DH</strong> sera déduit du compte principal.
+                Voulez-vous continuer ?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={async () => { setPayConfirmOpen(false); handleStatusChange("paye") }}>
+                Confirmer le paiement
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>}
         {canConvert && <Button variant="outline" onClick={openConvert}><ExternalLink className="size-4 mr-1" />{t("orders.action.convert_to_invoice")}</Button>}
         {canCancel && <AlertDialog>
           <AlertDialogTrigger asChild>

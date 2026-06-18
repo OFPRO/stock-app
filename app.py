@@ -944,10 +944,14 @@ def create_order():
 
 @app.route('/api/orders/<int:order_id>', methods=['PUT'])
 def update_order(order_id):
-    data = request.json
     conn = get_db()
     try:
+        data = request.json
+        if data is None:
+            return jsonify({'success': False, 'error': 'Données JSON requises'}), 400
         status = data.get('status')
+        if not status:
+            return jsonify({'success': False, 'error': 'Champ status requis'}), 400
 
         if status == 'recue':
             conn.execute('''
@@ -984,19 +988,20 @@ def update_order(order_id):
                 return jsonify({'success': False, 'error': 'Commande introuvable'}), 404
             if order['status'] == 'paye':
                 return jsonify({'success': False, 'error': 'Commande déjà payée'}), 400
-            account = conn.execute('SELECT current_balance FROM main_account WHERE id=1').fetchone()
-            if account and order['total'] and account['current_balance'] < order['total']:
-                return jsonify({'success': False, 'error': 'Solde insuffisant sur le compte principal'}), 400
             conn.execute('''
                 UPDATE purchase_orders SET status='paye', paid_at=CURRENT_TIMESTAMP WHERE id=?
             ''', (order_id,))
             
             if order and order['total']:
                 conn.execute('UPDATE main_account SET current_balance = current_balance - ? WHERE id = 1', (order['total'],))
+                balance = conn.execute('SELECT current_balance FROM main_account WHERE id=1').fetchone()
+                note = 'Achat Fournisseur: ' + order['order_number']
+                if balance and balance['current_balance'] < 0:
+                    note += f" (solde après: {balance['current_balance']:.2f} DH)"
                 conn.execute('''
                     INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
                     VALUES ('out', ?, 'supplier_order', ?, ?)
-                ''', (order['total'], order_id, 'Achat Fournisseur: ' + order['order_number']))
+                ''', (order['total'], order_id, note))
                 
                 supplier_inv_count = conn.execute("SELECT COUNT(*) FROM invoices WHERE type='fournisseur'").fetchone()[0]
                 today = datetime.now().strftime('%Y%m%d')
@@ -1080,9 +1085,12 @@ def update_order(order_id):
 
         conn.commit()
         return jsonify({'success': True})
+    except sqlite3.Error as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': f'Erreur base de données: {str(e)}'}), 500
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'success': False, 'error': f'Erreur inattendue: {str(e)}'}), 500
     finally:
         conn.close()
 
@@ -1780,18 +1788,56 @@ def generate_invoice_pdf(invoice_id):
     
     # Company info
     company_name = 'Bibliotheque Badr'
-    company_address = _n(invoice_data.get('warehouse_address'), 'Rue Mohammed V, Gueliz, Marrakech')
-    company_ice = _n(invoice_data.get('warehouse_ice'), '001234567000089')
-    company_patente = _n(invoice_data.get('warehouse_patente'), '12345678')
-    company_rc = _n(invoice_data.get('warehouse_rc'), '12345')
-    company_tax = _n(invoice_data.get('warehouse_tax_number'), '3456789012')
-    company_phone = _n(invoice_data.get('warehouse_phone'), '0524441234')
+    company_address = 'Papeterie Al Qalam, Rte de Sefrou, Fès 30050'
+    company_ice = '001234567000089'
+    company_patente = '12345678'
+    company_rc = '12345'
+    company_tax = '3456789012'
+    company_phone = '0524441234'
     
-    # Colors from app (neutral palette matching shadcn/ui)
-    primary_color = '#343434'
-    primary_dark = '#252525'
+    # Colors
+    accent = '#1a56db'
+    accent_light = '#eef2ff'
+    text_primary = '#1f2937'
+    text_secondary = '#6b7280'
+    border_color = '#e5e7eb'
+    bg_card = '#f9fafb'
     
-    # Build HTML with modern design
+    status_badges = {
+        'payee': ('#059669', '#ecfdf5'),
+        'envoyee': ('#2563eb', '#eff6ff'),
+        'brouillon': ('#d97706', '#fffbeb'),
+        'annulee': ('#dc2626', '#fef2f2'),
+    }
+    st = _n(invoice_data.get('status'), 'payee')
+    badge_text = status_labels.get(st, 'Payee').upper()
+    badge_fg, badge_bg = status_badges.get(st, ('#6b7280', '#f3f4f6'))
+    
+    watermark_class = 'watermark' if st in ('brouillon', 'annulee') else 'watermark hidden'
+    watermark_text = 'BROUILLON' if st == 'brouillon' else 'ANNULEE'
+    
+    show_company_info = _n(invoice_data.get('type'), 'facture') == 'fournisseur'
+    
+    # Build party HTML
+    if show_company_info:
+        party_html = f"""
+        <div class="party-card">
+            <div class="party-title">Fournisseur</div>
+            <div class="party-name">{_n(invoice_data.get('supplier_name'), 'Fournisseur')}</div>
+            <div class="party-detail">{_n(invoice_data.get('supplier_address'), '')}</div>
+            <div class="party-detail">Tel: {_n(invoice_data.get('supplier_phone'), '-')}</div>
+        </div>"""
+    else:
+        party_html = f"""
+        <div class="party-card">
+            <div class="party-title">Client</div>
+            <div class="party-name">{customer_name}</div>
+            <div class="party-detail">Code: <span class="highlight">{_n(invoice_data.get('client_code'), '-')}</span></div>
+            <div class="party-detail">ICE: <span class="highlight">{customer_ice}</span></div>
+            <div class="party-detail">{_n(invoice_data.get('customer_address'), '')}</div>
+            <div class="party-detail">Tel: {_n(invoice_data.get('customer_phone'), '-')}</div>
+        </div>"""
+    
     pdf_html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -1799,83 +1845,103 @@ def generate_invoice_pdf(invoice_id):
     <title>Facture {invoice_data['invoice_number']}</title>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: 'Geist Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; padding: 30px; color: #252525; background: #f7f7f7; }}
-        .page {{ max-width: 800px; margin: 0 auto; background: white; border-radius: 14px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.06); overflow: hidden; }}
-        .header {{ display: flex; justify-content: space-between; align-items: flex-start; padding: 28px 32px; border-bottom: 1px solid #ebebeb; background: white; }}
-        .company-info {{ flex: 1; }}
-        .company-name {{ font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #252525; }}
-        .company-address {{ font-size: 11px; color: #8e8e8e; line-height: 1.5; }}
-        .invoice-info {{ text-align: right; }}
-        .invoice-title {{ font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #252525; }}
-        .invoice-number {{ display: inline-block; background: #f7f7f7; padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; color: #252525; }}
-        .meta-info {{ margin-top: 12px; font-size: 11px; color: #8e8e8e; }}
-        .meta-info div {{ margin: 2px 0; }}
-        .content {{ padding: 28px 32px; }}
-        .parties {{ display: flex; gap: 20px; margin-bottom: 28px; }}
-        .party-box {{ flex: 1; background: #f7f7f7; padding: 18px 20px; border-radius: 10px; border-left: 4px solid {primary_color}; }}
-        .party-title {{ font-size: 10px; font-weight: 600; color: {primary_color}; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 10px; }}
-        .party-name {{ font-size: 15px; font-weight: 700; margin-bottom: 6px; color: #252525; }}
-        .party-detail {{ font-size: 11px; color: #8e8e8e; margin: 3px 0; }}
-        .party-detail strong {{ color: #252525; font-weight: 600; }}
-        .table-wrapper {{ margin: 24px 0; border-radius: 10px; overflow: hidden; border: 1px solid #ebebeb; }}
+        body {{ font-family: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 11px; padding: 30px; color: {text_primary}; background: #f3f4f6; }}
+        .page {{ position: relative; max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }}
+        .watermark {{ position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 80px; font-weight: 800; color: rgba(0,0,0,0.04); letter-spacing: 0.1em; pointer-events: none; white-space: nowrap; user-select: none; z-index: 0; }}
+        .watermark.hidden {{ display: none; }}
+        .top-bar {{ background: {accent}; padding: 6px 32px; }}
+        .header {{ padding: 20px 32px 10px; }}
+        .header-main {{ display: flex; justify-content: space-between; align-items: flex-start; }}
+        .header-id-frame {{ background: {bg_card}; border: 1px solid {border_color}; border-radius: 8px; padding: 10px 16px; min-width: 210px; }}
+        .id-frame-title {{ font-size: 8px; font-weight: 700; color: {text_secondary}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }}
+        .id-frame-row {{ font-size: 10px; color: {text_primary}; padding: 1px 0; font-variant-numeric: tabular-nums; }}
+        .id-frame-row .id-label {{ color: {text_secondary}; font-weight: 600; display: inline-block; width: 50px; }}
+        .header-right {{ text-align: right; }}
+        .invoice-title {{ font-size: 22px; font-weight: 700; color: {text_primary}; line-height: 1.2; }}
+        .invoice-number {{ font-size: 13px; font-weight: 600; color: {accent}; margin-top: 3px; }}
+        .status-badge {{ display: inline-block; margin-top: 6px; padding: 2px 12px; border-radius: 999px; font-size: 9px; font-weight: 700; letter-spacing: 0.03em; color: {badge_fg}; background: {badge_bg}; }}
+        .meta-info {{ margin-top: 8px; font-size: 10px; color: {text_secondary}; line-height: 1.5; }}
+        .header-logo-row {{ text-align: center; padding: 18px 0 6px; }}
+        .header-logo {{ height: 80px; width: auto; }}
+        .header-address {{ text-align: center; font-size: 10px; color: {text_secondary}; padding: 0 0 14px; border-bottom: 1px solid {border_color}; }}
+        .content {{ padding: 0 32px 24px; position: relative; z-index: 1; }}
+        .parties {{ display: flex; gap: 16px; margin-bottom: 24px; }}
+        .party-card {{ flex: 1; background: {bg_card}; padding: 16px 20px; border-radius: 8px; border: 1px solid {border_color}; }}
+        .party-title {{ font-size: 9px; font-weight: 600; color: {accent}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }}
+        .party-name {{ font-size: 14px; font-weight: 700; color: {text_primary}; margin-bottom: 6px; }}
+        .party-detail {{ font-size: 10px; color: {text_secondary}; margin: 2px 0; }}
+        .party-detail .highlight {{ color: {text_primary}; font-weight: 600; }}
+        .info-divider {{ height: 1px; background: {border_color}; margin-bottom: 24px; }}
+        .table-wrapper {{ border: 1px solid {border_color}; border-radius: 8px; overflow: hidden; }}
         table {{ width: 100%; border-collapse: collapse; }}
-        th {{ background: {primary_color}; color: white; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }}
-        td {{ padding: 10px 12px; border-bottom: 1px solid #ebebeb; font-size: 11px; }}
+        th {{ background: {bg_card}; color: {text_secondary}; padding: 10px 14px; text-align: left; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid {border_color}; }}
+        td {{ padding: 10px 14px; border-bottom: 1px solid #f3f4f6; font-size: 11px; color: {text_primary}; }}
         tr:last-child td {{ border-bottom: none; }}
-        tr:nth-child(even) {{ background: #fafafa; }}
+        tr:nth-child(even) td {{ background: #fafafa; }}
         .totals-section {{ display: flex; justify-content: flex-end; margin-top: 20px; }}
-        .totals-box {{ width: 280px; background: #f7f7f7; padding: 18px 20px; border-radius: 10px; }}
-        .totals-row {{ display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; color: #252525; }}
-        .totals-row.grand {{ border-top: 2px solid {primary_color}; margin-top: 8px; padding-top: 10px; font-size: 15px; font-weight: 700; }}
-        .footer {{ padding: 20px 32px; border-top: 1px solid #ebebeb; background: #fafafa; }}
-        .footer-company {{ display: flex; justify-content: center; gap: 24px; font-size: 10px; color: #8e8e8e; margin-bottom: 12px; text-align: center; flex-wrap: wrap; }}
-        .footer-info {{ text-align: center; font-size: 11px; color: #8e8e8e; }}
-        .footer-info strong {{ color: #252525; font-weight: 600; }}
-        .footer-signature {{ text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px dashed #d1d5db; font-size: 11px; color: #8e8e8e; }}
-        .btn {{ display: block; width: 200px; margin: 24px auto; background: {primary_color}; color: white; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 600; text-align: center; }}
-        .btn:hover {{ background: {primary_dark}; }}
-        @media print {{ .btn {{ display: none; }} body {{ background: white; }} .page {{ box-shadow: none; }} }}
+        .totals-box {{ width: 280px; background: {bg_card}; padding: 16px 20px; border-radius: 8px; border: 1px solid {border_color}; }}
+        .totals-row {{ display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; color: {text_primary}; }}
+        .totals-row.discount {{ color: #dc2626; }}
+        .totals-row.grand {{ border-top: 2px solid {accent}; margin-top: 8px; padding-top: 10px; font-size: 15px; font-weight: 800; color: {accent}; }}
+        .footer {{ padding: 16px 32px; border-top: 1px solid {border_color}; background: {bg_card}; }}
+        .footer-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; font-size: 10px; color: {text_secondary}; margin-bottom: 10px; }}
+        .footer-label {{ color: {text_secondary}; font-weight: 600; }}
+        .footer-message {{ text-align: center; font-size: 10px; color: {text_secondary}; padding-top: 10px; border-top: 1px dashed {border_color}; }}
+        .btn {{ display: block; width: 200px; margin: 24px auto 0; background: {accent}; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; text-align: center; }}
+        .btn:hover {{ background: #1d4ed8; }}
+        @media print {{ .btn {{ display: none; }} body {{ background: white; padding: 0; }} .page {{ box-shadow: none; border-radius: 0; }} }}
     </style>
 </head>
 <body>
     <div class="page">
-        <div class="header">
-            <div class="company-info">
-                <div class="company-name">{company_name}</div>
-                <div class="company-address">{company_address}<br>Tel: {company_phone}</div>
+        <div class="{watermark_class}">{watermark_text}</div>
+        <div class="top-bar"></div>
+    <div class="header">
+        <div class="header-logo-row">
+            <img src="/static/img/logo.png" class="header-logo" alt="Bibliotheque Badr">
+        </div>
+        <div class="header-main">
+            <div class="header-id-frame">
+                <div class="id-frame-title">Identifiant fiscal</div>
+                <div class="id-frame-row"><span class="id-label">ICE</span> {company_ice}</div>
+                <div class="id-frame-row"><span class="id-label">RC</span> {company_rc}</div>
+                <div class="id-frame-row"><span class="id-label">Patente</span> {company_patente}</div>
+                <div class="id-frame-row"><span class="id-label">Taxe</span> {company_tax}</div>
             </div>
-            <div class="invoice-info">
-                <div class="invoice-title">{_n(invoice_data.get('type'), 'facture') == 'fournisseur' and "FACTURE D'ACHAT" or "FACTURE"}</div>
+            <div class="header-right">
+                <div class="invoice-title">{show_company_info and "FACTURE D'ACHAT" or "FACTURE"}</div>
                 <div class="invoice-number">{invoice_data['invoice_number']}</div>
+                <div class="status-badge">{badge_text}</div>
                 <div class="meta-info">
                     <div>Date: {invoice_data.get('created_at', '')[:10] if invoice_data.get('created_at') else '-'}</div>
-                    <div>Echeance: {_n(invoice_data.get('due_date'), '-')}</div>
+                    <div>Echéance: {_n(invoice_data.get('due_date'), '-')}</div>
                 </div>
             </div>
         </div>
+        <div class="header-address">{company_address} — Tel: {company_phone}</div>
+    </div>
         
         <div class="content">
             <div class="parties">
                 {party_html}
-            </div>
-            <div class="party-box" style="border-left-color: #8e8e8e;">
-                    <div class="party-title" style="color: #8e8e8e;">Informations</div>
-                    <div class="party-detail"><strong>Statut:</strong> {status_labels.get(_n(invoice_data.get('status'), 'payee'), 'Payee').upper()}</div>
-                    <div class="party-detail"><strong>Paiement:</strong> {_n(invoice_data.get('payment_method'), 'cash').title()}</div>
-                    <div class="party-detail"><strong>Date:</strong> {invoice_data.get('created_at', '')[:10] if invoice_data.get('created_at') else '-'}</div>
+                <div class="party-card">
+                    <div class="party-title">Informations</div>
+                    <div class="party-detail">Paiement: <span class="highlight">{_n(invoice_data.get('payment_method'), 'cash').title()}</span></div>
+                    <div class="party-detail">Statut: <span class="highlight">{badge_text.title()}</span></div>
                 </div>
             </div>
+            <div class="info-divider"></div>
             
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>Designation</th>
-                            <th>SKU</th>
-                            <th style="text-align:center">Qte</th>
-                            <th style="text-align:right">Prix Unit.</th>
-                            <th style="text-align:right">Remise</th>
-                            <th style="text-align:right">Total HT</th>
+                            <th style="width:36%">Désignation</th>
+                            <th style="width:14%">SKU</th>
+                            <th style="width:10%;text-align:center">Qté</th>
+                            <th style="width:15%;text-align:right">Prix unit.</th>
+                            <th style="width:10%;text-align:right">Remise</th>
+                            <th style="width:15%;text-align:right">Total HT</th>
                         </tr>
                     </thead>
                     <tbody>"""
@@ -1884,11 +1950,11 @@ def generate_invoice_pdf(invoice_id):
         pdf_html += f"""
                         <tr>
                             <td>{_n(item.get('product_name'), 'Article')}</td>
-                            <td>{_n(item.get('product_sku'), '-')}</td>
+                            <td style="color:{text_secondary}">{_n(item.get('product_sku'), '-')}</td>
                             <td style="text-align:center">{item['quantity']}</td>
-                            <td style="text-align:right">{item['unit_price']:.2f}</td>
-                            <td style="text-align:right">{_n(item.get('discount_percent'), 0)}%</td>
-                            <td style="text-align:right">{item['line_total']:.2f}</td>
+                            <td style="text-align:right;font-variant-numeric:tabular-nums">{item['unit_price']:.2f}</td>
+                            <td style="text-align:right;font-variant-numeric:tabular-nums">{_n(item.get('discount_percent'), 0)}%</td>
+                            <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{item['line_total']:.2f}</td>
                         </tr>"""
     
     pdf_html += f"""
@@ -1898,30 +1964,29 @@ def generate_invoice_pdf(invoice_id):
             
             <div class="totals-section">
                 <div class="totals-box">
-                    <div class="totals-row"><span>Sous-total HT:</span><span>{_n(invoice_data.get('subtotal'), 0):.2f} DH</span></div>
-                    <div class="totals-row"><span>Remises:</span><span style="color: #dc2626;">{_n(invoice_data.get('discount_total'), 0):.2f} DH</span></div>
-                    <div class="totals-row"><span>TVA (20%):</span><span>{_n(invoice_data.get('tax_amount'), 0):.2f} DH</span></div>
-                    <div class="totals-row grand"><span>TOTAL TTC:</span><span>{_n(invoice_data.get('total'), 0):.2f} DH</span></div>
+                    <div class="totals-row"><span>Sous-total HT</span><span>{_n(invoice_data.get('subtotal'), 0):.2f} DH</span></div>
+                    <div class="totals-row discount"><span>Remises</span><span>-{_n(invoice_data.get('discount_total'), 0):.2f} DH</span></div>
+                    <div class="totals-row"><span>TVA (20%)</span><span>{_n(invoice_data.get('tax_amount'), 0):.2f} DH</span></div>
+                    <div class="totals-row grand"><span>TOTAL TTC</span><span>{_n(invoice_data.get('total'), 0):.2f} DH</span></div>
                 </div>
             </div>
         </div>
         
         <div class="footer">
-            <div class="footer-company">
-                <span>Patente N° {company_patente}</span>
-                <span>RC N° {company_rc}</span>
-                <span>ICE N° {company_ice}</span>
-                <span>Identifiant Taxe N° {company_tax}</span>
+            <div class="footer-grid">
+                <div><span class="footer-label">ICE:</span> {company_ice}</div>
+                <div><span class="footer-label">RC:</span> {company_rc}</div>
+                <div><span class="footer-label">Patente:</span> {company_patente}</div>
+                <div><span class="footer-label">Taxe:</span> {company_tax}</div>
+                <div><span class="footer-label">Adresse:</span> {company_address}</div>
+                <div><span class="footer-label">Tel:</span> {company_phone}</div>
             </div>
-            <div class="footer-info">
-                <strong>{company_name}</strong> - {company_address} - Tel: {company_phone}
-            </div>
-            <div class="footer-signature">
-                <p>Merci pour votre confiance</p>
+            <div class="footer-message">
+                Merci pour votre confiance
             </div>
         </div>
         
-        <button class="btn" onclick="window.print()">Imprimer / Telcharger PDF</button>
+        <button class="btn" onclick="window.print()">Imprimer / Télécharger PDF</button>
     </div>
 </body>
 </html>"""
@@ -2742,15 +2807,14 @@ def generate_pos_ticket_pdf(ticket_number):
         .payment {{ margin-top: 10px; font-size: 10px; }}
         .footer {{ text-align: center; margin-top: 20px; border-top: 1px dashed #333; padding-top: 10px; }}
         .signature {{ font-size: 10px; margin-top: 15px; }}
+        .ticket-logo {{ height: 65px; margin-bottom: 13px; }}
         .btn {{ background: #333; color: white; border: none; padding: 8px 16px; cursor: pointer; font-size: 11px; margin-top: 15px; }}
         @media print {{ .btn {{ display: none; }} }}
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="company">Bibliotheque Badr</div>
-        <div class="address">Rue Mohammed V, Gueliz</div>
-        <div class="address">Marrakech, Maroc</div>
+        <img src="/static/img/logo.png" class="ticket-logo" alt="Bibliotheque Badr">
     </div>
     
     <div class="ticket-title">RECU DE CAISSE</div>
@@ -3006,4 +3070,4 @@ if __name__ == '__main__':
         import threading
         threading.Thread(target=_open_browser, daemon=True).start()
 
-    app.run(host=args.host, debug=False, port=args.port, threaded=True)
+    app.run(host=args.host, debug=True, port=args.port, threaded=True)

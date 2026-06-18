@@ -141,8 +141,8 @@ export function getSalesDaily(params: string): Promise<SalesDaily[]> {
   return fetchJson(`/kpis/sales-daily?${params}`)
 }
 
-export function getCategoriesDistribution(): Promise<CategoryDistribution[]> {
-  return fetchJson("/kpis/categories-distribution")
+export function getCategoriesDistribution(params: string): Promise<CategoryDistribution[]> {
+  return fetchJson(`/kpis/categories-distribution?${params}`)
 }
 
 export function getTopSellingProducts(params: string): Promise<TopProduct[]> {
@@ -224,7 +224,7 @@ export async function fetchDashboardData(period: number, warehouseId: string): P
     getInvoicesStatus(),
     getDashboard(params),
     getSalesDaily(params),
-    getCategoriesDistribution(),
+    getCategoriesDistribution(`period=${period}`),
     getTopSellingProducts(topParams),
     getTrends(params),
     getAlertes(whParam ? whParam.slice(1) : ""),

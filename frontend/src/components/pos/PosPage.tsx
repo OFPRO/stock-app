@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { ShoppingCart, Plus, Minus, Trash2, Search, Banknote, CreditCard, CircleDollarSign, Printer } from "lucide-react"
 import { getActiveSession, openSession, closeSession, createPosTransaction, getRecentTransactions, getCashMovements, createCashMovement, getProducts, getPosCustomers, getBestSellers, type PosSession, type PosTransaction, type PosCartItem, type CashMovement, type BestSeller, type Product, type PosCustomer } from "@/lib/api"
@@ -26,6 +26,9 @@ export function PosPage() {
   const [loading, setLoading] = useState(true)
   const [cart, setCart] = useState<PosCartItem[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const searchRef = useRef<HTMLInputElement>(null)
+  const addToCartRef = useRef(addToCart)
+  addToCartRef.current = addToCart
   const [products, setProducts] = useState<Product[]>([])
   const [customers, setCustomers] = useState<PosCustomer[]>([])
   const [bestSellers, setBestSellers] = useState<BestSeller[]>([])
@@ -230,8 +233,29 @@ export function PosPage() {
   }
 
   const filteredProducts = products.filter(p =>
-    !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    !searchQuery
+    || p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    || (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
+    || (p.sku && p.sku.toLowerCase().includes(searchQuery.toLowerCase()))
   )
+
+  useEffect(() => {
+    if (session && cart.length === 0) searchRef.current?.focus()
+  }, [session, cart.length])
+
+  useEffect(() => {
+    if (!searchQuery || products.length === 0) return
+    const q = searchQuery.toLowerCase().trim()
+    if (q.length < 3) return
+    const timer = setTimeout(() => {
+      const match = products.find(p => p.barcode && p.barcode.toLowerCase() === q)
+      if (match) {
+        addToCartRef.current(match)
+        setSearchQuery("")
+      }
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [searchQuery, products])
 
   if (loading) return <div className="space-y-3">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}</div>
 
@@ -372,7 +396,7 @@ export function PosPage() {
             <CardContent className="p-4 space-y-3">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="pl-8" placeholder={t("pos.search_product")} value={searchQuery}
+                <Input ref={searchRef} className="pl-8" placeholder={t("pos.search_product")} value={searchQuery}
                   onFocus={() => loadProducts()}
                   onChange={(e) => setSearchQuery(e.target.value)} />
               </div>

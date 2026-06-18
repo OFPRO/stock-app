@@ -580,6 +580,27 @@ def get_kpis_sales_daily():
 
 @kpis_bp.route('/api/kpis/categories-distribution', methods=['GET'])
 def get_kpis_categories_distribution():
+    period = _safe_int(request.args.get('period', 30), 30)
+    date_start = request.args.get('date_start')
+    date_end = request.args.get('date_end')
+
+    if date_start and date_end:
+        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) BETWEEN ? AND ?"
+        pos_id_subq = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) BETWEEN ? AND ?"
+        params = (date_start, date_end)
+    elif date_start:
+        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) >= ?"
+        pos_id_subq = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) >= ?"
+        params = (date_start,)
+    elif date_end:
+        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) <= ?"
+        pos_id_subq = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) <= ?"
+        params = (date_end,)
+    else:
+        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND paid_at >= date('now', '-' || ? || ' days')"
+        pos_id_subq = "SELECT id FROM pos_transactions WHERE status = 'completed' AND created_at >= date('now', '-' || ? || ' days')"
+        params = (str(period),)
+
     with get_db() as conn:
         inv_cat = conn.execute("""
             SELECT p.category,
@@ -587,10 +608,10 @@ def get_kpis_categories_distribution():
                    COALESCE(SUM(ii.line_total), 0) as ca
             FROM products p
             LEFT JOIN invoice_items ii ON p.id = ii.product_id
-            LEFT JOIN invoices i ON ii.invoice_id = i.id AND i.status = 'payee' AND (i.type IS NULL OR i.type != 'fournisseur') AND i.is_credit_payment = 0
+                AND ii.invoice_id IN (""" + inv_id_subq + """)
             WHERE p.category IS NOT NULL AND p.category != ''
             GROUP BY p.category
-        """).fetchall()
+        """, params).fetchall()
 
         pos_cat = conn.execute("""
             SELECT p.category,
@@ -598,10 +619,10 @@ def get_kpis_categories_distribution():
                    COALESCE(SUM(pti.line_total), 0) as ca
             FROM products p
             LEFT JOIN pos_transaction_items pti ON p.id = pti.product_id
-            LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed'
+                AND pti.transaction_id IN (""" + pos_id_subq + """)
             WHERE p.category IS NOT NULL AND p.category != ''
             GROUP BY p.category
-        """).fetchall()
+        """, params).fetchall()
 
         merged = {}
         for row in list(inv_cat) + list(pos_cat):
@@ -622,25 +643,21 @@ def get_kpis_top_selling():
     date_end = request.args.get('date_end')
 
     if date_start and date_end:
-        date_filter_pos = "AND date(t.created_at) BETWEEN ? AND ?"
-        date_params = (date_start, date_end)
+        pos_id_subquery = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) BETWEEN ? AND ?"
         inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) BETWEEN ? AND ?"
-        inv_params = (date_start, date_end)
+        params = (date_start, date_end)
     elif date_start:
-        date_filter_pos = "AND date(t.created_at) >= ?"
-        date_params = (date_start,)
+        pos_id_subquery = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) >= ?"
         inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) >= ?"
-        inv_params = (date_start,)
+        params = (date_start,)
     elif date_end:
-        date_filter_pos = "AND date(t.created_at) <= ?"
-        date_params = (date_end,)
+        pos_id_subquery = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) <= ?"
         inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) <= ?"
-        inv_params = (date_end,)
+        params = (date_end,)
     else:
-        date_filter_pos = "AND t.created_at >= date('now', '-' || ? || ' days')"
+        pos_id_subquery = "SELECT id FROM pos_transactions WHERE status = 'completed' AND created_at >= date('now', '-' || ? || ' days')"
         inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND paid_at >= date('now', '-' || ? || ' days')"
-        date_params = (str(period),)
-        inv_params = (str(period),)
+        params = (str(period),)
 
     with get_db() as conn:
         pos_products = conn.execute("""
@@ -649,9 +666,9 @@ def get_kpis_top_selling():
                    COALESCE(SUM(pti.line_total), 0) as ca
             FROM products p
             LEFT JOIN pos_transaction_items pti ON p.id = pti.product_id
-            LEFT JOIN pos_transactions t ON pti.transaction_id = t.id AND t.status = 'completed' """ + date_filter_pos + """
+                AND pti.transaction_id IN (""" + pos_id_subquery + """)
             GROUP BY p.id
-        """, date_params).fetchall()
+        """, params).fetchall()
 
         inv_products = conn.execute("""
             SELECT p.id, p.name, p.sku, p.category,
@@ -661,7 +678,7 @@ def get_kpis_top_selling():
             LEFT JOIN invoice_items ii ON p.id = ii.product_id
                 AND ii.invoice_id IN (""" + inv_id_subquery + """)
             GROUP BY p.id
-        """, inv_params).fetchall()
+        """, params).fetchall()
 
         merged = {}
         for row in list(pos_products) + list(inv_products):
