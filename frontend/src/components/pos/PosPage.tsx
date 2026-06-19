@@ -246,7 +246,7 @@ export function PosPage() {
   useEffect(() => {
     if (!searchQuery || products.length === 0) return
     const q = searchQuery.toLowerCase().trim()
-    if (q.length < 3) return
+    if (q.length < 1) return
     const timer = setTimeout(() => {
       const match = products.find(p => p.barcode && p.barcode.toLowerCase() === q)
       if (match) {
@@ -398,7 +398,17 @@ export function PosPage() {
                 <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input ref={searchRef} className="pl-8" placeholder={t("pos.search_product")} value={searchQuery}
                   onFocus={() => loadProducts()}
-                  onChange={(e) => setSearchQuery(e.target.value)} />
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && searchQuery) {
+                      const q = searchQuery.toLowerCase().trim()
+                      const match = products.find(p => p.barcode && p.barcode.toLowerCase() === q)
+                      if (match) {
+                        addToCart(match)
+                        setSearchQuery("")
+                      }
+                    }
+                  }} />
               </div>
               <div className="max-h-[320px] overflow-y-auto space-y-0.5">
                 {filteredProducts.slice(0, 30).map(product => (

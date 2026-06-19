@@ -630,6 +630,7 @@
     "connection_type": "نوع الاتصال",
     "network": "WiFi / الشبكة",
     "usb": "USB",
+    "windows": "Windows (USB مباشر)",
     "printer_host": "عنوان IP",
     "printer_port": "المنفذ",
     "usb_vendor_id": "معرف البائع (USB)",
@@ -648,6 +649,7 @@
     "scanning": "جاري البحث...",
     "no_usb_printers": "لم يتم العثور على طابعات USB",
     "scan_error": "خطأ في البحث",
-    "usb_printers_hint": "انقر على 'بحث' لعرض الطابعات USB المتصلة"
+    "usb_printers_hint": "انقر على 'بحث' لعرض الطابعات USB المتصلة",
+    "printer_name": "اسم الطابعة (Windows)"
   }
 }

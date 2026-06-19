@@ -378,7 +378,10 @@ class EscposPrinter:
             if vendor and product:
                 self._printer = Usb(int(vendor, 16), int(product, 16))
             else:
-                raise RuntimeError("Configuration USB incomplète")
+                missing = []
+                if not vendor: missing.append("usb_vendor_id")
+                if not product: missing.append("usb_product_id")
+                raise RuntimeError(f"Configuration USB incomplète: {', '.join(missing)} manquants")
         elif conn_type == 'windows':
             printer_name = self.config.get('printer_name') or self.config.get('host', '')
             if not printer_name:

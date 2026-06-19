@@ -630,6 +630,7 @@
     "connection_type": "Type de connexion",
     "network": "WiFi / Réseau",
     "usb": "USB",
+    "windows": "Windows (USB direct)",
     "printer_host": "Adresse IP",
     "printer_port": "Port",
     "usb_vendor_id": "ID Vendor (USB)",
@@ -648,6 +649,7 @@
     "scanning": "Recherche...",
     "no_usb_printers": "Aucune imprimante USB trouvée",
     "scan_error": "Erreur lors de la recherche",
-    "usb_printers_hint": "Cliquez sur 'Rechercher' pour lister les imprimantes USB branchées"
+    "usb_printers_hint": "Cliquez sur 'Rechercher' pour lister les imprimantes USB branchées",
+    "printer_name": "Nom de l'imprimante (Windows)"
   }
 }

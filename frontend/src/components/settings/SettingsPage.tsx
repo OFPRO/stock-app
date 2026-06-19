@@ -149,7 +149,15 @@ function PrinterSettings() {
   function handleSelectUsb(p: UsbPrinter) {
     const key = `${p.vendor_id}:${p.product_id}`
     setSelectedUsb(key)
-    setConfig({ ...config, usb_vendor_id: p.vendor_id, usb_product_id: p.product_id })
+    setConfig({
+      ...config,
+      connection_type: p.connection_type || config.connection_type,
+      usb_vendor_id: p.vendor_id,
+      usb_product_id: p.product_id,
+      instance_id: p.instance_id || "",
+      host: p.name || "",
+      printer_name: p.name || "",
+    })
   }
 
   async function handleSave() {
@@ -241,6 +249,7 @@ function PrinterSettings() {
               <SelectContent>
                 <SelectItem value="network">{t("settings.network")}</SelectItem>
                 <SelectItem value="usb">{t("settings.usb")}</SelectItem>
+                <SelectItem value="windows">{t("settings.windows")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -268,6 +277,17 @@ function PrinterSettings() {
             </>
           ) : (
             <div className="space-y-3">
+              {config.connection_type === "windows" && (
+                <div className="space-y-2">
+                  <Label htmlFor="printer-name">{t("settings.printer_name")}</Label>
+                  <Input
+                    id="printer-name"
+                    value={config.printer_name}
+                    onChange={(e) => setConfig({ ...config, printer_name: e.target.value, host: e.target.value })}
+                    placeholder="XP-80"
+                  />
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <Label>{t("settings.usb_printers")}</Label>
                 <Button variant="outline" size="sm" onClick={handleScan} disabled={scanning}>
