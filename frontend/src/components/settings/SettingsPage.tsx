@@ -151,12 +151,9 @@ function PrinterSettings() {
     setSelectedUsb(key)
     setConfig({
       ...config,
-      connection_type: p.connection_type || config.connection_type,
       usb_vendor_id: p.vendor_id,
       usb_product_id: p.product_id,
       instance_id: p.instance_id || "",
-      host: p.name || "",
-      printer_name: p.name || "",
     })
   }
 
