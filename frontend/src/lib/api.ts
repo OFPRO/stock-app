@@ -1058,10 +1058,12 @@ export interface UsbPrinter {
   name: string
   vendor_id: string
   product_id: string
-  manufacturer: string
-  description: string
-  bus: string
-  address: string
+  manufacturer?: string
+  description?: string
+  bus?: string
+  address?: string
+  connection_type?: string
+  instance_id?: string
 }
 
 export function discoverPrinters(): Promise<UsbPrinter[]> {
