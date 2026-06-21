@@ -284,20 +284,30 @@ function searchPosProducts() {
     results.classList.add('active');
 }
 
-function addPosProductFromSearch() {
+async function addPosProductFromSearch() {
     var query = document.getElementById('posSearchInput').value.trim();
     if (query.length < 1) return;
-    var byBarcode = products.find(function(p) { return p.barcode && p.barcode === query; });
-    if (byBarcode) {
-        addPosProduct(byBarcode.id);
+    var found = products && products.find(function(p) { return p.barcode && p.barcode === query; });
+    if (found) {
+        addPosProduct(found.id);
     } else {
-        var byName = products.filter(function(p) { return p.name.toLowerCase().indexOf(query.toLowerCase()) !== -1; });
-        if (byName.length === 1) {
-            addPosProduct(byName[0].id);
-        } else if (byName.length > 1) {
-            posShowError('Plusieurs produits trouves. Selectionnez un dans la liste.');
-        } else {
-            posShowError('Produit non trouve');
+        try {
+            var res = await fetch('/api/products/for-sale?search=' + encodeURIComponent(query));
+            var apiResults = await res.json();
+            if (apiResults && apiResults.length > 0) {
+                addPosProduct(apiResults[0].id);
+            } else {
+                var byName = products && products.filter(function(p) { return p.name.toLowerCase().indexOf(query.toLowerCase()) !== -1; });
+                if (byName && byName.length === 1) {
+                    addPosProduct(byName[0].id);
+                } else if (byName && byName.length > 1) {
+                    posShowError('Plusieurs produits trouves. Selectionnez un dans la liste.');
+                } else {
+                    posShowError('Produit non trouve');
+                }
+            }
+        } catch(e) {
+            posShowError('Erreur lors de la recherche du produit');
         }
     }
     document.getElementById('posSearchInput').value = '';
