@@ -189,7 +189,8 @@ def print_receipt(ticket_data, printer_config):
         return result
 
     try:
-        escpos_text = build_escpos_commands(ticket_data)
+        paper_width = printer_config.get('paper_width', 80)
+        escpos_text = build_escpos_commands(ticket_data, width=paper_width)
         printer = EscposPrinter(printer_config)
         printer.connect()
         printer.print_receipt_escpos(escpos_text)

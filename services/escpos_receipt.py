@@ -43,6 +43,12 @@ def _encode(text):
     return text.encode('cp437', errors='replace')
 
 
+def _paper_width_to_chars(width):
+    if width > 50:
+        return 42 if width >= 80 else 32
+    return width
+
+
 def _center(text, width=42):
     return text.center(width)
 
@@ -250,6 +256,14 @@ class _WindowsRawPrinter:
         self._instance_id = instance_id
         self._open()
 
+    def _init_printer(self):
+        try:
+            self._raw(b'\x1b\x40')               # ESC @ — initialize
+            self._raw(b'\x1b\x45\x01')            # ESC E 1 — bold ON
+            self._raw(b'\x1b\x32')                # ESC 2 — default line spacing
+        except Exception:
+            pass
+
     def _open(self):
         import win32file
         share_mode = 1 | 2
@@ -263,6 +277,7 @@ class _WindowsRawPrinter:
                         None, win32file.OPEN_EXISTING, 0, None,
                     )
                     self._is_file = True
+                    self._init_printer()
                     return
                 except Exception:
                     pass
@@ -275,6 +290,7 @@ class _WindowsRawPrinter:
                     None, win32file.OPEN_EXISTING, 0, None,
                 )
                 self._is_file = True
+                self._init_printer()
                 return
             except Exception:
                 pass
@@ -283,6 +299,7 @@ class _WindowsRawPrinter:
             if self._printer_name:
                 import win32print
                 self._handle = win32print.OpenPrinter(self._printer_name)
+                self._init_printer()
                 return
         except Exception:
             pass
@@ -315,7 +332,13 @@ class _WindowsRawPrinter:
         self._raw(text.encode('cp437', errors='replace'))
 
     def set(self, align='left', font='a', width=1, height=1, density=8, invert=0, smooth=False, bold=False):
-        pass
+        align_map = {'left': 0, 'center': 1, 'right': 2}
+        self._raw(b'\x1b\x61' + bytes([align_map.get(align, 0)]))
+        self._raw(b'\x1b\x45' + bytes([1 if bold else 0]))
+        size = (max(0, min(7, width - 1)) << 4) | max(0, min(7, height - 1))
+        self._raw(b'\x1d\x21' + bytes([size & 0xFF]))
+        font_map = {'a': 0, 'b': 1}
+        self._raw(b'\x1b\x4d' + bytes([font_map.get(font, 0)]))
 
     def close(self):
         if self._handle is not None:
@@ -450,9 +473,8 @@ class EscposPrinter:
             elif line == 'FEED:5':
                 self._printer._raw(b'\x1bd\x05')
             elif line == 'SEPARATOR':
-                sep = '-' * 42
                 self._printer.set(align='center', font='a', width=1, height=1)
-                self._printer.text(sep + '\n')
+                self._printer.text('\n')
             elif line.startswith('QR:'):
                 content = line[3:]
                 self._printer.set(align='center')
@@ -462,7 +484,7 @@ class EscposPrinter:
                 self._printer.set(align='center')
                 self._printer.barcode(content, 'CODE128', height=50, width=2)
             else:
-                self._printer.set(align='left', font='a', width=1, height=1)
+                self._printer.set(align='left', font='a', width=1, height=1, bold=True)
                 self._printer.text(line + '\n')
 
     def cut_paper(self):
@@ -475,6 +497,7 @@ class EscposPrinter:
 
 
 def build_escpos_commands(ticket_data, width=42):
+    width = _paper_width_to_chars(width)
     builder = EscposReceiptBuilder(width)
     text = builder.build(ticket_data)
     return text
