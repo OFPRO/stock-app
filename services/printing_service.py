@@ -211,6 +211,7 @@ def print_receipt(ticket_data, printer_config):
 
 def auto_print_async(ticket_data, printer_config):
     try:
-        print_receipt(ticket_data, printer_config)
+        return print_receipt(ticket_data, printer_config)
     except Exception as e:
         _log('error', f"Erreur impression asynchrone: {e}")
+        return {'print_status': 'error', 'print_error': str(e)}

@@ -260,6 +260,7 @@ class _WindowsRawPrinter:
         try:
             self._raw(b'\x1b\x40')               # ESC @ — initialize
             self._raw(b'\x1b\x45\x01')            # ESC E 1 — bold ON
+            self._raw(b'\x1b\x47\x01')            # ESC G 1 — double-strike ON
             self._raw(b'\x1b\x32')                # ESC 2 — default line spacing
         except Exception:
             pass
@@ -331,10 +332,11 @@ class _WindowsRawPrinter:
     def text(self, text):
         self._raw(text.encode('cp437', errors='replace'))
 
-    def set(self, align='left', font='a', width=1, height=1, density=8, invert=0, smooth=False, bold=False):
+    def set(self, align='left', font='a', width=1, height=1, density=8, invert=0, smooth=False, bold=True, double_strike=True):
         align_map = {'left': 0, 'center': 1, 'right': 2}
         self._raw(b'\x1b\x61' + bytes([align_map.get(align, 0)]))
         self._raw(b'\x1b\x45' + bytes([1 if bold else 0]))
+        self._raw(b'\x1b\x47' + bytes([1 if double_strike else 0]))
         size = (max(0, min(7, width - 1)) << 4) | max(0, min(7, height - 1))
         self._raw(b'\x1d\x21' + bytes([size & 0xFF]))
         font_map = {'a': 0, 'b': 1}
@@ -456,7 +458,7 @@ class EscposPrinter:
         for line in lines:
             if line.startswith('CENTER:'):
                 content = line[7:]
-                self._printer.set(align='center', font='a', width=1, height=1)
+                self._printer.set(align='center', font='a', width=1, height=1, bold=True, double_strike=True)
                 self._printer.text(content + '\n')
             elif line.startswith('BOLD:'):
                 content = line[5:]
@@ -473,7 +475,7 @@ class EscposPrinter:
             elif line == 'FEED:5':
                 self._printer._raw(b'\x1bd\x05')
             elif line == 'SEPARATOR':
-                self._printer.set(align='center', font='a', width=1, height=1)
+                self._printer.set(align='center', font='a', width=1, height=1, bold=True, double_strike=True)
                 self._printer.text('\n')
             elif line.startswith('QR:'):
                 content = line[3:]

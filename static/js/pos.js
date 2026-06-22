@@ -556,6 +556,11 @@ async function processPosPayment() {
                    : 'Facture payee: ') + docNum
                 : 'Ticket genere: ' + docNum;
             posNotify(msg, 'success');
+            if (data.print_status === 'success') {
+                posNotify('Impression ticket reussie', 'success');
+            } else if (data.print_status === 'error') {
+                posNotify('Erreur impression: ' + (data.print_error || 'erreur inconnue'), 'error');
+            }
             if (data.change_amount > 0) {
                 alert('Monnaie a rendre: ' + data.change_amount.toFixed(2) + ' DH');
             }
