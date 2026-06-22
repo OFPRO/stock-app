@@ -978,6 +978,12 @@
                                     <button class="btn btn-sm btn-outline" data-click="pos-tendered-quick">Montant exact</button>
                                     <button class="btn btn-sm btn-outline" data-click="pos-tendered-round">Arrondi +10</button>
                                 </div>
+                                <div style="margin-top:8px;display:flex;gap:6px;">
+                                    <input type="hidden" id="lastTicketNumber" value="">
+                                    <button class="btn btn-sm btn-outline" id="btnReprintTicket" onclick="reprintTicket()" disabled style="flex:1;">
+                                        <i class="fas fa-print"></i> Réimprimer
+                                    </button>
+                                </div>
                             </div>
                             
                             <div class="pos-cash-movements">

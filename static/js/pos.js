@@ -547,6 +547,8 @@ async function processPosPayment() {
             if (data.document_type === 'ticket') {
                 window.open('/api/pos/tickets/' + data.document_number, 'ticket', 'width=400,height=700,scrollbars=yes');
             }
+            document.getElementById('lastTicketNumber').value = data.document_number;
+            document.getElementById('btnReprintTicket').disabled = false;
             var docType = data.document_type;
             var docNum = data.document_number;
             var docStatus = data.document_status;
@@ -583,6 +585,13 @@ async function processPosPayment() {
         }
     } finally {
         btnLoading(btn, false);
+    }
+}
+
+function reprintTicket() {
+    var tn = document.getElementById('lastTicketNumber').value;
+    if (tn) {
+        window.open('/api/pos/tickets/' + tn, 'ticket', 'width=400,height=700,scrollbars=yes');
     }
 }
 
