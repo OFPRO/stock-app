@@ -44,10 +44,12 @@ def _encode(text):
 
 
 def _paper_width_to_chars(width):
+    if width >= 80:
+        return 48
     return min(width, 32)
 
 
-def _center(text, width=42):
+def _center(text, width=48):
     return text.center(width)
 
 
@@ -55,7 +57,7 @@ def _rjust(text, width=10):
     return text.rjust(width)
 
 
-def _pair(left, right, width=42, sep=' '):
+def _pair(left, right, width=48, sep=' '):
     lw = int(width * 0.6)
     rw = width - lw
     left = left[:lw].ljust(lw)
@@ -63,12 +65,12 @@ def _pair(left, right, width=42, sep=' '):
     return left + right
 
 
-def _sep(width=42, char='-'):
+def _sep(width=48, char='-'):
     return char * width
 
 
 class EscposReceiptBuilder:
-    def __init__(self, width=42):
+    def __init__(self, width=48):
         self.width = width
         self.lines = []
 
@@ -95,12 +97,12 @@ class EscposReceiptBuilder:
         return self
 
     def table_header(self):
-        self._add(_pair(_pair('Article', 'Qte', width=30), _pair('Prix', 'Total', width=12), width=self.width))
+        self._add(_pair(_pair('Article', 'Qte', width=36), _pair('Prix', 'Total', width=12), width=self.width))
         self._add(_sep(self.width))
         return self
 
     def add_item(self, name, qty, price, total):
-        name_line = name[:28] if name else ''
+        name_line = name[:34] if name else ''
         self._add(_pair(name_line, f'{qty}', width=self.width, sep='  '))
         self._add(_pair(f'{price:.2f}', f'{total:.2f}', width=self.width, sep='  '))
         return self
@@ -303,6 +305,23 @@ class _WindowsRawPrinter:
         except Exception:
             pass
 
+        # Fallback: scan all local Windows printer queues
+        try:
+            import win32print
+            for p in win32print.EnumPrinters(2):
+                pname = p[2] if len(p) > 2 else None
+                if not pname or pname == self._printer_name:
+                    continue
+                try:
+                    self._handle = win32print.OpenPrinter(pname)
+                    self._printer_name = pname
+                    self._init_printer()
+                    return
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
         raise RuntimeError(
             f"Impossible d'ouvrir l'imprimante: {self._printer_name}. "
             f"Vérifiez qu'elle est branchée et que le pilote Windows est installé."
@@ -501,7 +520,7 @@ class EscposPrinter:
             self._printer._raw(b'\x1bd' + bytes([n]))
 
 
-def build_escpos_commands(ticket_data, width=42):
+def build_escpos_commands(ticket_data, width=48):
     width = _paper_width_to_chars(width)
     builder = EscposReceiptBuilder(width)
     text = builder.build(ticket_data)
