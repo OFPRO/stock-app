@@ -284,6 +284,31 @@ function searchPosProducts() {
     results.classList.add('active');
 }
 
+// Fix barcode scanner keyboard layout mismatch (QWERTY→AZERTY, etc.)
+// Intercepts keydown on posSearchInput, maps physical digit key codes to
+// correct digit characters, bypassing OS keyboard layout mapping
+(function() {
+    var input = document.getElementById('posSearchInput');
+    if (!input) return;
+
+    input.addEventListener('keydown', function(e) {
+        var isDigit = e.code >= 'Digit0' && e.code <= 'Digit9';
+        var isNumpad = e.code >= 'Numpad0' && e.code <= 'Numpad9';
+
+        if (isDigit || isNumpad) {
+            e.preventDefault();
+            var digit = isDigit ? e.code[5] : e.code[6];
+            var start = this.selectionStart || 0;
+            var end = this.selectionEnd || 0;
+            var val = this.value;
+            this.value = val.substring(0, start) + digit + val.substring(end);
+            var pos = start + 1;
+            this.selectionStart = this.selectionEnd = pos;
+            this.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+})();
+
 async function addPosProductFromSearch() {
     var query = document.getElementById('posSearchInput').value.trim();
     if (query.length < 1) return;
