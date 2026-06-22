@@ -2817,6 +2817,10 @@ def generate_pos_ticket_pdf(ticket_number):
         .signature {{ font-size: 10px; margin-top: 15px; }}
         .ticket-logo {{ height: 65px; margin-bottom: 13px; }}
         .btn {{ background: #333; color: white; border: none; padding: 8px 16px; cursor: pointer; font-size: 11px; margin-top: 15px; }}
+        .btn-success {{ background: #2563eb; }}
+        .btn-secondary {{ background: #666; }}
+        .btn:disabled {{ opacity: 0.6; cursor: not-allowed; }}
+        #printStatus {{ font-size: 10px; margin-top: 8px; text-align: center; }}
         @media print {{ .btn {{ display: none; }} }}
     </style>
 </head>
@@ -2878,7 +2882,37 @@ def generate_pos_ticket_pdf(ticket_number):
         </div>
     </div>
     
-    <button class="btn" onclick="window.print()">Imprimer / PDF</button>
+    <div style="text-align:center;">
+        <button class="btn btn-success" onclick="printTicket(this)">🖨️ Imprimer</button>
+        <button class="btn btn-secondary" onclick="window.print()" style="margin-top:5px;">PDF / Enregistrer</button>
+        <div id="printStatus"></div>
+    </div>
+    <script>
+    async function printTicket(btn) {{
+        btn.disabled = true;
+        var orig = btn.textContent;
+        btn.textContent = 'Impression...';
+        var status = document.getElementById('printStatus');
+        status.textContent = '';
+        status.style.color = '';
+        try {{
+            var res = await fetch('/api/pos/tickets/{ticket_number}/print', {{method: 'POST'}});
+            var data = await res.json();
+            if (data.print_status === 'success') {{
+                status.style.color = '#22c55e';
+                status.textContent = '✓ Impression réussie';
+            }} else {{
+                status.style.color = '#ef4444';
+                status.textContent = '✗ Erreur: ' + (data.print_error || 'échec inconnu');
+            }}
+        }} catch(e) {{
+            status.style.color = '#ef4444';
+            status.textContent = '✗ Erreur réseau: ' + e.message;
+        }}
+        btn.disabled = false;
+        btn.textContent = orig;
+    }}
+    </script>
 </body>
 </html>"""
     

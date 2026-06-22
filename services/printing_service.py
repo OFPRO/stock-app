@@ -209,6 +209,31 @@ def print_receipt(ticket_data, printer_config):
     return result
 
 
+def print_ticket_raw(ticket_data, printer_config):
+    """Print ticket as raw ESC/POS text — no PDF, no auto_print check."""
+    result = {
+        'ticket_number': ticket_data.get('ticket_number', 'unknown'),
+        'print_status': None,
+        'print_error': None,
+    }
+    try:
+        paper_width = printer_config.get('paper_width', 80)
+        escpos_text = build_escpos_commands(ticket_data, width=paper_width)
+        printer = EscposPrinter(printer_config)
+        printer.connect()
+        printer.print_receipt_escpos(escpos_text)
+        printer.feed(3)
+        printer.cut_paper()
+        printer.disconnect()
+        result['print_status'] = 'success'
+        _log('info', f"Ticket {result['ticket_number']} → RAW | SUCCÈS")
+    except Exception as e:
+        result['print_status'] = 'error'
+        result['print_error'] = str(e)
+        _log('error', f"Ticket {result['ticket_number']} → RAW | ÉCHEC: {e}")
+    return result
+
+
 def auto_print_async(ticket_data, printer_config):
     try:
         return print_receipt(ticket_data, printer_config)
