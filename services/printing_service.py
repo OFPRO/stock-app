@@ -36,6 +36,25 @@ _KNOWN_PRINTER_IDS = {
 
 def _discover_windows():
     devices = []
+
+    # Phase 1: Build port→queue mapping and list of all local printers
+    port_to_queue = {}
+    all_local = []
+    try:
+        import win32print
+        for p in win32print.EnumPrinters(2):
+            if len(p) < 8:
+                continue
+            flags, _, pname, _, _, _, _, port = p[:8]
+            is_local = bool(flags & 0x00001000)
+            if pname and port and is_local:
+                port_to_queue[port.upper()] = pname
+            if pname and is_local:
+                all_local.append(pname)
+    except ImportError:
+        return devices
+
+    # Phase 2: Scan USB registry to get VID/PID + match queue name via port
     try:
         import winreg
         base = r'SYSTEM\CurrentControlSet\Enum\USB'
@@ -76,15 +95,32 @@ def _discover_windows():
                         continue
                     vid = parts[0].lower()
                     pid = parts[1].split('&')[0].lower()
-                    name = desc.split(';')[-1].strip() if ';' in desc else desc
+
+                    # Read Windows port name for this USB device
+                    port_name = None
+                    try:
+                        params_key = winreg.OpenKey(inst_key, 'Device Parameters')
+                        port_name, _ = winreg.QueryValueEx(params_key, 'PortName')
+                        winreg.CloseKey(params_key)
+                    except OSError:
+                        pass
+
+                    # Cross-reference port name to real printer queue name
+                    queue_name = None
+                    if port_name:
+                        queue_name = port_to_queue.get(port_name.upper())
+
+                    device_name = queue_name or (
+                        desc.split(';')[-1].strip() if ';' in desc else desc
+                    )
                     manufacturer = _KNOWN_PRINTER_IDS.get(int(vid, 16), 'USB Printer')
                     devices.append({
-                        'name': name or f'USB Printer ({vid}:{pid})',
+                        'name': device_name or f'USB Printer ({vid}:{pid})',
                         'vendor_id': f'0x{vid}',
                         'product_id': f'0x{pid}',
                         'instance_id': instance,
                         'manufacturer': manufacturer,
-                        'description': name,
+                        'description': device_name,
                         'connection_type': 'windows',
                     })
                     winreg.CloseKey(inst_key)
@@ -94,6 +130,23 @@ def _discover_windows():
         winreg.CloseKey(key)
     except ImportError:
         pass
+
+    # Phase 3: If no USB devices found, list all local printers as fallback
+    if not devices:
+        seen = set()
+        for qname in all_local:
+            if qname and qname not in seen:
+                seen.add(qname)
+                devices.append({
+                    'name': qname,
+                    'vendor_id': '',
+                    'product_id': '',
+                    'instance_id': '',
+                    'manufacturer': 'Windows Printer',
+                    'description': qname,
+                    'connection_type': 'windows',
+                })
+
     return devices
 
 
