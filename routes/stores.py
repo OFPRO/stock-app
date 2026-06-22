@@ -228,6 +228,62 @@ def discover_printers_endpoint():
     return jsonify(printers)
 
 
+@stores_bp.route('/api/pos/tickets/<ticket_number>/print', methods=['POST'])
+def print_pos_ticket(ticket_number):
+    conn = get_db()
+    transaction = conn.execute('''
+        SELECT t.*, s.session_number, s.opened_at
+        FROM pos_transactions t
+        LEFT JOIN pos_sessions s ON t.session_id = s.id
+        WHERE t.transaction_number = ?
+    ''', (ticket_number,)).fetchone()
+    if not transaction:
+        conn.close()
+        return jsonify({'error': 'Ticket non trouvé'}), 404
+    transaction = dict(transaction)
+    items = conn.execute(
+        'SELECT * FROM pos_transaction_items WHERE transaction_id = ?',
+        (transaction['id'],)
+    ).fetchall()
+    items = [dict(item) for item in items]
+    conn.close()
+
+    ticket_data = {
+        'ticket_number': transaction['transaction_number'],
+        'created_at': (transaction.get('created_at') or '')[:19],
+        'session_number': transaction.get('session_number', ''),
+        'items': [
+            {
+                'product_name': it.get('product_name', 'Article'),
+                'quantity': it.get('quantity', 0),
+                'unit_price': it.get('unit_price', 0),
+                'line_total': it.get('line_total', 0),
+            }
+            for it in items
+        ],
+        'subtotal': transaction.get('subtotal', 0) or 0,
+        'discount_total': transaction.get('discount_total', 0) or 0,
+        'tax_amount': transaction.get('tax_amount', 0) or 0,
+        'total': transaction.get('total', 0) or 0,
+        'payment_method': transaction.get('payment_method', 'cash'),
+        'tendered_amount': transaction.get('tendered_amount', 0) or 0,
+        'change_amount': transaction.get('change_given', 0) or 0,
+    }
+
+    printer_conn = get_db()
+    printer_config = printer_conn.execute(
+        'SELECT * FROM printer_settings WHERE id = 1'
+    ).fetchone()
+    printer_conn.close()
+
+    if not printer_config:
+        return jsonify({'error': 'Imprimante non configurée'}), 400
+
+    from services.printing_service import print_ticket_raw
+    result = print_ticket_raw(ticket_data, dict(printer_config))
+    return jsonify(result)
+
+
 @stores_bp.route('/api/settings/printer/test', methods=['POST'])
 def test_printer():
     conn = get_db()

@@ -44,9 +44,7 @@ def _encode(text):
 
 
 def _paper_width_to_chars(width):
-    if width > 50:
-        return 42 if width >= 80 else 32
-    return width
+    return min(width, 32)
 
 
 def _center(text, width=42):
@@ -85,8 +83,8 @@ class EscposReceiptBuilder:
 
     def header(self, ticket_number):
         self._add_empty(3)
-        self._add(_center('REÇU DE CAISSE', self.width))
-        self._add(_center(ticket_number, self.width))
+        self._add('DW:' + _center('REÇU DE CAISSE', self.width))
+        self._add('DW:' + _center(ticket_number, self.width))
         self._add(_sep(self.width))
         return self
 
@@ -114,7 +112,7 @@ class EscposReceiptBuilder:
             self._add(_pair('Remise:', f'{discount:.2f}'))
         self._add(_pair('TVA (20%):', f'{tax:.2f}'))
         self._add(_sep(self.width))
-        self._add(_center(f'TOTAL: {total:.2f} DH', self.width))
+        self._add('BIG:' + _center(f'TOTAL: {total:.2f} DH', self.width))
         self._add(_sep(self.width))
         return self
 
@@ -335,6 +333,7 @@ class _WindowsRawPrinter:
     def set(self, align='left', font='a', width=1, height=1):
         align_map = {'left': 0, 'center': 1, 'right': 2}
         self._raw(b'\x1b\x61' + bytes([align_map.get(align, 0)]))
+        self._raw(b'\x1b\x21\x00')                               # ESC ! 0 — Print Mode: Font A
         self._raw(b'\x1b\x45\x01')                               # ESC E 1 — emphasis ON (toujours)
         self._raw(b'\x1b\x47\x01')                               # ESC G 1 — double-strike ON (toujours)
         size = (max(0, min(7, width - 1)) << 4) | max(0, min(7, height - 1))
@@ -459,6 +458,10 @@ class EscposPrinter:
             if line.startswith('CENTER:'):
                 content = line[7:]
                 self._printer.set(align='center', font='a', width=1, height=1)
+                self._printer.text(content + '\n')
+            elif line.startswith('DW:'):
+                content = line[3:]
+                self._printer.set(align='center', font='a', width=2, height=1)
                 self._printer.text(content + '\n')
             elif line.startswith('BOLD:'):
                 content = line[5:]
