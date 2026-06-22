@@ -2420,6 +2420,8 @@ def create_pos_transaction():
     conn.close()
 
     # --- Auto-print hook ---
+    print_status = None
+    print_error = None
     try:
         _pconn = get_db()
         printer_config = _pconn.execute('SELECT * FROM printer_settings WHERE id = 1').fetchone()
@@ -2447,9 +2449,13 @@ def create_pos_transaction():
                 'customer_name': customer_name if not is_client_comptoir else 'Client Comptoir',
                 'register_name': session['register_name'] if session and session['register_name'] else (session['cashier_name'] if session else ''),
             }
-            threading.Thread(target=auto_print_async, args=(ticket_data, dict(printer_config)), daemon=True).start()
-    except Exception:
-        pass
+            print_result = auto_print_async(ticket_data, dict(printer_config))
+            if print_result:
+                print_status = print_result.get('print_status')
+                print_error = print_result.get('print_error')
+    except Exception as e:
+        print_status = 'error'
+        print_error = str(e)
 
     register_name = session['register_name'] if session['register_name'] else (session['cashier_name'] or '')
     stock_updates = []
@@ -2481,7 +2487,9 @@ def create_pos_transaction():
         'document_status': inv_status,
         'total': total,
         'change_amount': change_amount,
-        'customer_name': customer_name
+        'customer_name': customer_name,
+        'print_status': print_status,
+        'print_error': print_error,
     })
 
 @app.route('/api/pos/cash-movements', methods=['GET'])
