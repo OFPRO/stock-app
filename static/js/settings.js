@@ -330,8 +330,12 @@ function selectUsbPrinter(vendorId, productId, connType, printerName, instanceId
         savePrinterSetting('connection_type', 'windows');
         savePrinterSetting('host', printerName);
     }
-    savePrinterSetting('usb_vendor_id', vendorId);
-    savePrinterSetting('usb_product_id', productId);
+    if (vendorId) {
+        savePrinterSetting('usb_vendor_id', vendorId);
+    }
+    if (productId) {
+        savePrinterSetting('usb_product_id', productId);
+    }
     if (instanceId) {
         savePrinterSetting('instance_id', instanceId);
     }
