@@ -250,7 +250,7 @@ async function updateTableCategories() {
         if (warehouse) params.set('warehouse_id', warehouse);
         const res = await fetch('/api/kpis/categories-stock?' + params.toString());
         const cats = await res.json();
-        let html = '<table class="mini-table"><thead><tr><th>Catégorie</th><th class="qty">Qté</th><th class="price">Achat</th><th class="total">Vente</th></tr></thead><tbody>';
+        let html = '<table class="mini-table"><thead><tr><th>Catégorie</th><th class="qty">Qté</th><th class="price">Valeur Achat</th><th class="total">Valeur Vente</th></tr></thead><tbody>';
         if (cats.length === 0) {
             html += '<tr><td colspan="4" style="text-align:center;color:var(--text-light)">Aucune catégorie</td></tr>';
         } else {
@@ -258,8 +258,8 @@ async function updateTableCategories() {
                 html += '<tr>'
                     + '<td class="product-name">' + c.category + '</td>'
                     + '<td class="qty">' + c.total_qty + '</td>'
-                    + '<td class="price">' + Number(c.total_purchase_value).toFixed(2) + '</td>'
-                    + '<td class="total">' + Number(c.total_sale_value).toFixed(2) + '</td>'
+                    + '<td class="price">' + Number(c.total_purchase_value).toFixed(2) + ' DH</td>'
+                    + '<td class="total">' + Number(c.total_sale_value).toFixed(2) + ' DH</td>'
                     + '</tr>';
             }
         }
