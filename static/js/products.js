@@ -153,10 +153,10 @@ async function openProductDetail(productId) {
         document.getElementById('detail-supplier-phone').textContent = p.supplier_phone || '-';
 
         const stats = data.purchase_stats;
-        document.getElementById('detail-total-purchases').textContent = (stats && stats.total_purchases) || 0;
+        document.getElementById('detail-total-purchases').textContent = (stats && stats.total_purchases) ? Number(stats.total_purchases).toFixed(2) + ' DH' : '0 DH';
         document.getElementById('detail-total-purchase-qty').textContent = (stats && stats.total_qty) || 0;
         const sales = data.sales_stats;
-        document.getElementById('detail-total-sales').textContent = (sales && sales.total_sales) || 0;
+        document.getElementById('detail-total-sales').textContent = (sales && sales.total_sales) ? Number(sales.total_sales).toFixed(2) + ' DH' : '0 DH';
         document.getElementById('detail-total-sale-qty').textContent = (sales && sales.total_qty) || 0;
 
         let locationsHtml = '';

@@ -71,13 +71,26 @@ def get_product(product_id):
             WHERE poi.product_id = ? AND po.status = 'received'
         ''', (product_id,)).fetchone()
         
-        sales_stats = conn.execute('''
-            SELECT COALESCE(SUM(ii.quantity), 0) as total_qty,
-                   COALESCE(SUM(ii.line_total), 0) as total_sales
+        inv_sales = conn.execute('''
+            SELECT COALESCE(SUM(ii.quantity), 0) as qty,
+                   COALESCE(SUM(ii.line_total), 0) as total
             FROM invoice_items ii
             JOIN invoices i ON ii.invoice_id = i.id
             WHERE ii.product_id = ? AND i.status != 'annulee'
         ''', (product_id,)).fetchone()
+
+        pos_sales = conn.execute('''
+            SELECT COALESCE(SUM(pti.quantity), 0) as qty,
+                   COALESCE(SUM(pti.line_total), 0) as total
+            FROM pos_transaction_items pti
+            JOIN pos_transactions t ON pti.transaction_id = t.id
+            WHERE pti.product_id = ? AND t.status = 'completed'
+        ''', (product_id,)).fetchone()
+
+        sales_stats = {
+            'total_qty': (inv_sales['qty'] if inv_sales else 0) + (pos_sales['qty'] if pos_sales else 0),
+            'total_sales': (inv_sales['total'] if inv_sales else 0) + (pos_sales['total'] if pos_sales else 0),
+        }
         
         stock_locations = conn.execute('''
             SELECT l.name as location_name, p.quantity
