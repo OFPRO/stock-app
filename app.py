@@ -2794,31 +2794,31 @@ def generate_pos_ticket_pdf(ticket_number):
     <title>Recu - {ticket_number}</title>
     <style>
         * {{ margin:0; padding:0; box-sizing:border-box; }}
-        body {{ font-family:'Courier New',monospace; font-size:11px; font-weight:900; width:240px; margin:0 auto; padding:10px; color:#000; }}
+        body {{ font-family:'Courier New',monospace; font-size:14px; font-weight:900; width:300px; margin:0 auto; padding:8px; color:#000; }}
         .header {{ text-align:center; margin-bottom:12px; border-bottom:1px dashed #000; padding-bottom:8px; }}
-        .ticket-title {{ font-size:20px; font-weight:900; margin:8px 0; }}
-        .ticket-number {{ font-size:12px; font-weight:900; border:1px solid #000; padding:4px 8px; display:inline-block; margin-bottom:8px; }}
-        .info {{ font-size:10px; font-weight:900; margin:2px 0; }}
-        table {{ width:100%; border-collapse:collapse; margin:8px 0; font-size:10px; }}
+        .ticket-title {{ font-size:22px; font-weight:900; margin:8px 0; }}
+        .ticket-number {{ font-size:14px; font-weight:900; border:1px solid #000; padding:4px 8px; display:inline-block; margin-bottom:8px; }}
+        .info {{ font-size:12px; font-weight:900; margin:2px 0; }}
+        table {{ width:100%; border-collapse:collapse; margin:8px 0; font-size:12px; }}
         th {{ text-align:left; border-bottom:1px dashed #000; padding:3px 0; font-weight:900; }}
         td {{ padding:2px 0; font-weight:900; }}
-        .item-name {{ max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
+        .item-name {{ max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
         .qty {{ width:30px; text-align:center; }}
-        .price {{ width:55px; text-align:right; }}
-        .total {{ width:55px; text-align:right; font-weight:900; }}
+        .price {{ width:65px; text-align:right; }}
+        .total {{ width:65px; text-align:right; font-weight:900; }}
         .divider {{ border-bottom:1px dashed #000; margin:6px 0; }}
         .totals {{ margin-top:8px; }}
         .totals-row {{ display:flex; justify-content:space-between; padding:2px 0; font-weight:900; }}
-        .grand-total {{ font-size:18px; font-weight:900; border-top:2px solid #000; padding-top:6px; margin-top:6px; }}
-        .payment {{ margin-top:8px; font-size:10px; }}
+        .grand-total {{ font-size:20px; font-weight:900; border-top:2px solid #000; padding-top:6px; margin-top:6px; }}
+        .payment {{ margin-top:8px; font-size:12px; }}
         .footer {{ text-align:center; margin-top:16px; border-top:1px dashed #000; padding-top:8px; }}
-        .signature {{ font-size:10px; margin-top:12px; font-weight:900; }}
+        .signature {{ font-size:12px; margin-top:12px; font-weight:900; }}
         .ticket-logo {{ height:55px; margin-bottom:10px; }}
-        .btn {{ background:#333; color:#fff; border:none; padding:8px 16px; cursor:pointer; font-size:11px; font-weight:900; margin-top:10px; }}
+        .btn {{ background:#333; color:#fff; border:none; padding:8px 16px; cursor:pointer; font-size:13px; font-weight:900; margin-top:10px; }}
         .btn-success {{ background:#2563eb; }}
         .btn-secondary {{ background:#666; }}
         .btn:disabled {{ opacity:0.6; cursor:not-allowed; }}
-        #printStatus {{ font-size:10px; margin-top:8px; text-align:center; font-weight:900; }}
+        #printStatus {{ font-size:12px; margin-top:8px; text-align:center; font-weight:900; }}
         @media print {{ .btn {{ display:none; }} }}
     </style>
 </head>
