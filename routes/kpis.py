@@ -578,6 +578,30 @@ def get_kpis_sales_daily():
 
     return jsonify(daily_sales)
 
+@kpis_bp.route('/api/kpis/categories-stock', methods=['GET'])
+def get_categories_stock():
+    warehouse_id = validate_id(request.args.get('warehouse_id'))
+    with get_db() as conn:
+        if warehouse_id:
+            rows = conn.execute('''
+                SELECT category,
+                       SUM(quantity) as total_qty,
+                       COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) as total_purchase_value,
+                       COALESCE(SUM(quantity * price), 0) as total_sale_value
+                FROM products WHERE is_deleted = 0 AND warehouse_id = ?
+                GROUP BY category ORDER BY total_qty DESC
+            ''', (warehouse_id,)).fetchall()
+        else:
+            rows = conn.execute('''
+                SELECT category,
+                       SUM(quantity) as total_qty,
+                       COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) as total_purchase_value,
+                       COALESCE(SUM(quantity * price), 0) as total_sale_value
+                FROM products WHERE is_deleted = 0
+                GROUP BY category ORDER BY total_qty DESC
+            ''').fetchall()
+        return jsonify([dict(r) for r in rows])
+
 @kpis_bp.route('/api/kpis/categories-distribution', methods=['GET'])
 def get_kpis_categories_distribution():
     period = _safe_int(request.args.get('period', 30), 30)

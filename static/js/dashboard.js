@@ -173,7 +173,7 @@ async function loadDashboard() {
         updateTableToOrder(dashboard.products_to_order || []);
         updateTableCreances(receivables.clients || []);
         updateTableRuptures(alerts.out_of_stock || []);
-        updateTableExpiry(alerts.expiring || []);
+        updateTableCategories();
 
         renderSalesDailyChart(dailySales);
         renderCategoriesChart(categories);
@@ -243,21 +243,32 @@ function updateTableRuptures(products) {
     document.getElementById('rupturesCount').textContent = products.length;
 }
 
-function updateTableExpiry(products) {
-    let html = '<table class="mini-table"><thead><tr><th>Produit</th><th>DLC</th><th>Jours</th></tr></thead><tbody>';
-    if (products.length === 0) {
-        html += '<tr><td colspan="3" style="text-align:center;color:var(--text-light)">Aucun perime</td></tr>';
-    } else {
-        for (const p of products.slice(0, 8)) {
-            const daysClass = p.days_left <= 7 ? 'danger' : (p.days_left <= 15 ? 'warning' : 'success');
-            html += '<tr><td class="product-name">' + p.name + '</td>' +
-                '<td>' + (p.expiry_date || '-') + '</td>' +
-                '<td><span class="qty ' + daysClass + '">' + p.days_left + 'j</span></td></tr>';
+async function updateTableCategories() {
+    try {
+        const warehouse = document.getElementById('warehouseFilter')?.value || '';
+        const params = new URLSearchParams();
+        if (warehouse) params.set('warehouse_id', warehouse);
+        const res = await fetch('/api/kpis/categories-stock?' + params.toString());
+        const cats = await res.json();
+        let html = '<table class="mini-table"><thead><tr><th>Catégorie</th><th class="qty">Qté</th><th class="price">Achat</th><th class="total">Vente</th></tr></thead><tbody>';
+        if (cats.length === 0) {
+            html += '<tr><td colspan="4" style="text-align:center;color:var(--text-light)">Aucune catégorie</td></tr>';
+        } else {
+            for (const c of cats) {
+                html += '<tr>'
+                    + '<td class="product-name">' + c.category + '</td>'
+                    + '<td class="qty">' + c.total_qty + '</td>'
+                    + '<td class="price">' + Number(c.total_purchase_value).toFixed(2) + '</td>'
+                    + '<td class="total">' + Number(c.total_sale_value).toFixed(2) + '</td>'
+                    + '</tr>';
+            }
         }
+        html += '</tbody></table>';
+        document.getElementById('tableCategories').innerHTML = html;
+        document.getElementById('categoriesCount').textContent = cats.length;
+    } catch(e) {
+        console.error('Categories stock error:', e);
     }
-    html += '</tbody></table>';
-    document.getElementById('tableExpiry').innerHTML = html;
-    document.getElementById('expiryCount').textContent = products.length;
 }
 
 function setPresetPeriod(days) {
