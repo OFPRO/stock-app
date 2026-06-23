@@ -306,12 +306,18 @@ class _WindowsRawPrinter:
         except Exception:
             pass
 
-        # Fallback: scan all local Windows printer queues
+        # Fallback: scan all local Windows printer queues (skip virtual printers)
         try:
             import win32print
+            _VIRTUAL_KEYWORDS = ['onenote', 'print to pdf', 'xps', 'fax', 'facture']
             for p in win32print.EnumPrinters(2):
                 pname = p[2] if len(p) > 2 else None
+                pdesc = str(p[1] if len(p) > 1 else '').lower()
+                pcomment = str(p[3] if len(p) > 3 else '').lower()
+                identifier = (pname or '').lower() + ' ' + pdesc + ' ' + pcomment
                 if not pname or pname == self._printer_name:
+                    continue
+                if any(kw in identifier for kw in _VIRTUAL_KEYWORDS):
                     continue
                 try:
                     self._handle = win32print.OpenPrinter(pname)
