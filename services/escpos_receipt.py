@@ -44,12 +44,10 @@ def _encode(text):
 
 
 def _paper_width_to_chars(width):
-    if width >= 80:
-        return 48
     return min(width, 32)
 
 
-def _center(text, width=48):
+def _center(text, width=42):
     return text.center(width)
 
 
@@ -57,7 +55,7 @@ def _rjust(text, width=10):
     return text.rjust(width)
 
 
-def _pair(left, right, width=48, sep=' '):
+def _pair(left, right, width=42, sep=' '):
     lw = int(width * 0.6)
     rw = width - lw
     left = left[:lw].ljust(lw)
@@ -65,12 +63,12 @@ def _pair(left, right, width=48, sep=' '):
     return left + right
 
 
-def _sep(width=48, char='-'):
+def _sep(width=42, char='-'):
     return char * width
 
 
 class EscposReceiptBuilder:
-    def __init__(self, width=48):
+    def __init__(self, width=42):
         self.width = width
         self.lines = []
 
@@ -97,12 +95,12 @@ class EscposReceiptBuilder:
         return self
 
     def table_header(self):
-        self._add(_pair(_pair('Article', 'Qte', width=36), _pair('Prix', 'Total', width=12), width=self.width))
+        self._add(_pair(_pair('Article', 'Qte', width=30), _pair('Prix', 'Total', width=12), width=self.width))
         self._add(_sep(self.width))
         return self
 
     def add_item(self, name, qty, price, total):
-        name_line = name[:34] if name else ''
+        name_line = name[:28] if name else ''
         self._add(_pair(name_line, f'{qty}', width=self.width, sep='  '))
         self._add(_pair(f'{price:.2f}', f'{total:.2f}', width=self.width, sep='  '))
         return self
@@ -248,12 +246,13 @@ def _find_usbprint_device_path(vid, pid):
 
 
 class _WindowsRawPrinter:
-    def __init__(self, printer_name, vid='', pid='', instance_id=''):
+    def __init__(self, printer_name, vid='', pid='', instance_id='', paper_width=80):
         self._handle = None
         self._printer_name = printer_name
         self._vid = vid
         self._pid = pid
         self._instance_id = instance_id
+        self._paper_width = paper_width
         self._open()
 
     def _init_printer(self):
@@ -262,6 +261,8 @@ class _WindowsRawPrinter:
             self._raw(b'\x1b\x45\x01')            # ESC E 1 — bold ON
             self._raw(b'\x1b\x47\x01')            # ESC G 1 — double-strike ON
             self._raw(b'\x1b\x32')                # ESC 2 — default line spacing
+            self._raw(b'\x1d\x4c\x80\x00')        # GS L — left margin 128 dots
+            self._raw(b'\x1d\x57\x80\x01')        # GS W — print area 384 dots (32x12)
         except Exception:
             pass
 
@@ -432,7 +433,8 @@ class EscposPrinter:
             vid = self.config.get('usb_vendor_id', '')
             pid = self.config.get('usb_product_id', '')
             instance_id = self.config.get('instance_id', '')
-            self._printer = _WindowsRawPrinter(printer_name, vid, pid, instance_id)
+            pw = self.config.get('paper_width', 80)
+            self._printer = _WindowsRawPrinter(printer_name, vid, pid, instance_id, paper_width=pw)
         else:
             raise RuntimeError(f"Type de connexion inconnu: {conn_type}")
 
@@ -520,7 +522,7 @@ class EscposPrinter:
             self._printer._raw(b'\x1bd' + bytes([n]))
 
 
-def build_escpos_commands(ticket_data, width=48):
+def build_escpos_commands(ticket_data, width=42):
     width = _paper_width_to_chars(width)
     builder = EscposReceiptBuilder(width)
     text = builder.build(ticket_data)

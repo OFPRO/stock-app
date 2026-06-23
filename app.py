@@ -2794,7 +2794,7 @@ def generate_pos_ticket_pdf(ticket_number):
     <title>Recu - {ticket_number}</title>
     <style>
         * {{ margin:0; padding:0; box-sizing:border-box; }}
-        body {{ font-family:'Courier New',monospace; font-size:11px; font-weight:900; width:380px; margin:0 auto; padding:10px; color:#000; }}
+        body {{ font-family:'Courier New',monospace; font-size:11px; font-weight:900; width:240px; margin:0 auto; padding:10px; color:#000; }}
         .header {{ text-align:center; margin-bottom:12px; border-bottom:1px dashed #000; padding-bottom:8px; }}
         .ticket-title {{ font-size:20px; font-weight:900; margin:8px 0; }}
         .ticket-number {{ font-size:12px; font-weight:900; border:1px solid #000; padding:4px 8px; display:inline-block; margin-bottom:8px; }}
@@ -2802,7 +2802,7 @@ def generate_pos_ticket_pdf(ticket_number):
         table {{ width:100%; border-collapse:collapse; margin:8px 0; font-size:10px; }}
         th {{ text-align:left; border-bottom:1px dashed #000; padding:3px 0; font-weight:900; }}
         td {{ padding:2px 0; font-weight:900; }}
-        .item-name {{ max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
+        .item-name {{ max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
         .qty {{ width:30px; text-align:center; }}
         .price {{ width:55px; text-align:right; }}
         .total {{ width:55px; text-align:right; font-weight:900; }}

@@ -208,7 +208,9 @@ def check_printer_status(config):
     conn_type = config.get('connection_type', 'network')
     if conn_type == 'network' and not config.get('host'):
         return {'status': 'not_configured'}
-    if conn_type in ('usb', 'windows') and not config.get('usb_vendor_id'):
+    if conn_type == 'usb' and not config.get('usb_vendor_id'):
+        return {'status': 'not_configured'}
+    if conn_type == 'windows' and not config.get('printer_name') and not config.get('host'):
         return {'status': 'not_configured'}
     try:
         printer = EscposPrinter(config)
