@@ -89,10 +89,10 @@
                     <span data-i18n="nav.notifications">Notifications</span>
                     <span id="notifBadge" style="display:none;background:var(--danger);color:white;padding:2px 8px;border-radius:10px;font-size:12px;"></span>
                 </div>
-                <a href="/license" class="nav-item" style="text-decoration:none;color:inherit;display:flex;">
+                <div class="nav-item" data-click="show-tab" data-arg="license">
                     <i class="fas fa-key"></i>
                     <span>Licence</span>
-                </a>
+                </div>
                 <div class="nav-item" data-click="show-tab" data-arg="settings">
                     <i class="fas fa-cog"></i>
                     <span>Paramètres</span>
@@ -1160,6 +1160,16 @@
                         </div>
                     </div>
                 </div>
+                <div class="tab-content" id="licenseTab">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title"><i class="fas fa-key"></i> Licence StockPro</div>
+                        </div>
+                        <div class="card-body" id="licenseBody">
+                            <div class="empty"><i class="fas fa-spinner fa-spin"></i><p>Chargement...</p></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -1986,5 +1996,6 @@
 <script src="/static/js/invoices.js"></script>
 <script src="/static/js/replenishment.js"></script>
 <script src="/static/js/settings.js"></script>
+<script src="/static/js/license.js"></script>
 </body>
 </html>

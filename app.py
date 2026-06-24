@@ -92,7 +92,9 @@ def license_check():
     if request.path.startswith('/static/') or request.path.startswith('/api/license') or request.path == '/license':
         return
     if get_cached_payload() is None:
-        return render_template('license.html'), 403
+        if request.path == '/':
+            return
+        return jsonify({'error': 'Licence requise'}), 403
 
 def _esc(d):
     for k, v in d.items():
@@ -731,7 +733,7 @@ def scanner_pro():
 
 @app.route('/license')
 def license_page():
-    return render_template('license.html')
+    return redirect(url_for('index'))
 
 
 @app.route('/api/license/status')
