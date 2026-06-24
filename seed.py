@@ -2,10 +2,11 @@
 """
 Enriched Seed Script - Realistic Data for Dashboard Testing
 """
-import sqlite3, random
+import sqlite3, random, sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from datetime import datetime, timedelta
 
-DB_NAME = 'stock.db'
+from routes.db import CATALOG_DB as DB_NAME
 
 def main():
     from app import init_db

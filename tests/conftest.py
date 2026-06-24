@@ -25,6 +25,7 @@ def db_path(temp_db_dir):
 def _patch_db(db_path):
     import routes.db
     routes.db.DB_NAME = db_path
+    routes.db.CATALOG_DB = os.path.abspath(db_path)
     from app import app as flask_app, init_db
     init_db()
     flask_app.config["TESTING"] = True

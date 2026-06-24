@@ -9,8 +9,10 @@ Reset test DB: fresh database with only:
 """
 import sqlite3
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-DB_NAME = 'stock.db'
+from routes.db import CATALOG_DB as DB_NAME
 
 def reset_transactional_data(conn, keep_products=False):
     """Vider les données transactionnelles, optionnellement garder les produits"""
