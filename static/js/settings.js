@@ -16,6 +16,7 @@ function loadSettings() {
     loadStoresList();
     loadSettingsCategories();
     loadPrinterSettings();
+    loadSecuritySettings();
 }
 
 function loadStoresList() {
@@ -376,6 +377,73 @@ function testPrinterConnection() {
     .finally(function() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-play"></i> Tester l\'impression';
+    });
+}
+
+function loadSecuritySettings() {
+    fetch('/api/settings/reset-password')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var html = '';
+            if (!data.has_password) {
+                html += '<p style="color:var(--text-light);margin-bottom:12px;">Définissez un mot de passe pour protéger la réinitialisation des données.</p>';
+                html += '<div class="form-group">';
+                html += '  <label>Nouveau mot de passe</label>';
+                html += '  <input type="password" id="newResetPassword" class="form-input" placeholder="Minimum 4 caractères" style="max-width:250px;">';
+                html += '</div>';
+                html += '<button class="btn btn-primary" onclick="saveResetPassword()"><i class="fas fa-save"></i> Enregistrer</button>';
+            } else {
+                if (data.is_default) {
+                    html += '<div class="alert alert-warning" style="margin-bottom:12px;"><i class="fas fa-exclamation-triangle"></i> <strong>Mot de passe par défaut</strong> — Veuillez le changer pour sécuriser l\'application.</div>';
+                }
+                html += '<div class="form-group">';
+                html += '  <label>Ancien mot de passe</label>';
+                html += '  <input type="password" id="currentResetPassword" class="form-input" placeholder="Ancien mot de passe" style="max-width:250px;">';
+                html += '</div>';
+                html += '<div class="form-group">';
+                html += '  <label>Nouveau mot de passe</label>';
+                html += '  <input type="password" id="newResetPassword" class="form-input" placeholder="Minimum 4 caractères" style="max-width:250px;">';
+                html += '</div>';
+                html += '<button class="btn btn-primary" onclick="saveResetPassword()"><i class="fas fa-save"></i> Changer le mot de passe</button>';
+                html += '<button class="btn btn-sm btn-outline" onclick="showForgotPasswordHelp()" style="margin-left:8px;color:var(--text-light);"><i class="fas fa-question-circle"></i> Mot de passe oublié ?</button>';
+            }
+            html += '<div id="securitySettingsMsg" style="margin-top:8px;"></div>';
+            document.getElementById('securitySettingsBody').innerHTML = html;
+        })
+        .catch(function(err) {
+            document.getElementById('securitySettingsBody').innerHTML = '<div class="empty"><i class="fas fa-exclamation-triangle"></i><p>Erreur: ' + err + '</p></div>';
+        });
+}
+
+function saveResetPassword() {
+    var newPw = document.getElementById('newResetPassword').value;
+    if (!newPw || newPw.length < 4) {
+        showError('Le mot de passe doit contenir au moins 4 caractères');
+        return;
+    }
+
+    var body = { new_password: newPw };
+    var currentPw = document.getElementById('currentResetPassword');
+    if (currentPw && currentPw.value) {
+        body.current_password = currentPw.value;
+    }
+
+    fetch('/api/settings/reset-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) {
+            showError(data.error);
+        } else {
+            showSuccess('Mot de passe mis à jour');
+            loadSecuritySettings();
+        }
+    })
+    .catch(function(err) {
+        showError('Erreur: ' + err);
     });
 }
 

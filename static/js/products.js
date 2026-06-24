@@ -53,31 +53,51 @@ function renderProducts(filter) {
         container.innerHTML = '<div class="empty">Aucun produit</div>';
         return;
     }
-    let html = '<table class="table"><thead><tr><th></th><th>Produit</th><th>SKU</th><th>Qte</th><th>Prix</th><th>Actions</th></tr></thead><tbody>';
+    let html = '<table class="table" id="productsTable"><thead><tr>';
+    if (productsSelectionMode) {
+        html += '<th style="width:40px;"><input type="checkbox" id="selectAllProducts" onchange="toggleSelectAllProducts(this)" style="width:18px;height:18px;cursor:pointer;"></th>';
+    }
+    html += '<th></th><th>Produit</th><th>SKU</th><th>Qte</th><th>Prix</th>';
+    if (!productsSelectionMode) html += '<th>Actions</th>';
+    html += '</tr></thead><tbody>';
     for (let i = 0; i < filtered.length; i++) {
         const p = filtered[i];
         const isDeleted = p.is_deleted == 1;
         const rowClass = isDeleted ? ' style="opacity:0.5;text-decoration:line-through;"' : '';
         const statusClass = p.quantity <= p.min_quantity ? 'badge-danger' : (p.quantity <= p.min_quantity * 1.5 ? 'badge-warning' : 'badge-success');
         const imgSrc = p.image_url || '/static/img/no-image.png';
-        html += '<tr' + rowClass + '>';
-        html += '<td style="width:44px;"><img src="' + imgSrc + '" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px;" onerror="this.src=\'/static/img/no-image.png\'"></td>';
+        html += '<tr data-product-id="' + p.id + '"' + rowClass + '>';
+        if (productsSelectionMode) {
+            html += '<td style="text-align:center;"><input type="checkbox" class="product-select-checkbox" value="' + p.id + '" style="width:18px;height:18px;cursor:pointer;"></td>';
+            html += '<td style="width:44px;"></td>';
+        } else {
+            html += '<td style="width:44px;"><img src="' + imgSrc + '" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px;" onerror="this.src=\'/static/img/no-image.png\'"></td>';
+        }
         html += '<td><a href="#" onclick="openProductDetail(' + p.id + ')" class="product-link">' + p.name + (isDeleted ? ' <span class="badge badge-danger">Supprimé</span>' : '') + '</a></td>';
         html += '<td>' + (p.sku || '-') + '</td>';
         html += '<td><span class="badge ' + statusClass + '">' + p.quantity + '</span></td>';
         html += '<td>' + (p.price || 0).toFixed(2) + ' DH</td>';
-        html += '<td>';
-        if (!isDeleted) {
-            html += '<button class="btn btn-sm btn-success" onclick="openStockModal(' + p.id + ', \'in\')" title="Entree">+</button> ';
-            html += '<button class="btn btn-sm btn-warning" onclick="openStockModal(' + p.id + ', \'out\')" title="Sortie">-</button> ';
-            html += '<button class="btn btn-sm btn-outline" onclick="openProductDetail(' + p.id + ')" title="Details"><i class="fas fa-eye"></i></button> ';
-            html += '<button class="btn btn-sm btn-danger" onclick="confirmDeleteProduct(' + p.id + ', \'' + p.name.replace(/'/g, "\\'") + '\')" title="Supprimer"><i class="fas fa-trash"></i></button>';
-        } else {
-            html += '<button class="btn btn-sm btn-outline" onclick="openProductDetail(' + p.id + ')" title="Details"><i class="fas fa-eye"></i></button>';
+        if (!productsSelectionMode) {
+            html += '<td>';
+            if (!isDeleted) {
+                html += '<button class="btn btn-sm btn-success" onclick="openStockModal(' + p.id + ', \'in\')" title="Entree">+</button> ';
+                html += '<button class="btn btn-sm btn-warning" onclick="openStockModal(' + p.id + ', \'out\')" title="Sortie">-</button> ';
+                html += '<button class="btn btn-sm btn-outline" onclick="openProductDetail(' + p.id + ')" title="Details"><i class="fas fa-eye"></i></button> ';
+                html += '<button class="btn btn-sm btn-danger" onclick="confirmDeleteProduct(' + p.id + ', \'' + p.name.replace(/'/g, "\\'") + '\')" title="Supprimer"><i class="fas fa-trash"></i></button>';
+            } else {
+                html += '<button class="btn btn-sm btn-outline" onclick="openProductDetail(' + p.id + ')" title="Details"><i class="fas fa-eye"></i></button>';
+            }
+            html += '</td>';
         }
-        html += '</td></tr>';
+        html += '</tr>';
     }
     html += '</tbody></table>';
+    if (productsSelectionMode) {
+        html += '<div style="display:flex;gap:8px;justify-content:center;padding:12px 0;">';
+        html += '<button class="btn btn-danger" onclick="deleteSelectedProducts()"><i class="fas fa-trash"></i> Supprimer la sélection</button>';
+        html += '<button class="btn btn-outline" onclick="exitSelectionMode()">Annuler la sélection</button>';
+        html += '</div>';
+    }
     container.innerHTML = html;
 }
 
@@ -926,3 +946,141 @@ function editLocation(id) {
     });
     document.getElementById('locationModal').style.display = 'flex';
 }
+
+// === Products Reset (3 modes) ===
+let productsSelectionMode = false;
+
+function showResetProductsModal() {
+    if (productsSelectionMode) {
+        if (!confirm('Désactiver le mode sélection ? Les cases cochées seront conservées.')) return;
+        exitSelectionMode();
+        return;
+    }
+    openModal('resetProductsModal');
+}
+
+function toggleProductSelectionMode() {
+    closeModal('resetProductsModal');
+    productsSelectionMode = true;
+    renderProducts(document.querySelector('[data-input="filter-products"]')?.value || '');
+    showSuccess('Mode sélection : cochez les produits à supprimer, puis cliquez "Supprimer la sélection"');
+}
+
+function exitSelectionMode() {
+    productsSelectionMode = false;
+    const checkboxes = document.querySelectorAll('.product-select-checkbox');
+    checkboxes.forEach(function(cb) { cb.closest('td')?.remove(); });
+    renderProducts(document.querySelector('[data-input="filter-products"]')?.value || '');
+}
+
+function getSelectedProductIds() {
+    const ids = [];
+    document.querySelectorAll('.product-select-checkbox:checked').forEach(function(cb) {
+        ids.push(parseInt(cb.value));
+    });
+    return ids;
+}
+
+function deleteSelectedProducts() {
+    const ids = getSelectedProductIds();
+    if (ids.length === 0) {
+        showError('Aucun produit sélectionné');
+        return;
+    }
+    if (!confirm('Supprimer ' + ids.length + ' produit(s) définitivement ?')) return;
+    executeDeleteProducts(ids);
+}
+
+async function executeDeleteProducts(ids) {
+    const valid = await showPasswordPrompt('🔒 Suppression de produits', 'Mot de passe requis pour supprimer les produits');
+    if (!valid) return;
+
+    try {
+        const invoiceRes = await fetch('/api/invoices?status=all');
+        const invoices = await invoiceRes.json();
+        const orderRes = await fetch('/api/orders');
+        const orders = await orderRes.json();
+
+        const hasRefs = invoices.some(function(inv) {
+            return inv.items && inv.items.some(function(item) { return ids.includes(item.product_id); });
+        }) || orders.some(function(ord) {
+            return ord.items && ord.items.some(function(item) { return ids.includes(item.product_id); });
+        });
+
+        if (hasRefs) {
+            if (!confirm('Certains produits ont des factures ou commandes associées. Les supprimer va casser ces références. Continuer ?')) return;
+        }
+
+        const res = await fetch('/api/reset-products', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: ids })
+        });
+        const data = await res.json();
+        if (data.success) {
+            exitSelectionMode();
+            showSuccess(ids.length + ' produit(s) supprimé(s)');
+        } else {
+            showError(data.error || 'Erreur');
+        }
+    } catch (err) {
+        showError('Erreur: ' + err.message);
+    }
+}
+
+async function resetProductQty() {
+    const valid = await showPasswordPrompt('🔒 Réinitialisation des quantités', 'Mot de passe requis pour remettre les quantités à 0');
+    if (!valid) return;
+    closeModal('resetProductsModal');
+
+    try {
+        const res = await fetch('/api/reset-products-qty', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showSuccess('Quantités réinitialisées à 0');
+            loadProducts();
+        } else {
+            showError(data.error || 'Erreur');
+        }
+    } catch (err) {
+        showError('Erreur: ' + err.message);
+    }
+}
+
+async function deleteAllProducts() {
+    closeModal('resetProductsModal');
+    const invoiceRes = await fetch('/api/invoices?status=all');
+    const invoices = await invoiceRes.json();
+    const orderRes = await fetch('/api/orders');
+    const orders = await orderRes.json();
+
+    const hasRefs = invoices.length > 0 || orders.length > 0;
+    if (hasRefs) {
+        if (!confirm('Des factures et/ou commandes existent dans la base. Supprimer tous les produits va casser leurs références. Continuer ?')) return;
+    } else {
+        if (!confirm('⚠️ Supprimer TOUS les produits définitivement ? Cette action est irréversible.')) return;
+    }
+
+    const valid = await showPasswordPrompt('🔒 Suppression de tous les produits', 'Mot de passe requis pour supprimer tous les produits');
+    if (!valid) return;
+
+    try {
+        const res = await fetch('/api/reset-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const data = await res.json();
+        if (data.success) {
+            showSuccess('Tous les produits ont été supprimés');
+            loadProducts();
+        } else {
+            showError(data.error || 'Erreur');
+        }
+    } catch (err) {
+        showError('Erreur: ' + err.message);
+    }
+}
+
+function toggleSelectAllProducts(source) {
+    document.querySelectorAll('.product-select-checkbox').forEach(function(cb) {
+        cb.checked = source.checked;
+    });
+}
+

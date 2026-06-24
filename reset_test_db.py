@@ -12,23 +12,28 @@ import os
 
 DB_NAME = 'stock.db'
 
-def reset_transactional_data(conn):
-    """Vider TOUTES les données, ne garder que les catégories + structure minimale"""
+def reset_transactional_data(conn, keep_products=False):
+    """Vider les données transactionnelles, optionnellement garder les produits"""
     conn.execute("PRAGMA foreign_keys = OFF")
 
-    tables = [
+    tables_to_delete = [
         'invoice_items', 'invoices',
         'pos_transaction_items', 'pos_transactions', 'pos_cash_movements', 'pos_sessions',
         'purchase_order_items', 'purchase_orders',
         'stock_movements', 'stock',
         'main_account_transactions',
         'notifications', 'reordering_rules',
-        'products',
         'customers', 'suppliers',
         'locations', 'warehouses',
     ]
-    for table in tables:
+    if not keep_products:
+        tables_to_delete.append('products')
+
+    for table in tables_to_delete:
         conn.execute(f"DELETE FROM {table}")
+
+    if keep_products:
+        conn.execute("UPDATE products SET quantity = 0")
 
     conn.execute("DELETE FROM sequences")
     conn.execute("DELETE FROM sqlite_sequence")
@@ -46,6 +51,25 @@ def reset_transactional_data(conn):
     conn.execute("UPDATE pos_registers SET is_active = 1 WHERE name IN ('Caisse 1', 'Caisse 2')")
 
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.commit()
+
+
+def reset_products_data(conn):
+    """Supprime tous les produits et leur stock associé"""
+    conn.execute("PRAGMA foreign_keys = OFF")
+    for table in ['reordering_rules', 'stock_movements', 'stock', 'products']:
+        conn.execute(f"DELETE FROM {table}")
+    conn.execute("DELETE FROM sequences WHERE name = 'products'")
+    conn.execute("DELETE FROM sqlite_sequence WHERE name = 'products'")
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.commit()
+
+
+def reset_products_qty(conn):
+    """Remet les quantités de tous les produits à zéro"""
+    conn.execute("DELETE FROM stock_movements")
+    conn.execute("DELETE FROM stock")
+    conn.execute("UPDATE products SET quantity = 0")
     conn.commit()
 
 def main():

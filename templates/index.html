@@ -460,6 +460,9 @@
                                 <button class="btn btn-primary" data-click="open-product-modal">
                                     <i class="fas fa-plus"></i> <span data-i18n="products.new">Nouveau</span>
                                 </button>
+                                <button class="btn btn-sm btn-outline" onclick="showResetProductsModal()" style="color:var(--danger);border-color:var(--danger);">
+                                    <i class="fas fa-trash-alt"></i> Réinitialiser
+                                </button>
                             </div>
                         </div>
                         <input type="text" class="form-input" data-i18n="common.search" placeholder="Rechercher..." style="margin-bottom:1rem;max-width:300px;" data-input="filter-products">
@@ -1156,6 +1159,14 @@
                             <span id="printerStatusBadge" class="badge" style="display:none;"></span>
                         </div>
                         <div class="card-body" id="printerSettingsBody">
+                            <div class="empty"><i class="fas fa-spinner fa-spin"></i><p>Chargement...</p></div>
+                        </div>
+                    </div>
+                    <div class="card" id="securityCard">
+                        <div class="card-header">
+                            <div class="card-title"><i class="fas fa-shield-alt"></i> Sécurité — Mot de passe de réinitialisation</div>
+                        </div>
+                        <div class="card-body" id="securitySettingsBody">
                             <div class="empty"><i class="fas fa-spinner fa-spin"></i><p>Chargement...</p></div>
                         </div>
                     </div>
@@ -1950,6 +1961,85 @@
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeModal('editCategoryModal')">Annuler</button>
             <button class="btn btn-primary" onclick="saveCategory()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Password Prompt Modal -->
+<div class="modal" id="passwordPromptModal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <div class="modal-title" id="passwordPromptTitle">🔒 Mot de passe requis</div>
+            <button class="modal-close" onclick="closeModal('passwordPromptModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label id="passwordPromptLabel">Entrez le mot de passe de réinitialisation</label>
+                <input type="password" id="passwordPromptInput" class="form-input" onkeydown="if(event.key==='Enter') submitPasswordPrompt()">
+            </div>
+            <div id="passwordPromptError" class="alert alert-error" style="display:none;"></div>
+            <div style="margin-top:8px;">
+                <a href="#" onclick="showForgotPasswordHelp();return false;" style="font-size:0.85rem;color:var(--text-light);">Mot de passe oublié ?</a>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('passwordPromptModal')">Annuler</button>
+            <button class="btn btn-primary" id="passwordPromptSubmit" onclick="submitPasswordPrompt()">Valider</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Confirm Modal -->
+<div class="modal" id="resetConfirmModal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <div class="modal-title">⚠️ Confirmer la réinitialisation</div>
+            <button class="modal-close" onclick="closeModal('resetConfirmModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="alert alert-warning">
+                <strong>⚠️ Cette action est irréversible.</strong>
+                Toutes les données transactionnelles seront effacées : factures, achats, clients, fournisseurs, mouvements de stock.
+            </div>
+            <p>Les <strong>produits et catégories</strong> seront conservés.</p>
+            <label class="checkbox-label" style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+                <input type="checkbox" id="backupBeforeReset" checked>
+                <span>Sauvegarder ce magasin avant réinitialisation</span>
+            </label>
+            <div id="resetConfirmError" class="alert alert-error" style="display:none;margin-top:8px;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('resetConfirmModal')">Annuler</button>
+            <button class="btn btn-danger" id="resetConfirmSubmit" onclick="executeReset()" disabled>
+                <i class="fas fa-undo"></i> Réinitialiser
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Products Modal (3 modes) -->
+<div class="modal" id="resetProductsModal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <div class="modal-title">🗑️ Réinitialiser les produits</div>
+            <button class="modal-close" onclick="closeModal('resetProductsModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align:center;">
+            <button class="btn btn-block btn-warning" onclick="resetProductQty()" style="width:100%;margin-bottom:4px;">
+                🔄 Réinitialiser les quantités à 0
+            </button>
+            <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Stock et mouvements vidés, produits conservés</p>
+            <button class="btn btn-block btn-danger" onclick="deleteAllProducts()" style="width:100%;margin-bottom:4px;">
+                🗑️ Supprimer tous les produits
+            </button>
+            <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Supprime définitivement tout le catalogue produit</p>
+            <button class="btn btn-block btn-outline" onclick="toggleProductSelectionMode()" style="width:100%;margin-bottom:4px;">
+                ☑️ Supprimer par sélection
+            </button>
+            <p style="font-size:12px;color:var(--text-light);">Cochez les produits à supprimer dans le tableau</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('resetProductsModal')">Fermer</button>
         </div>
     </div>
 </div>
