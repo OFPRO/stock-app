@@ -513,14 +513,4 @@ async function submitPasswordPrompt() {
     }
 }
 
-function showForgotPasswordHelp() {
-    closeModal('passwordPromptModal');
-    const msg = 'Mot de passe oublié ?\n\n' +
-        'Pour réinitialiser le mot de passe :\n' +
-        '1. Ouvrez un terminal dans le dossier de l\'application\n' +
-        '2. Exécutez : python -c "import sqlite3; c=sqlite3.connect(\'stock.db\'); c.execute(\"DELETE FROM settings WHERE key=\'reset_password\'\"); c.commit(); c.close()"\n' +
-        '3. Redémarrez l\'application\n' +
-        '4. Le mot de passe par défaut "admin" sera rétabli\n\n' +
-        'Ou supprimez la ligne reset_password dans la table settings manuellement.';
-    alert(msg);
-}
+

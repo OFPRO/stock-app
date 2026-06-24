@@ -405,7 +405,6 @@ function loadSecuritySettings() {
                 html += '  <input type="password" id="newResetPassword" class="form-input" placeholder="Minimum 4 caractères" style="max-width:250px;">';
                 html += '</div>';
                 html += '<button class="btn btn-primary" onclick="saveResetPassword()"><i class="fas fa-save"></i> Changer le mot de passe</button>';
-                html += '<button class="btn btn-sm btn-outline" onclick="showForgotPasswordHelp()" style="margin-left:8px;color:var(--text-light);"><i class="fas fa-question-circle"></i> Mot de passe oublié ?</button>';
             }
             html += '<div id="securitySettingsMsg" style="margin-top:8px;"></div>';
             document.getElementById('securitySettingsBody').innerHTML = html;
