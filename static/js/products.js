@@ -549,15 +549,31 @@ function openLocationModal() {
 
 function openProductModal() {
     document.getElementById('productId').value = '';
-    document.getElementById('productForm').reset();
+    resetProductForm();
     document.getElementById('productModalTitle').textContent = 'Nouveau Produit';
-    document.getElementById('productImagePreview').src = '/static/img/no-image.png';
-    document.getElementById('productImageClearBtn').style.display = 'none';
     openModal('barcodeScannerModal');
     stopAddProductScanner();
     document.getElementById('addProductScannerStatus').textContent = 'Cliquez sur "Activer le scan" pour utiliser la caméra';
     var btn = document.getElementById('toggleAddProductScannerBtn');
     if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Activer le scan';
+}
+
+function resetProductForm() {
+    document.getElementById('productId').value = '';
+    document.getElementById('productName').value = '';
+    document.getElementById('productDescription').value = '';
+    document.getElementById('productSku').value = '';
+    document.getElementById('productBarcode').value = '';
+    document.getElementById('productPurchasePrice').value = '';
+    document.getElementById('productPrice').value = '';
+    document.getElementById('productLoyalPrice').value = '';
+    document.getElementById('productGrosPrice').value = '';
+    document.getElementById('productQuantity').value = 0;
+    document.getElementById('productCategory').value = '';
+    document.getElementById('productMinQty').value = 5;
+    document.getElementById('productMaxQty').value = 100;
+    document.getElementById('productImagePreview').src = '/static/img/no-image.png';
+    document.getElementById('productImageClearBtn').style.display = 'none';
 }
 
 function clearProductImage() {
@@ -866,8 +882,18 @@ async function saveProduct(e) {
         const result = await res.json();
         if (result.success) {
             closeModal('productModal');
-            loadProducts();
-            showSuccess(id ? 'Produit modifié avec succès' : 'Produit créé avec succès');
+            if (id) {
+                loadProducts();
+                showSuccess('Produit modifié avec succès');
+            } else {
+                resetProductForm();
+                openModal('barcodeScannerModal');
+                document.getElementById('addProductScannerStatus').textContent =
+                    'Produit créé. Scannez le prochain code-barres.';
+                var btn = document.getElementById('toggleAddProductScannerBtn');
+                if (btn) btn.innerHTML = '<i class="fas fa-camera"></i> Activer le scan';
+                showSuccess('Produit créé avec succès');
+            }
         } else {
             showError(result.error || 'Erreur lors de l\'enregistrement');
         }
