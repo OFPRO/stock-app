@@ -14,7 +14,7 @@ from io import StringIO
 from datetime import datetime, timedelta, timezone
 from flask import Flask, redirect, render_template, request, jsonify, Response, send_from_directory, session
 from license_manager import get_mac_address, get_cached_payload, sign_license, validate_license, load_license, save_license
-from routes.db import get_db, get_catalog_db, get_db_ctx, get_catalog_db_ctx, get_price_by_tier, DB_NAME, _safe_int, validate_id, categories_data, resolve_db_path
+from routes.db import get_db, get_catalog_db, get_db_ctx, get_catalog_db_ctx, get_price_by_tier, DB_NAME, CATALOG_DB, _safe_int, validate_id, categories_data, resolve_db_path
 try:
     from reset_test_db import reset_transactional_data, reset_products_data, reset_products_qty
     _HAS_RESET = True
@@ -116,7 +116,7 @@ def next_sequence(conn, name):
     return result
 
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(CATALOG_DB)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -3247,8 +3247,13 @@ if __name__ == '__main__':
 
     if args.data_dir:
         os.makedirs(args.data_dir, exist_ok=True)
+        from routes import db as _routes_db
         db_path = os.path.join(args.data_dir, 'stock.db')
         os.environ['STOCKPRO_DB_PATH'] = db_path
+        os.environ['STOCKPRO_DATA_DIR'] = args.data_dir
+        _routes_db.STOCKPRO_DATA_DIR = args.data_dir
+        _routes_db.DB_NAME = db_path
+        _routes_db.CATALOG_DB = os.path.abspath(db_path)
 
     init_db()
 

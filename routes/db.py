@@ -1,11 +1,20 @@
 from contextlib import contextmanager
 import os
+import sys
+import platform
 import sqlite3
 import flask
 
-DB_NAME = os.environ.get('STOCKPRO_DB_PATH', 'stock.db')
+def _get_default_data_dir():
+    if getattr(sys, 'frozen', False) and platform.system() == 'Windows':
+        appdata = os.environ.get('APPDATA')
+        if appdata:
+            return os.path.join(appdata, 'StockPro')
+    return os.getcwd()
 
-STOCKPRO_DATA_DIR = os.environ.get('STOCKPRO_DATA_DIR', os.getcwd())
+DB_NAME = os.environ.get('STOCKPRO_DB_PATH', 'stock.db')
+STOCKPRO_DATA_DIR = os.environ.get('STOCKPRO_DATA_DIR', _get_default_data_dir())
+os.makedirs(STOCKPRO_DATA_DIR, exist_ok=True)
 CATALOG_DB = DB_NAME if os.path.isabs(DB_NAME) else os.path.join(STOCKPRO_DATA_DIR, DB_NAME)
 CATALOG_DB = os.path.abspath(CATALOG_DB)
 
