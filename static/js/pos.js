@@ -152,23 +152,45 @@ function resetPosSession() {
     document.getElementById('posTransactionsList').innerHTML = '<p class="text-muted text-center">Aucune transaction</p>';
 }
 
+function showOpenSessionModal() {
+    document.getElementById('posCashierName').value = '';
+    document.getElementById('posOpeningCash').value = '0';
+    document.getElementById('passwordPromptError').style.display = 'none';
+    openModal('openSessionModal');
+    setTimeout(function() {
+        document.getElementById('posCashierName').focus();
+    }, 100);
+}
+
 async function openPosSession() {
-    var btn = document.getElementById('btnOpenSession');
+    var btn = document.getElementById('btnConfirmOpenSession');
     btnLoading(btn, true);
     try {
         var cashierName = document.getElementById('posCashierName').value.trim();
+        var openingCash = parseFloat(document.getElementById('posOpeningCash').value) || 0;
+        if (!cashierName) {
+            posShowError('Veuillez saisir le nom du caissier');
+            btnLoading(btn, false);
+            return;
+        }
+        if (openingCash < 0) {
+            posShowError('Le montant initial ne peut pas être négatif');
+            btnLoading(btn, false);
+            return;
+        }
         var res = await fetchWithTimeout('/api/pos/sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 warehouse_id: 1,
-                opening_cash: 0,
+                opening_cash: openingCash,
                 register_id: posRegisterId,
                 cashier_name: cashierName
             })
         });
         var data = await res.json();
         if (data.success) {
+            closeModal('openSessionModal');
             showTab('pos');
             loadPosSession(posRegisterId);
             posNotify('Caisse ouverte: ' + data.session_number, 'success');
@@ -229,20 +251,66 @@ function checkCartConflict(data) {
     }
 }
 
+async function showCloseSessionModal() {
+    if (!posSession) return;
+    var btn = document.getElementById('btnCloseSession');
+    btnLoading(btn, true);
+    try {
+        var res = await fetchWithTimeout('/api/pos/cash-movements?session_id=' + posSession.id);
+        var movements = await res.json();
+        var opening = posSession.opening_cash || 0;
+        var totalIn = 0;
+        var totalOut = 0;
+        movements.forEach(function(m) {
+            if (m.type === 'in') totalIn += m.amount;
+            else if (m.reason !== 'change') totalOut += m.amount;
+        });
+        var expected = opening + totalIn - totalOut;
+        document.getElementById('closeOpeningCash').textContent = opening.toFixed(2) + ' DH';
+        document.getElementById('closeCashIn').textContent = totalIn.toFixed(2) + ' DH';
+        document.getElementById('closeCashOut').textContent = totalOut.toFixed(2) + ' DH';
+        document.getElementById('closeExpectedCash').textContent = expected.toFixed(2) + ' DH';
+        document.getElementById('posClosingCash').value = expected > 0 ? expected.toFixed(2) : '0';
+        document.getElementById('closeCashGap').style.display = 'none';
+        document.getElementById('posDepositToMain').checked = true;
+        openModal('closeSessionModal');
+    } catch(e) {
+        posShowError('Erreur chargement mouvements');
+    } finally {
+        btnLoading(btn, false);
+    }
+}
+
+function updateCloseCashGap() {
+    var expected = parseFloat(document.getElementById('closeExpectedCash').textContent) || 0;
+    var actual = parseFloat(document.getElementById('posClosingCash').value) || 0;
+    var gap = actual - expected;
+    var el = document.getElementById('closeCashGap');
+    if (Math.abs(gap) > 0.01) {
+        el.style.display = 'block';
+        el.style.background = gap < 0 ? 'rgba(231,76,60,0.15)' : 'rgba(46,204,113,0.15)';
+        el.style.color = gap < 0 ? '#e74c3c' : '#27ae60';
+        el.textContent = (gap < 0 ? 'Manque: ' : 'Excédent: ') + Math.abs(gap).toFixed(2) + ' DH';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
 async function closePosSession() {
     if (!posSession) return;
-    var closingCash = prompt('Montant en caisse:', posSession.opening_cash ? String(posSession.opening_cash) : '0');
-    if (closingCash === null) return;
-    var btn = document.getElementById('btnCloseSession');
+    var closingCash = parseFloat(document.getElementById('posClosingCash').value) || 0;
+    var depositToMain = document.getElementById('posDepositToMain').checked;
+    var btn = document.getElementById('btnConfirmCloseSession');
     btnLoading(btn, true);
     try {
         var res = await fetchWithTimeout('/api/pos/sessions/' + posSession.id + '/close', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ closing_cash: parseFloat(closingCash) || 0 })
+            body: JSON.stringify({ closing_cash: closingCash, deposit_to_main: depositToMain })
         });
         var data = await res.json();
         if (data.success) {
+            closeModal('closeSessionModal');
             stopSSE();
             resetPosSession();
             clearPosCart();

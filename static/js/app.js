@@ -350,8 +350,8 @@ document.addEventListener('click', e => {
         case 'add-scanned-to-cart': handleAddScannedToCart(e); break;
         case 'rescan-from-history': handleRescanFromHistory(e); break;
         case 'search-barcode': searchByBarcode(); break;
-        case 'open-pos-session': openPosSession(); break;
-        case 'close-pos-session': closePosSession(); break;
+        case 'open-pos-session': showOpenSessionModal(); break;
+        case 'close-pos-session': showCloseSessionModal(); break;
         case 'add-pos-from-search': addPosProductFromSearch(); break;
         case 'toggle-pos-scanner': togglePosScanner(); break;
         case 'clear-pos-cart': clearPosCart(); break;

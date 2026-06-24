@@ -854,7 +854,6 @@
                             <div class="pos-session-bar">
                                 <div class="pos-session-info">
                                     <select id="posRegisterSelect" class="form-select" style="width:auto;display:inline-block;margin-right:0.5rem;" onchange="onRegisterChange()"></select>
-                                    <input type="text" id="posCashierName" placeholder="Caissier" style="width:120px;padding:4px;border:1px solid var(--border);border-radius:4px;margin-right:0.5rem;">
                                     <span id="posCurrentRegister" style="display:none;"></span>
                                     <span id="posSessionNumber">Session: ---</span>
                                     <span id="posSessionStatus" class="badge badge-warning">Fermee</span>
@@ -1918,6 +1917,63 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeModal('sessionDetailModal')">Fermer</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="openSessionModal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-play"></i> Ouvrir une session</div>
+            <button class="modal-close" onclick="closeModal('openSessionModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Caissier</label>
+                <input type="text" id="posCashierName" class="form-input" placeholder="Nom du caissier">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Montant initial en caisse (DH)</label>
+                <input type="number" id="posOpeningCash" class="form-input" value="0" step="0.01" min="0" placeholder="0.00">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('openSessionModal')">Annuler</button>
+            <button class="btn btn-primary" id="btnConfirmOpenSession" onclick="openPosSession()"><i class="fas fa-play"></i> Ouvrir la caisse</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="closeSessionModal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <div class="modal-title"><i class="fas fa-stop"></i> Fermer la session</div>
+            <button class="modal-close" onclick="closeModal('closeSessionModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="closeSessionSummary">
+                <div class="report-kpi-grid" style="grid-template-columns:1fr 1fr;margin-bottom:1rem;">
+                    <div class="kpi-card"><div class="kpi-value" id="closeOpeningCash">0.00</div><div class="kpi-label">Ouverture</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="closeCashIn">0.00</div><div class="kpi-label">Entrées</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="closeCashOut">0.00</div><div class="kpi-label">Sorties</div></div>
+                    <div class="kpi-card"><div class="kpi-value" id="closeExpectedCash">0.00</div><div class="kpi-label">Solde attendu</div></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Montant réel en caisse (DH) <span style="color:var(--danger);">*</span></label>
+                    <input type="number" id="posClosingCash" class="form-input" step="0.01" min="0" placeholder="0.00" oninput="updateCloseCashGap()">
+                </div>
+                <div id="closeCashGap" style="display:none;margin-bottom:0.75rem;padding:0.5rem;border-radius:4px;font-weight:600;text-align:center;"></div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="posDepositToMain" checked>
+                        <span>Verser le solde dans le compte principal</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('closeSessionModal')">Annuler</button>
+            <button class="btn btn-danger" id="btnConfirmCloseSession" onclick="closePosSession()"><i class="fas fa-stop"></i> Fermer la caisse</button>
         </div>
     </div>
 </div>

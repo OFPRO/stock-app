@@ -619,6 +619,15 @@ def init_db():
     except Exception:
         pass
 
+    try:
+        c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_sessions_open ON pos_sessions(register_id) WHERE status = 'open'")
+    except Exception:
+        pass
+    try:
+        c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_sessions_open_global ON pos_sessions(status) WHERE status = 'open' AND register_id IS NULL")
+    except Exception:
+        pass
+
     c.execute("UPDATE pos_registers SET is_active = 0 WHERE name NOT IN ('Caisse 1', 'Caisse 2')")
     c.execute("INSERT OR IGNORE INTO pos_registers (name, code) VALUES ('Caisse 1', 'CAISSE-01')")
     c.execute("INSERT OR IGNORE INTO pos_registers (name, code) VALUES ('Caisse 2', 'CAISSE-02')")
@@ -2199,108 +2208,124 @@ def open_pos_session():
     """Open a new POS session for a specific register"""
     data = request.json or {}
     warehouse_id = data.get('warehouse_id', 1)
-    opening_cash = data.get('opening_cash', 0)
+    try:
+        opening_cash = max(0, float(str(data.get('opening_cash', 0) or 0)))
+    except (ValueError, TypeError):
+        opening_cash = 0
     register_id = data.get('register_id')
     cashier_name = data.get('cashier_name', '')
     
     conn = get_db()
-    
-    if register_id:
-        reg = conn.execute('SELECT * FROM pos_registers WHERE id = ? AND is_active = 1', (register_id,)).fetchone()
-        if not reg:
-            conn.close()
-            return jsonify({'error': 'Caisse invalide ou désactivée'}), 400
-        existing = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open' AND register_id = ?", (register_id,)).fetchone()
-        if existing:
-            conn.close()
-            return jsonify({'error': 'Cette caisse a déjà une session ouverte'}), 400
-    else:
-        existing = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open'").fetchone()
-        if existing:
-            conn.close()
-            return jsonify({'error': 'Une session est déjà ouverte'}), 400
-    
-    today = datetime.now().strftime('%Y%m%d')
-    last_session = conn.execute('''
-        SELECT session_number FROM pos_sessions 
-        WHERE session_number LIKE ? 
-        ORDER BY id DESC LIMIT 1
-    ''', (f'SES-{today}-%',)).fetchone()
-    
-    if last_session:
-        seq = int(last_session[0].split('-')[-1]) + 1
-    else:
-        seq = 1
-    session_number = f'SES-{today}-{seq:04d}'
-    
-    conn.execute('''
-        INSERT INTO pos_sessions (session_number, warehouse_id, opening_cash, status, register_id, cashier_name)
-        VALUES (?, ?, ?, 'open', ?, ?)
-    ''', (session_number, warehouse_id, opening_cash, register_id, cashier_name))
-    conn.commit()
-    
-    session_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-    session = conn.execute('SELECT * FROM pos_sessions WHERE id = ?', (session_id,)).fetchone()
-    
-    conn.close()
-    return jsonify({
-        'success': True,
-        'session': dict(session),
-        'session_number': session_number
-    })
+    try:
+        if register_id:
+            reg = conn.execute('SELECT * FROM pos_registers WHERE id = ? AND is_active = 1', (register_id,)).fetchone()
+            if not reg:
+                return jsonify({'error': 'Caisse invalide ou désactivée'}), 400
+        else:
+            existing = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open'").fetchone()
+            if existing:
+                return jsonify({'error': 'Une session est déjà ouverte'}), 400
+        
+        today = datetime.now().strftime('%Y%m%d')
+        last_session = conn.execute('''
+            SELECT session_number FROM pos_sessions 
+            WHERE session_number LIKE ? 
+            ORDER BY id DESC LIMIT 1
+        ''', (f'SES-{today}-%',)).fetchone()
+        
+        if last_session:
+            seq = int(last_session[0].split('-')[-1]) + 1
+        else:
+            seq = 1
+        session_number = f'SES-{today}-{seq:04d}'
+        
+        conn.execute('''
+            INSERT INTO pos_sessions (session_number, warehouse_id, opening_cash, status, register_id, cashier_name)
+            VALUES (?, ?, ?, 'open', ?, ?)
+        ''', (session_number, warehouse_id, opening_cash, register_id, cashier_name))
+        
+        # Debit opening_cash from main account
+        if opening_cash > 0:
+            conn.execute('UPDATE main_account SET current_balance = current_balance - ? WHERE id = 1', (opening_cash,))
+            conn.execute('''
+                INSERT INTO main_account_transactions (type, amount, reason, note)
+                VALUES ('out', ?, 'session_open', ?)
+            ''', (opening_cash, f'Ouverture caisse: {session_number}'))
+        
+        conn.commit()
+        
+        session_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        session = conn.execute('SELECT * FROM pos_sessions WHERE id = ?', (session_id,)).fetchone()
+        
+        return jsonify({
+            'success': True,
+            'session': dict(session),
+            'session_number': session_number
+        })
+    except sqlite3.Error as e:
+        conn.rollback()
+        return jsonify({'error': f'Erreur base de données: {str(e)}'}), 500
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': f'Erreur inattendue: {str(e)}'}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/pos/sessions/<int:session_id>/close', methods=['POST'])
 def close_pos_session(session_id):
     """Close POS session and deposit to main account"""
     data = request.json or {}
-    closing_cash = data.get('closing_cash', 0)
+    try:
+        closing_cash = max(0, float(str(data.get('closing_cash', 0) or 0)))
+    except (ValueError, TypeError):
+        closing_cash = 0
     deposit_to_main = data.get('deposit_to_main', True)
     
     conn = get_db()
-    conn.execute('SAVEPOINT close_session')
-    
-    session = conn.execute('SELECT * FROM pos_sessions WHERE id = ?', (session_id,)).fetchone()
-    if not session:
-        conn.execute('ROLLBACK TO close_session')
-        conn.close()
-        return jsonify({'error': 'Session non trouvée'}), 404
-    
-    if session['status'] != 'open':
-        conn.execute('ROLLBACK TO close_session')
-        conn.close()
-        return jsonify({'error': 'Session déjà fermé'}), 400
-    
-    total_in = conn.execute('''
-        SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements 
-        WHERE session_id = ? AND type = 'in'
-    ''', (session_id,)).fetchone()[0]
-    
-    total_out = conn.execute('''
-        SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements 
-        WHERE session_id = ? AND type = 'out'
-    ''', (session_id,)).fetchone()[0]
-    
-    expected_cash = session['opening_cash'] + total_in - total_out
-    
-    conn.execute('''
-        UPDATE pos_sessions 
-        SET status = 'closed', closing_cash = ?, expected_cash = ?, closed_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    ''', (closing_cash, expected_cash, session_id))
-    
-    # Deposit closing cash to main account
-    if deposit_to_main and expected_cash > 0:
-        conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (expected_cash,))
+    try:
+        session = conn.execute('SELECT * FROM pos_sessions WHERE id = ?', (session_id,)).fetchone()
+        if not session:
+            return jsonify({'error': 'Session non trouvée'}), 404
+        
+        if session['status'] != 'open':
+            return jsonify({'error': 'Session déjà fermée'}), 400
+        
+        total_in = conn.execute('''
+            SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements 
+            WHERE session_id = ? AND type = 'in'
+        ''', (session_id,)).fetchone()[0]
+        
+        total_out = conn.execute('''
+            SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements 
+            WHERE session_id = ? AND type = 'out'
+        ''', (session_id,)).fetchone()[0]
+        
+        expected_cash = session['opening_cash'] + total_in - total_out
+        
         conn.execute('''
-            INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
-            VALUES ('in', ?, 'session_close', ?, ?)
-        ''', (expected_cash, session_id, 'Session: ' + session['session_number']))
-    
-    conn.execute('RELEASE close_session')
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'success': True, 'expected_cash': expected_cash, 'deposited': deposit_to_main and expected_cash > 0})
+            UPDATE pos_sessions 
+            SET status = 'closed', closing_cash = ?, expected_cash = ?, closed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (closing_cash, expected_cash, session_id))
+        
+        net_to_deposit = expected_cash - session['opening_cash']
+        if deposit_to_main and net_to_deposit > 0:
+            conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (net_to_deposit,))
+            conn.execute('''
+                INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
+                VALUES ('in', ?, 'session_close', ?, ?)
+            ''', (net_to_deposit, session_id, 'Session: ' + session['session_number']))
+        
+        conn.commit()
+        return jsonify({'success': True, 'expected_cash': expected_cash, 'deposited': deposit_to_main and net_to_deposit > 0})
+    except sqlite3.Error as e:
+        conn.rollback()
+        return jsonify({'error': f'Erreur base de données: {str(e)}'}), 500
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': f'Erreur inattendue: {str(e)}'}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/pos/transactions', methods=['POST'])
 def create_pos_transaction():
@@ -2320,48 +2345,47 @@ def create_pos_transaction():
         return jsonify({'error': 'Données invalides'}), 400
     
     conn = get_db()
-    
-    # Verify session is open
-    session = conn.execute('''
-        SELECT s.*, r.name as register_name
-        FROM pos_sessions s
-        LEFT JOIN pos_registers r ON s.register_id = r.id
-        WHERE s.id = ?
-    ''', (session_id,)).fetchone()
-    if not session or session['status'] != 'open':
-        conn.close()
-        return jsonify({'error': 'Session fermée ou inexistante'}), 400
-    
-    # Determine transaction type based on customer
-    today = datetime.now().strftime('%Y%m%d')
-    is_client_comptoir = customer_id is None or customer_id == '' or customer_id == 'null'
-    
-    if is_client_comptoir:
-        seq = next_sequence(conn, 'ticket_counter')
-        doc_number = f'Ticket-{today}-{seq:04d}'
-        doc_type = 'ticket'
-    else:
-        seq = next_sequence(conn, 'fac_counter')
-        doc_number = f'FAC-{today}-{seq:04d}'
-        doc_type = 'facture'
-    
-    # Load customer for invoice
-    customer_row = None
-    if customer_id and not is_client_comptoir:
-        cid = _safe_int(customer_id, None)
-        if cid:
-            customer_row = conn.execute('SELECT * FROM customers WHERE id = ?', (cid,)).fetchone()
-    
-    # Calculate totals
-    subtotal = 0
-    tax = 0
-    discount = 0
-    for item in items:
-        product = conn.execute('SELECT * FROM products WHERE id = ?', (item['product_id'],)).fetchone()
-        if product:
-            item['unit_price'] = get_price_by_tier(dict(product), pricing_tier)
-        unit_price = item.get('unit_price', 0) or 0
-        item['unit_price'] = unit_price
+    try:
+        # Verify session is open
+        session = conn.execute('''
+            SELECT s.*, r.name as register_name
+            FROM pos_sessions s
+            LEFT JOIN pos_registers r ON s.register_id = r.id
+            WHERE s.id = ?
+        ''', (session_id,)).fetchone()
+        if not session or session['status'] != 'open':
+            return jsonify({'error': 'Session fermée ou inexistante'}), 400
+        
+        # Determine transaction type based on customer
+        today = datetime.now().strftime('%Y%m%d')
+        is_client_comptoir = customer_id is None or customer_id == '' or customer_id == 'null'
+        
+        if is_client_comptoir:
+            seq = next_sequence(conn, 'ticket_counter')
+            doc_number = f'Ticket-{today}-{seq:04d}'
+            doc_type = 'ticket'
+        else:
+            seq = next_sequence(conn, 'fac_counter')
+            doc_number = f'FAC-{today}-{seq:04d}'
+            doc_type = 'facture'
+        
+        # Load customer for invoice
+        customer_row = None
+        if customer_id and not is_client_comptoir:
+            cid = _safe_int(customer_id, None)
+            if cid:
+                customer_row = conn.execute('SELECT * FROM customers WHERE id = ?', (cid,)).fetchone()
+        
+        # Calculate totals
+        subtotal = 0
+        tax = 0
+        discount = 0
+        for item in items:
+            product = conn.execute('SELECT * FROM products WHERE id = ?', (item['product_id'],)).fetchone()
+            if product:
+                item['unit_price'] = get_price_by_tier(dict(product), pricing_tier)
+            unit_price = item.get('unit_price', 0) or 0
+            item['unit_price'] = unit_price
         line_ht = item['quantity'] * unit_price
         line_tax = line_ht * 0.20
         subtotal += line_ht
@@ -2369,187 +2393,194 @@ def create_pos_transaction():
             tax += line_tax
         discount += line_ht * (item.get('discount_percent', 0) / 100)
     
-    total = subtotal + (tax if apply_tax else 0) - discount
-    change_amount = max(0, tendered_amount - total) if payment_method == 'cash' else 0
+        total = subtotal + (tax if apply_tax else 0) - discount
+        change_amount = max(0, tendered_amount - total) if payment_method == 'cash' else 0
     
-    # Determine amount actually paid (credit logic)
-    if is_credit:
-        tendered = float(tendered_amount or 0)
-        if tendered <= 0:
-            amount_paid = 0
-        elif tendered >= total:
-            amount_paid = total
+        # Determine amount actually paid (credit logic)
+        if is_credit:
+            tendered = float(tendered_amount or 0)
+            if tendered <= 0:
+                amount_paid = 0
+            elif tendered >= total:
+                amount_paid = total
+            else:
+                amount_paid = tendered
         else:
-            amount_paid = tendered
-    else:
-        amount_paid = total
+            amount_paid = total
     
-    # Insert transaction
-    conn.execute('''
-        INSERT INTO pos_transactions (
-            ticket_number, transaction_number, session_id, customer_id, payment_method,
-            subtotal, discount_total, tax_amount, total,
-            tendered_amount, change_given, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
-    ''', (doc_number, doc_number, session_id, customer_id, payment_method,
-          subtotal, discount, tax, total, tendered_amount, change_amount))
-    trans_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-    
-    # Insert items and decrement stock
-    for item in items:
-        product_id = item.get('product_id') or item.get('id')
-        qty = item.get('quantity', 1)
-        unit_price = item.get('unit_price', 0) or 0
-        discount_pct = item.get('discount_percent', 0) or 0
-        line_ht = qty * unit_price * (1 - discount_pct / 100)
-        tax_mult = 1.20 if data.get('apply_tax', True) else 1.0
-        line_total = line_ht * tax_mult
-        
-        prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (product_id,)).fetchone()
-        product_name = prod['name'] if prod else item.get('product_name', '')
-        product_sku = prod['sku'] if prod else item.get('product_sku', '')
-        
+        # Insert transaction
         conn.execute('''
-            INSERT INTO pos_transaction_items (
-                transaction_id, product_id, product_name, product_sku,
-                quantity, unit_price, discount_percent, tax_rate, line_total
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (trans_id, product_id, product_name, product_sku,
-              qty, unit_price, discount_pct, 20 if apply_tax else 0, line_total))
-        
-        cur = conn.execute('''
-            UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?
-        ''', (qty, product_id, qty))
-        if cur.rowcount == 0:
-            current = conn.execute('SELECT quantity FROM products WHERE id = ?', (product_id,)).fetchone()
-            stock_qty = current['quantity'] if current else 0
-            conn.close()
-            return jsonify({'error': f'Stock insuffisant pour {product_name}. Disponible: {stock_qty}, demandé: {qty}'}), 400
-        
-        conn.execute('''
-            INSERT INTO stock_movements (product_id, type, quantity, note)
-            VALUES (?, 'sale', ?, ?)
-        ''', (product_id, qty, f'Vente POS: {doc_number}'))
+            INSERT INTO pos_transactions (
+                ticket_number, transaction_number, session_id, customer_id, payment_method,
+                subtotal, discount_total, tax_amount, total,
+                tendered_amount, change_given, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed')
+        ''', (doc_number, doc_number, session_id, customer_id, payment_method,
+              subtotal, discount, tax, total, tendered_amount, change_amount))
+        trans_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
     
-    # Record cash movement (only the amount actually collected)
-    if payment_method == 'cash' and amount_paid > 0:
-        conn.execute('''
-            INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
-            VALUES (?, 'in', ?, 'sale', ?)
-        ''', (session_id, amount_paid, doc_number))
-        
-        if change_amount > 0:
-            conn.execute('''
-                INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
-                VALUES (?, 'out', ?, 'change', ?)
-            ''', (session_id, change_amount, f'Monnaie rendu: {doc_number}'))
-    
-    # Record card payment in main account (only the amount actually collected)
-    if payment_method == 'card' and amount_paid > 0:
-        conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (amount_paid,))
-        conn.execute('''
-            INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
-            VALUES ('in', ?, 'card_payment', ?, ?)
-        ''', (amount_paid, trans_id, f'Paiement carte: {doc_number}'))
-    
-    conn.commit()
-    
-    # Get customer name
-    customer_name = 'Client Comptoir'
-    if customer_id and not is_client_comptoir:
-        cust = conn.execute('SELECT name FROM customers WHERE id = ?', (customer_id,)).fetchone()
-        if cust:
-            customer_name = cust['name']
-    
-    # Create invoice for all sales (tickets and factures)
-    inv_id = None
-    inv_status = None
-    if is_client_comptoir:
-        inv_status = 'ticket'
-        conn.execute('''
-            INSERT INTO invoices (
-                invoice_number, customer_id, warehouse_id, status, type,
-                subtotal, discount_total, tax_amount, total, 
-                payment_method, tendered_amount, change_given, amount_paid
-            ) VALUES (?, NULL, 1, 'ticket', 'ticket', ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (doc_number, subtotal, discount, tax, total,
-              payment_method, tendered_amount, change_amount, amount_paid))
-        inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
-        conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
-
+        # Insert items and decrement stock
         for item in items:
+            product_id = item.get('product_id') or item.get('id')
             qty = item.get('quantity', 1)
-            uprice = item.get('unit_price', 0) or 0
-            dpct = item.get('discount_percent', 0) or 0
-            line_ht = qty * uprice * (1 - dpct / 100)
-            tax_mult = 1.20 if apply_tax else 1.0
+            unit_price = item.get('unit_price', 0) or 0
+            discount_pct = item.get('discount_percent', 0) or 0
+            line_ht = qty * unit_price * (1 - discount_pct / 100)
+            tax_mult = 1.20 if data.get('apply_tax', True) else 1.0
             line_total = line_ht * tax_mult
-            pid = item.get('product_id') or item.get('id')
-            prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (pid,)).fetchone()
+        
+            prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (product_id,)).fetchone()
             product_name = prod['name'] if prod else item.get('product_name', '')
             product_sku = prod['sku'] if prod else item.get('product_sku', '')
+        
             conn.execute('''
-                INSERT INTO invoice_items (
-                    invoice_id, product_id, product_name, product_sku,
+                INSERT INTO pos_transaction_items (
+                    transaction_id, product_id, product_name, product_sku,
                     quantity, unit_price, discount_percent, tax_rate, line_total
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (inv_id, pid, product_name, product_sku, qty, uprice, dpct, 20 if apply_tax else 0, line_total))
-    else:
-        inv_type = 'facture'
-        if is_credit:
-            tend = float(tendered_amount or 0)
-            if tend <= 0:
-                inv_status = 'envoyee'
-            elif tend >= total:
-                inv_status = 'payee'
-            else:
-                inv_status = 'partiellement_payee'
-        else:
-            inv_status = 'payee'
+            ''', (trans_id, product_id, product_name, product_sku,
+                  qty, unit_price, discount_pct, 20 if apply_tax else 0, line_total))
         
-        if inv_status == 'payee':
+            cur = conn.execute('''
+                UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?
+            ''', (qty, product_id, qty))
+            if cur.rowcount == 0:
+                current = conn.execute('SELECT quantity FROM products WHERE id = ?', (product_id,)).fetchone()
+                stock_qty = current['quantity'] if current else 0
+                conn.close()
+                return jsonify({'error': f'Stock insuffisant pour {product_name}. Disponible: {stock_qty}, demandé: {qty}'}), 400
+        
             conn.execute('''
-                INSERT INTO invoices (
-                    invoice_number, customer_id, warehouse_id, status, type,
-                    subtotal, discount_total, tax_amount, total, 
-                    paid_at, payment_method, tendered_amount, change_given, amount_paid
-                ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
-            ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
-                  payment_method, tendered_amount, change_amount, amount_paid))
-        else:
+                INSERT INTO stock_movements (product_id, type, quantity, note)
+                VALUES (?, 'sale', ?, ?)
+            ''', (product_id, qty, f'Vente POS: {doc_number}'))
+    
+        # Record cash movement (only the amount actually collected)
+        if payment_method == 'cash' and amount_paid > 0:
+            conn.execute('''
+                INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
+                VALUES (?, 'in', ?, 'sale', ?)
+            ''', (session_id, amount_paid, doc_number))
+        
+            if change_amount > 0:
+                conn.execute('''
+                    INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
+                    VALUES (?, 'out', ?, 'change', ?)
+                ''', (session_id, change_amount, f'Monnaie rendu: {doc_number}'))
+    
+        # Record card payment in main account (only the amount actually collected)
+        if payment_method == 'card' and amount_paid > 0:
+            conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (amount_paid,))
+            conn.execute('''
+                INSERT INTO main_account_transactions (type, amount, reason, reference_id, note)
+                VALUES ('in', ?, 'card_payment', ?, ?)
+            ''', (amount_paid, trans_id, f'Paiement carte: {doc_number}'))
+    
+        conn.commit()
+    
+        # Get customer name
+        customer_name = 'Client Comptoir'
+        if customer_id and not is_client_comptoir:
+            cust = conn.execute('SELECT name FROM customers WHERE id = ?', (customer_id,)).fetchone()
+            if cust:
+                customer_name = cust['name']
+    
+        # Create invoice for all sales (tickets and factures)
+        inv_id = None
+        inv_status = None
+        if is_client_comptoir:
+            inv_status = 'ticket'
             conn.execute('''
                 INSERT INTO invoices (
                     invoice_number, customer_id, warehouse_id, status, type,
                     subtotal, discount_total, tax_amount, total, 
                     payment_method, tendered_amount, change_given, amount_paid
-                ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
+                ) VALUES (?, NULL, 1, 'ticket', 'ticket', ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (doc_number, subtotal, discount, tax, total,
                   payment_method, tendered_amount, change_amount, amount_paid))
-        inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
+
+            for item in items:
+                qty = item.get('quantity', 1)
+                uprice = item.get('unit_price', 0) or 0
+                dpct = item.get('discount_percent', 0) or 0
+                line_ht = qty * uprice * (1 - dpct / 100)
+                tax_mult = 1.20 if apply_tax else 1.0
+                line_total = line_ht * tax_mult
+                pid = item.get('product_id') or item.get('id')
+                prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (pid,)).fetchone()
+                product_name = prod['name'] if prod else item.get('product_name', '')
+                product_sku = prod['sku'] if prod else item.get('product_sku', '')
+                conn.execute('''
+                    INSERT INTO invoice_items (
+                        invoice_id, product_id, product_name, product_sku,
+                        quantity, unit_price, discount_percent, tax_rate, line_total
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (inv_id, pid, product_name, product_sku, qty, uprice, dpct, 20 if apply_tax else 0, line_total))
+        else:
+            inv_type = 'facture'
+            if is_credit:
+                tend = float(tendered_amount or 0)
+                if tend <= 0:
+                    inv_status = 'envoyee'
+                elif tend >= total:
+                    inv_status = 'payee'
+                else:
+                    inv_status = 'partiellement_payee'
+            else:
+                inv_status = 'payee'
         
-        conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
+            if inv_status == 'payee':
+                conn.execute('''
+                    INSERT INTO invoices (
+                        invoice_number, customer_id, warehouse_id, status, type,
+                        subtotal, discount_total, tax_amount, total, 
+                        paid_at, payment_method, tendered_amount, change_given, amount_paid
+                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+                ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
+                      payment_method, tendered_amount, change_amount, amount_paid))
+            else:
+                conn.execute('''
+                    INSERT INTO invoices (
+                        invoice_number, customer_id, warehouse_id, status, type,
+                        subtotal, discount_total, tax_amount, total, 
+                        payment_method, tendered_amount, change_given, amount_paid
+                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
+                      payment_method, tendered_amount, change_amount, amount_paid))
+            inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         
-        for item in items:
-            qty = item.get('quantity', 1)
-            uprice = item.get('unit_price', 0) or 0
-            dpct = item.get('discount_percent', 0) or 0
-            line_ht = qty * uprice * (1 - dpct / 100)
-            tax_mult = 1.20 if apply_tax else 1.0
-            line_total = line_ht * tax_mult
-            pid = item.get('product_id') or item.get('id')
-            prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (pid,)).fetchone()
-            product_name = prod['name'] if prod else item.get('product_name', '')
-            product_sku = prod['sku'] if prod else item.get('product_sku', '')
-            conn.execute('''
-                INSERT INTO invoice_items (
-                    invoice_id, product_id, product_name, product_sku,
-                    quantity, unit_price, discount_percent, tax_rate, line_total
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (inv_id, pid, product_name, product_sku,
-                  qty, uprice, dpct, 20 if apply_tax else 0, line_total))
+            conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
+        
+            for item in items:
+                qty = item.get('quantity', 1)
+                uprice = item.get('unit_price', 0) or 0
+                dpct = item.get('discount_percent', 0) or 0
+                line_ht = qty * uprice * (1 - dpct / 100)
+                tax_mult = 1.20 if apply_tax else 1.0
+                line_total = line_ht * tax_mult
+                pid = item.get('product_id') or item.get('id')
+                prod = conn.execute('SELECT name, sku FROM products WHERE id = ?', (pid,)).fetchone()
+                product_name = prod['name'] if prod else item.get('product_name', '')
+                product_sku = prod['sku'] if prod else item.get('product_sku', '')
+                conn.execute('''
+                    INSERT INTO invoice_items (
+                        invoice_id, product_id, product_name, product_sku,
+                        quantity, unit_price, discount_percent, tax_rate, line_total
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (inv_id, pid, product_name, product_sku,
+                      qty, uprice, dpct, 20 if apply_tax else 0, line_total))
     
-    conn.commit()
-    conn.close()
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        return jsonify({'error': f'Erreur base de données: {str(e)}'}), 500
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': f'Erreur inattendue: {str(e)}'}), 500
+    finally:
+        conn.close()
 
     # --- Auto-print hook ---
     print_status = None
