@@ -116,8 +116,8 @@ def next_sequence(conn, name):
     return result
 
 def init_db():
-    conn = sqlite3.connect(CATALOG_DB)
-    conn.row_factory = sqlite3.Row
+    conn = get_catalog_db()
+    conn.execute("PRAGMA foreign_keys=OFF")
     c = conn.cursor()
 
     c.execute('''
@@ -725,6 +725,7 @@ def init_db():
             ('reset_password', generate_password_hash('admin'))
         )
 
+    conn.execute("PRAGMA foreign_keys=ON")
     conn.commit()
     conn.close()
 
