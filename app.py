@@ -2315,7 +2315,7 @@ def close_pos_session(session_id):
             WHERE id = ?
         ''', (closing_cash, expected_cash, session_id))
         
-        net_to_deposit = expected_cash - session['opening_cash']
+        net_to_deposit = expected_cash
         if deposit_to_main and net_to_deposit > 0:
             conn.execute('UPDATE main_account SET current_balance = current_balance + ? WHERE id = 1', (net_to_deposit,))
             conn.execute('''
