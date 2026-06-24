@@ -263,7 +263,7 @@ async function showCloseSessionModal() {
         var totalOut = 0;
         movements.forEach(function(m) {
             if (m.type === 'in') totalIn += m.amount;
-            else if (m.reason !== 'change') totalOut += m.amount;
+            else totalOut += m.amount;
         });
         var expected = opening + totalIn - totalOut;
         document.getElementById('closeOpeningCash').textContent = opening.toFixed(2) + ' DH';
@@ -742,7 +742,7 @@ async function loadPosCashMovements() {
             var opening = posSession.opening_cash || 0;
             sessionMovements.forEach(function(m) {
                 if (m.type === 'in') balance += m.amount;
-                else if (m.reason !== 'change') balance -= m.amount;
+                else balance -= m.amount;
             });
             balance += opening;
         }

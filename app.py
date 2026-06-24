@@ -2221,6 +2221,12 @@ def open_pos_session():
             reg = conn.execute('SELECT * FROM pos_registers WHERE id = ? AND is_active = 1', (register_id,)).fetchone()
             if not reg:
                 return jsonify({'error': 'Caisse invalide ou désactivée'}), 400
+            warehouse_id = reg['warehouse_id']
+            # Validate warehouse exists (registers may have stale FK values)
+            wh = conn.execute('SELECT id FROM warehouses WHERE id = ?', (warehouse_id,)).fetchone()
+            if not wh:
+                wh = conn.execute('SELECT id FROM warehouses LIMIT 1').fetchone()
+                warehouse_id = wh['id'] if wh else 1
         else:
             existing = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open'").fetchone()
             if existing:
@@ -2456,18 +2462,13 @@ def create_pos_transaction():
                 VALUES (?, 'sale', ?, ?)
             ''', (product_id, qty, f'Vente POS: {doc_number}'))
     
-        # Record cash movement (only the amount actually collected)
+        # Record net cash collected (amount_paid = total for non-credit sales)
+        # Change is NOT recorded separately — net cash inflow already accounts for it.
         if payment_method == 'cash' and amount_paid > 0:
             conn.execute('''
                 INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
                 VALUES (?, 'in', ?, 'sale', ?)
             ''', (session_id, amount_paid, doc_number))
-        
-            if change_amount > 0:
-                conn.execute('''
-                    INSERT INTO pos_cash_movements (session_id, type, amount, reason, note)
-                    VALUES (?, 'out', ?, 'change', ?)
-                ''', (session_id, change_amount, f'Monnaie rendu: {doc_number}'))
     
         # Record card payment in main account (only the amount actually collected)
         if payment_method == 'card' and amount_paid > 0:
@@ -2496,8 +2497,8 @@ def create_pos_transaction():
                     invoice_number, customer_id, warehouse_id, status, type,
                     subtotal, discount_total, tax_amount, total, 
                     payment_method, tendered_amount, change_given, amount_paid
-                ) VALUES (?, NULL, 1, 'ticket', 'ticket', ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (doc_number, subtotal, discount, tax, total,
+                ) VALUES (?, NULL, ?, 'ticket', 'ticket', ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (doc_number, session['warehouse_id'], subtotal, discount, tax, total,
                   payment_method, tendered_amount, change_amount, amount_paid))
             inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
@@ -2538,8 +2539,8 @@ def create_pos_transaction():
                         invoice_number, customer_id, warehouse_id, status, type,
                         subtotal, discount_total, tax_amount, total, 
                         paid_at, payment_method, tendered_amount, change_given, amount_paid
-                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
-                ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+                ''', (doc_number, customer_id, session['warehouse_id'], inv_status, inv_type, subtotal, discount, tax, total,
                       payment_method, tendered_amount, change_amount, amount_paid))
             else:
                 conn.execute('''
@@ -2547,8 +2548,8 @@ def create_pos_transaction():
                         invoice_number, customer_id, warehouse_id, status, type,
                         subtotal, discount_total, tax_amount, total, 
                         payment_method, tendered_amount, change_given, amount_paid
-                    ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (doc_number, customer_id, inv_status, inv_type, subtotal, discount, tax, total,
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (doc_number, customer_id, session['warehouse_id'], inv_status, inv_type, subtotal, discount, tax, total,
                       payment_method, tendered_amount, change_amount, amount_paid))
             inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         
