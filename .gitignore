@@ -21,3 +21,4 @@ package-lock.json
 receipts/
 logs/printing.log
 static/uploads/
+private.pem

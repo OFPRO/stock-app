@@ -8,10 +8,12 @@ import json
 import uuid
 import queue
 import argparse
+import platform
 import webbrowser
 from io import StringIO
-from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, Response, send_from_directory, session
+from datetime import datetime, timedelta, timezone
+from flask import Flask, redirect, render_template, request, jsonify, Response, send_from_directory, session
+from license_manager import get_mac_address, get_cached_payload, sign_license, validate_license, load_license, save_license
 from routes.db import get_db, get_price_by_tier, DB_NAME, _safe_int, validate_id, categories_data
 try:
     from reset_test_db import reset_transactional_data
@@ -82,6 +84,15 @@ def upload_file():
 def ensure_active_store():
     if 'active_store_id' not in session:
         session['active_store_id'] = 1
+
+@app.before_request
+def license_check():
+    if platform.system() != 'Windows':
+        return
+    if request.path.startswith('/static/') or request.path.startswith('/api/license') or request.path == '/license':
+        return
+    if get_cached_payload() is None:
+        return render_template('license.html'), 403
 
 def _esc(d):
     for k, v in d.items():
@@ -716,6 +727,80 @@ def index():
 @app.route('/scanner-pro')
 def scanner_pro():
     return render_template('scanner-pro.html')
+
+
+@app.route('/license')
+def license_page():
+    return render_template('license.html')
+
+
+@app.route('/api/license/status')
+def license_status():
+    mac = get_mac_address()
+    payload = get_cached_payload()
+    is_admin = platform.system() != 'Windows'
+
+    if is_admin:
+        return jsonify({'admin': True, 'mac': mac or ''})
+
+    if payload:
+        return jsonify({
+            'admin': False,
+            'activated': True,
+            'mac': mac or '',
+            'client': payload.get('client', ''),
+            'expires_at': payload.get('exp', 0),
+        })
+
+    return jsonify({
+        'admin': False,
+        'activated': False,
+        'mac': mac or '',
+        'error': 'Aucune licence valide trouvée',
+    })
+
+
+@app.route('/api/license/activate', methods=['POST'])
+def license_activate():
+    if platform.system() != 'Windows':
+        return jsonify({'error': 'Réservé aux clients Windows'}), 403
+
+    data = request.get_json(silent=True) or {}
+    token = data.get('token', '').strip()
+
+    if not token:
+        return jsonify({'error': 'Token requis'}), 400
+
+    payload = validate_license(token)
+    if not payload:
+        return jsonify({'error': 'Token invalide ou expiré'}), 400
+
+    save_license(token)
+    load_license()
+
+    return jsonify({'ok': True})
+
+
+@app.route('/api/license/generate', methods=['POST'])
+def license_generate():
+    if platform.system() == 'Windows':
+        return jsonify({'error': 'Réservé au développeur'}), 403
+
+    data = request.get_json(silent=True) or {}
+    mac = data.get('mac', '').strip()
+    client = data.get('client', '').strip()
+    days = int(data.get('days', 365))
+
+    if not mac:
+        return jsonify({'error': 'MAC requise'}), 400
+    if not client:
+        return jsonify({'error': 'Nom client requis'}), 400
+
+    try:
+        token = sign_license(mac, client, days)
+        return jsonify({'token': token, 'mac': mac, 'client': client, 'days': days})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 
@@ -3086,6 +3171,16 @@ if __name__ == '__main__':
         os.environ['STOCKPRO_DB_PATH'] = db_path
 
     init_db()
+
+    if platform.system() == 'Windows':
+        payload = load_license()
+        if payload:
+            print(f"[LICENCE] Valide — {payload.get('client', 'inconnu')} jusqu'au "
+                  f"{datetime.fromtimestamp(payload['exp'], tz=timezone.utc).strftime('%d/%m/%Y')}")
+        else:
+            print("[LICENCE] Aucune licence valide — ouvrez /license pour activer")
+    else:
+        print("[LICENCE] Mode développement (macOS) — admin panel actif sur /license")
 
     if args.service:
         pid_file = os.path.join(args.data_dir or os.getcwd(), 'stockpro.pid')
