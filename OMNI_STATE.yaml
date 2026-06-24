@@ -28,7 +28,7 @@ tracks:
     status: "wip"
 
 current_phase: 7          # 0=INIT, 1=VISION, 2=STRATEGY, 3=DESIGN, 4=BUILD, 5=QUALITY, 6=SHIP, 7=RETRO
-current_epic: "multi-caisse"
+current_epic: "caisse-avancee"
 
 phase_history:
   - phase: 0
@@ -191,6 +191,57 @@ phase_history:
       - "GitHub Release https://github.com/OFPRO/stock-app/releases/tag/v1.2.0"
     blockers: []
 
+  - phase: 4
+    status: completed
+    completed_skills:
+      - bmad-quick-dev
+    artifacts:
+      - "app.py: license_manager.py, license routes, 3-mode products reset"
+      - "templates/index.html: security card, reset modals, license tab"
+      - "static/js/license.js, pos.js, app.js, settings.js, products.js"
+      - "routes/stores.py: password CRUD, backup route"
+      - "reset_test_db.py: 3-mode reset"
+    blockers: []
+
+  - phase: 6
+    status: completed
+    completed_skills:
+      - gstack-ship
+    artifacts:
+      - "git tag v1.5.0"
+      - "git tag v1.5.1"
+      - "git tag v1.5.2"
+      - "git tag v1.5.5"
+      - "git tag v1.5.6"
+      - "https://github.com/OFPRO/stock-app/releases/tag/v1.5.7"
+    decision_log:
+      - "JWT license system with RSA asymmetric keys — offline verification in .exe"
+      - "Passwords hash-stored in settings table; all destructive actions require password"
+      - "VACUUM INTO for backup instead of sqlite3_backup API"
+      - "Products reset: 3 modes (A=zero qty, B=delete all, C=per-page checkboxes)"
+      - "MAC detection macOS: ifconfig iteration before uuid.getnode() fallback"
+      - "POS session: opening cash debits main_account; net deposit at close"
+      - "Partial unique index prevents double-open POS sessions at DB level"
+      - "Modals replace native prompt() for POS open/close"
+    blockers: []
+
+  - phase: 5
+    status: completed
+    completed_skills:
+      - bmad-code-review
+    artifacts:
+      - "app.py: fixed try/except/finally in create_pos_transaction"
+      - "app.py: removed SAVEPOINT/RELEASE bug in close_pos_session"
+    blockers: []
+
+  - phase: 7
+    status: completed
+    completed_skills:
+      - gstack-retro
+    artifacts:
+      - "stock-app/AGENTS.md: updated summary"
+    blockers: []
+
 state:
   project_context: "project-context.md"
   prd: "stock-app/docs/multi-caisse/product-brief.md"
@@ -198,8 +249,8 @@ state:
   epics: "stock-app/docs/multi-caisse/epics.md"
   design: "stock-app/docs/multi-caisse/ux-design.md"
   sprint_status: "stock-app/docs/multi-caisse/sprint-status.yaml"
-  version: "1.2.0"
+  version: "1.5.7"
   tracks:
-    backend_version: "1.2.0"
+    backend_version: "1.5.7"
     android_version: "1.1.0"
     ios_version: "0.1"

@@ -2244,6 +2244,8 @@ def open_pos_session():
             VALUES (?, ?, ?, 'open', ?, ?)
         ''', (session_number, warehouse_id, opening_cash, register_id, cashier_name))
         
+        session_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
         # Debit opening_cash from main account
         if opening_cash > 0:
             conn.execute('UPDATE main_account SET current_balance = current_balance - ? WHERE id = 1', (opening_cash,))
@@ -2254,7 +2256,6 @@ def open_pos_session():
         
         conn.commit()
         
-        session_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         session = conn.execute('SELECT * FROM pos_sessions WHERE id = ?', (session_id,)).fetchone()
         
         return jsonify({
