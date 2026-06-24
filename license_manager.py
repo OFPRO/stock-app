@@ -1,6 +1,7 @@
 import csv
 import io
 import os
+import sys
 import uuid
 import subprocess
 import json
@@ -51,6 +52,22 @@ def get_mac_address():
                         if mac:
                             return mac
         except (subprocess.TimeoutExpired, FileNotFoundError, csv.Error):
+            pass
+
+    if sys.platform == 'darwin':
+        try:
+            for iface in ('en0', 'en1', 'en2', 'en3'):
+                result = subprocess.run(
+                    ['ifconfig', iface],
+                    capture_output=True, text=True, timeout=3
+                )
+                for line in result.stdout.splitlines():
+                    line = line.strip()
+                    if line.startswith('ether '):
+                        mac = line.split(' ', 1)[1].strip().upper()
+                        if _normalize_mac(mac):
+                            return _normalize_mac(mac)
+        except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
 
     raw = uuid.getnode()
