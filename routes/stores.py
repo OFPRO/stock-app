@@ -1,8 +1,10 @@
+import os, time, shutil
 from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 from routes.db import get_catalog_db, get_db, categories_data, init_store_db, resolve_db_path
 from services.printing_service import check_printer_status, list_printers, discover_printers
 from services.escpos_receipt import EscposPrinter, build_escpos_commands
+from werkzeug.security import generate_password_hash, check_password_hash
 
 stores_bp = Blueprint('stores', __name__)
 
@@ -319,3 +321,88 @@ def test_printer():
             return jsonify({'error': result.get('print_error', 'Échec impression'), 'details': result}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@stores_bp.route('/api/settings/reset-password', methods=['GET'])
+def get_reset_password_status():
+    catalog = get_catalog_db()
+    row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
+    catalog.close()
+    has_password = row is not None
+    is_default = check_password_hash(row['value'], 'admin') if has_password else False
+    return jsonify({'has_password': has_password, 'is_default': is_default})
+
+
+@stores_bp.route('/api/settings/reset-password', methods=['PUT'])
+def set_reset_password():
+    data = request.get_json(silent=True) or {}
+    new_pw = data.get('new_password', '').strip()
+    if len(new_pw) < 4:
+        return jsonify({'error': 'Le mot de passe doit contenir au moins 4 caractères'}), 400
+
+    catalog = get_catalog_db()
+    row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
+    if row:
+        old_pw = data.get('current_password', '')
+        if not check_password_hash(row['value'], old_pw):
+            catalog.close()
+            return jsonify({'error': 'Ancien mot de passe incorrect'}), 403
+
+    catalog.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('reset_password', ?)",
+                    (generate_password_hash(new_pw),))
+    catalog.commit()
+    catalog.close()
+    return jsonify({'success': True, 'message': 'Mot de passe mis à jour'})
+
+
+@stores_bp.route('/api/settings/verify-reset-password', methods=['POST'])
+def verify_reset_password():
+    data = request.get_json(silent=True) or {}
+    password = data.get('password', '')
+    catalog = get_catalog_db()
+    row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
+    catalog.close()
+    if not row:
+        return jsonify({'valid': False, 'error': 'Aucun mot de passe défini'})
+    valid = check_password_hash(row['value'], password)
+    is_default = check_password_hash(row['value'], 'admin')
+    return jsonify({'valid': valid, 'is_default': is_default})
+
+
+@stores_bp.route('/api/stores/<int:store_id>/backup', methods=['POST'])
+def backup_store(store_id):
+    catalog = get_catalog_db()
+    store = catalog.execute('SELECT * FROM stores WHERE id = ?', (store_id,)).fetchone()
+    if not store:
+        catalog.close()
+        return jsonify({'error': 'Magasin introuvable'}), 404
+
+    now = datetime.now()
+    name = f"{store['name']} (copie sauvegarde {now.strftime('%d/%m/%Y %H:%M')})"
+    code = f"SAVE-{int(now.timestamp() * 1000)}"
+
+    cur = catalog.execute(
+        "INSERT INTO stores (name, code, is_active, is_archived) VALUES (?, ?, 0, 1)",
+        (name, code)
+    )
+    new_id = cur.lastrowid
+    catalog.commit()
+
+    try:
+        source_db = resolve_db_path(store_id)
+        dest_db = resolve_db_path(new_id)
+        if os.path.exists(dest_db):
+            os.remove(dest_db)
+        conn = get_db(store_id)
+        conn.execute(f"VACUUM INTO '{dest_db}'")
+        conn.close()
+    except Exception as e:
+        try: conn.close()
+        except: pass
+        catalog.execute('DELETE FROM stores WHERE id = ?', (new_id,))
+        catalog.commit()
+        catalog.close()
+        return jsonify({'error': f'Erreur lors de la sauvegarde: {str(e)}'}), 500
+
+    catalog.close()
+    return jsonify({'success': True, 'id': new_id, 'name': name})

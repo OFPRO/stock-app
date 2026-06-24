@@ -292,25 +292,53 @@ function initDashboardDates() {
 }
 
 async function resetAllTransactionalData() {
-    const msg = '⚠️ RÉINITIALISER TOUTES LES DONNÉES ?\n\n' +
-        'Cette action supprime TOUTES les données :\n' +
-        '- Produits, stocks, clients, fournisseurs\n' +
-        '- Factures, transactions POS, mouvements de stock\n' +
-        '- Commandes fournisseurs, notifications\n' +
-        '- Soldes du compte principal\n\n' +
-        'Sont conservés : catégories, caisses (Caisse 1 & 2), paramètres imprimante\n' +
-        'Un entrepôt par défaut sera recréé.';
-    if (!confirm(msg)) return;
-    if (!confirm('⚠️ Confirmation : cette action est IRRÉVERSIBLE. Continuer ?')) return;
+    const valid = await showPasswordPrompt('🔒 Réinitialisation des données', 'Entrez le mot de passe de réinitialisation pour continuer');
+    if (!valid) return;
+
+    openModal('resetConfirmModal');
+    const submitBtn = document.getElementById('resetConfirmSubmit');
+    submitBtn.disabled = true;
+    setTimeout(() => { submitBtn.disabled = false; }, 2000);
+}
+
+async function executeReset() {
+    const submitBtn = document.getElementById('resetConfirmSubmit');
+    submitBtn.disabled = true;
+
+    const doBackup = document.getElementById('backupBeforeReset').checked;
+
     try {
-        const res = await fetch('/api/reset-data', { method: 'POST' });
+        if (doBackup) {
+            const storeRes = await fetch('/api/stores/current');
+            const storeData = await storeRes.json();
+            if (storeData.id) {
+                const backupRes = await fetch('/api/stores/' + storeData.id + '/backup', { method: 'POST' });
+                const backupData = await backupRes.json();
+                if (backupData.error) {
+                    showError('Sauvegarde échouée: ' + backupData.error);
+                    submitBtn.disabled = false;
+                    return;
+                }
+            }
+        }
+
+        const res = await fetch('/api/reset-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keep_products: true })
+        });
         const data = await res.json();
         if (data.success) {
+            closeModal('resetConfirmModal');
             location.reload();
         } else {
-            alert('Erreur : ' + (data.error || data.message));
+            document.getElementById('resetConfirmError').textContent = data.error || 'Erreur lors de la réinitialisation';
+            document.getElementById('resetConfirmError').style.display = 'block';
+            submitBtn.disabled = false;
         }
     } catch (err) {
-        alert('Erreur réseau : ' + err.message);
+        document.getElementById('resetConfirmError').textContent = 'Erreur réseau: ' + err.message;
+        document.getElementById('resetConfirmError').style.display = 'block';
+        submitBtn.disabled = false;
     }
 }

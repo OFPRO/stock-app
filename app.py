@@ -14,12 +14,13 @@ from io import StringIO
 from datetime import datetime, timedelta, timezone
 from flask import Flask, redirect, render_template, request, jsonify, Response, send_from_directory, session
 from license_manager import get_mac_address, get_cached_payload, sign_license, validate_license, load_license, save_license
-from routes.db import get_db, get_price_by_tier, DB_NAME, _safe_int, validate_id, categories_data
+from routes.db import get_db, get_catalog_db, get_db_ctx, get_catalog_db_ctx, get_price_by_tier, DB_NAME, _safe_int, validate_id, categories_data, resolve_db_path
 try:
-    from reset_test_db import reset_transactional_data
+    from reset_test_db import reset_transactional_data, reset_products_data, reset_products_qty
     _HAS_RESET = True
 except ImportError:
     _HAS_RESET = False
+from werkzeug.security import generate_password_hash, check_password_hash
 from routes.products import products_bp
 from routes.kpis import kpis_bp
 from routes.customers import customers_bp
@@ -702,6 +703,19 @@ def init_db():
     ''')
     c.execute("INSERT OR IGNORE INTO printer_settings (id, connection_type, host) VALUES (1, 'network', '')")
 
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    ''')
+    c.execute("SELECT COUNT(*) FROM settings")
+    if c.fetchone()[0] == 0:
+        c.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?)",
+            ('reset_password', generate_password_hash('admin'))
+        )
+
     conn.commit()
     conn.close()
 
@@ -1366,10 +1380,41 @@ def mark_all_notifications_read():
 def reset_data():
     if not _HAS_RESET:
         return jsonify({'error': 'Module reset_test_db non disponible'}), 500
+    data = request.get_json(silent=True) or {}
+    keep_products = data.get('keep_products', False)
     conn = get_db()
-    reset_transactional_data(conn)
+    reset_transactional_data(conn, keep_products=keep_products)
     conn.close()
     return jsonify({'success': True, 'message': 'Toutes les données ont été réinitialisées'})
+
+@app.route('/api/reset-products', methods=['POST'])
+def reset_products_api():
+    if not _HAS_RESET:
+        return jsonify({'error': 'Module reset_test_db non disponible'}), 500
+    data = request.get_json(silent=True) or {}
+    ids = data.get('ids')
+    conn = get_db()
+    conn.execute("PRAGMA foreign_keys = OFF")
+    if isinstance(ids, list) and len(ids) > 0:
+        ph = ','.join('?' * len(ids))
+        conn.execute(f"DELETE FROM reordering_rules WHERE product_id IN ({ph})", ids)
+        conn.execute(f"DELETE FROM stock_movements WHERE product_id IN ({ph})", ids)
+        conn.execute(f"DELETE FROM stock WHERE product_id IN ({ph})", ids)
+        conn.execute(f"DELETE FROM products WHERE id IN ({ph})", ids)
+    else:
+        reset_products_data(conn)
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.close()
+    return jsonify({'success': True, 'message': 'Produits supprimés'})
+
+@app.route('/api/reset-products-qty', methods=['POST'])
+def reset_products_qty_api():
+    if not _HAS_RESET:
+        return jsonify({'error': 'Module reset_test_db non disponible'}), 500
+    conn = get_db()
+    reset_products_qty(conn)
+    conn.close()
+    return jsonify({'success': True, 'message': 'Toutes les quantités ont été réinitialisées à 0'})
 
 @app.route('/api/seed-data', methods=['POST'])
 def seed_data():

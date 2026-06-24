@@ -449,3 +449,78 @@ document.addEventListener('submit', e => {
         case 'save-stock': saveStock(e); break;
     }
 });
+
+// === Shared password prompt flow ===
+let pendingPasswordResolve = null;
+let passwordPromptMode = 'reset-data';
+
+function showPasswordPrompt(title, label, mode) {
+    passwordPromptMode = mode || 'reset-data';
+    document.getElementById('passwordPromptTitle').textContent = title || '🔒 Mot de passe requis';
+    document.getElementById('passwordPromptLabel').textContent = label || 'Entrez le mot de passe de réinitialisation';
+    document.getElementById('passwordPromptInput').value = '';
+    document.getElementById('passwordPromptError').style.display = 'none';
+
+    const submitBtn = document.getElementById('passwordPromptSubmit');
+    submitBtn.disabled = true;
+    setTimeout(() => { submitBtn.disabled = false; }, 2000);
+
+    openModal('passwordPromptModal');
+    setTimeout(() => { document.getElementById('passwordPromptInput').focus(); }, 100);
+
+    return new Promise((resolve) => {
+        pendingPasswordResolve = resolve;
+    });
+}
+
+async function submitPasswordPrompt() {
+    const pw = document.getElementById('passwordPromptInput').value;
+    if (!pw) {
+        document.getElementById('passwordPromptError').textContent = 'Veuillez entrer un mot de passe';
+        document.getElementById('passwordPromptError').style.display = 'block';
+        return;
+    }
+
+    const submitBtn = document.getElementById('passwordPromptSubmit');
+    submitBtn.disabled = true;
+
+    try {
+        const res = await fetch('/api/settings/verify-reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pw })
+        });
+        const data = await res.json();
+        if (data.valid) {
+            closeModal('passwordPromptModal');
+            if (pendingPasswordResolve) {
+                pendingPasswordResolve(true);
+                pendingPasswordResolve = null;
+            }
+        } else {
+            document.getElementById('passwordPromptError').textContent = 'Mot de passe incorrect';
+            document.getElementById('passwordPromptError').style.display = 'block';
+            submitBtn.disabled = false;
+            if (pendingPasswordResolve) {
+                pendingPasswordResolve(false);
+                pendingPasswordResolve = null;
+            }
+        }
+    } catch (err) {
+        document.getElementById('passwordPromptError').textContent = 'Erreur: ' + err.message;
+        document.getElementById('passwordPromptError').style.display = 'block';
+        submitBtn.disabled = false;
+    }
+}
+
+function showForgotPasswordHelp() {
+    closeModal('passwordPromptModal');
+    const msg = 'Mot de passe oublié ?\n\n' +
+        'Pour réinitialiser le mot de passe :\n' +
+        '1. Ouvrez un terminal dans le dossier de l\'application\n' +
+        '2. Exécutez : python -c "import sqlite3; c=sqlite3.connect(\'stock.db\'); c.execute(\"DELETE FROM settings WHERE key=\'reset_password\'\"); c.commit(); c.close()"\n' +
+        '3. Redémarrez l\'application\n' +
+        '4. Le mot de passe par défaut "admin" sera rétabli\n\n' +
+        'Ou supprimez la ligne reset_password dans la table settings manuellement.';
+    alert(msg);
+}
