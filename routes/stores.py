@@ -325,48 +325,63 @@ def test_printer():
 
 @stores_bp.route('/api/settings/reset-password', methods=['GET'])
 def get_reset_password_status():
-    catalog = get_catalog_db()
-    row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
-    catalog.close()
-    has_password = row is not None
-    is_default = check_password_hash(row['value'], 'admin') if has_password else False
-    return jsonify({'has_password': has_password, 'is_default': is_default})
+    try:
+        catalog = get_catalog_db()
+        row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
+        catalog.close()
+        has_password = row is not None
+        is_default = check_password_hash(row['value'], 'admin') if has_password else False
+        return jsonify({'has_password': has_password, 'is_default': is_default})
+    except Exception as e:
+        import traceback
+        print(f"[PASSWORD] get_reset_password_status: {e}\n{traceback.format_exc()}", flush=True)
+        return jsonify({'has_password': False, 'is_default': False, 'error': str(e)}), 500
 
 
 @stores_bp.route('/api/settings/reset-password', methods=['PUT'])
 def set_reset_password():
-    data = request.get_json(silent=True) or {}
-    new_pw = data.get('new_password', '').strip()
-    if len(new_pw) < 4:
-        return jsonify({'error': 'Le mot de passe doit contenir au moins 4 caractères'}), 400
+    try:
+        data = request.get_json(silent=True) or {}
+        new_pw = data.get('new_password', '').strip()
+        if len(new_pw) < 4:
+            return jsonify({'error': 'Le mot de passe doit contenir au moins 4 caractères'}), 400
 
-    catalog = get_catalog_db()
-    row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
-    if row:
-        old_pw = data.get('current_password', '')
-        if not check_password_hash(row['value'], old_pw):
-            catalog.close()
-            return jsonify({'error': 'Ancien mot de passe incorrect'}), 403
+        catalog = get_catalog_db()
+        row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
+        if row:
+            old_pw = data.get('current_password', '')
+            if not check_password_hash(row['value'], old_pw):
+                catalog.close()
+                return jsonify({'error': 'Ancien mot de passe incorrect'}), 403
 
-    catalog.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('reset_password', ?)",
-                    (generate_password_hash(new_pw),))
-    catalog.commit()
-    catalog.close()
-    return jsonify({'success': True, 'message': 'Mot de passe mis à jour'})
+        catalog.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('reset_password', ?)",
+                        (generate_password_hash(new_pw),))
+        catalog.commit()
+        catalog.close()
+        return jsonify({'success': True, 'message': 'Mot de passe mis à jour'})
+    except Exception as e:
+        import traceback
+        print(f"[PASSWORD] set_reset_password: {e}\n{traceback.format_exc()}", flush=True)
+        return jsonify({'error': f'Erreur serveur: {str(e)}'}), 500
 
 
 @stores_bp.route('/api/settings/verify-reset-password', methods=['POST'])
 def verify_reset_password():
-    data = request.get_json(silent=True) or {}
-    password = data.get('password', '')
-    catalog = get_catalog_db()
-    row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
-    catalog.close()
-    if not row:
-        return jsonify({'valid': False, 'error': 'Aucun mot de passe défini'})
-    valid = check_password_hash(row['value'], password)
-    is_default = check_password_hash(row['value'], 'admin')
-    return jsonify({'valid': valid, 'is_default': is_default})
+    try:
+        data = request.get_json(silent=True) or {}
+        password = data.get('password', '')
+        catalog = get_catalog_db()
+        row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
+        catalog.close()
+        if not row:
+            return jsonify({'valid': False, 'error': 'Aucun mot de passe défini'})
+        valid = check_password_hash(row['value'], password)
+        is_default = check_password_hash(row['value'], 'admin')
+        return jsonify({'valid': valid, 'is_default': is_default})
+    except Exception as e:
+        import traceback
+        print(f"[PASSWORD] verify_reset_password: {e}\n{traceback.format_exc()}", flush=True)
+        return jsonify({'valid': False, 'error': f'Erreur serveur: {str(e)}'}), 500
 
 
 @stores_bp.route('/api/stores/<int:store_id>/backup', methods=['POST'])
