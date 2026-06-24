@@ -21,6 +21,17 @@ _VIRTUAL_KEYWORDS = (
 _license_payload = None
 
 
+def _get_bundle_path(relative_path):
+    if getattr(sys, 'frozen', False):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
+
+def _get_data_path(relative_path):
+    data_dir = os.environ.get('STOCKPRO_DATA_DIR', os.getcwd())
+    return os.path.join(data_dir, relative_path)
+
+
 def _normalize_mac(mac):
     mac = mac.strip().upper().replace('-', ':').replace('.', ':')
     parts = [p.zfill(2) for p in mac.split(':') if p]
@@ -116,7 +127,9 @@ def sign_license(mac, client, days=365, private_key_path='private.pem'):
     return token
 
 
-def validate_license(token, public_key_path='public.pem'):
+def validate_license(token, public_key_path=None):
+    if public_key_path is None:
+        public_key_path = _get_bundle_path('public.pem')
     if not os.path.exists(public_key_path):
         return None
     with open(public_key_path, 'rb') as f:
@@ -138,7 +151,10 @@ def validate_license(token, public_key_path='public.pem'):
     return payload
 
 
-def save_license(token, path='.license'):
+def save_license(token, path=None):
+    if path is None:
+        path = _get_data_path('.license')
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
     data = {
         'token': token,
         'activated_at': datetime.now(timezone.utc).isoformat(),
@@ -147,8 +163,13 @@ def save_license(token, path='.license'):
         json.dump(data, f)
 
 
-def load_license(path='.license', public_key_path='public.pem'):
+def load_license(path=None, public_key_path=None):
     global _license_payload
+
+    if path is None:
+        path = _get_data_path('.license')
+    if public_key_path is None:
+        public_key_path = _get_bundle_path('public.pem')
 
     if not os.path.exists(path):
         _license_payload = None
