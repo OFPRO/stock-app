@@ -45,6 +45,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initApp() {
     try {
+        var licRes = await fetch('/api/license/status');
+        var licData = await licRes.json();
+        if (!licData.admin && !licData.activated) {
+            showTab('license');
+            return;
+        }
+    } catch(e) {}
+    try {
         const res = await fetch('/api/warehouses');
         const data = await res.json();
         warehouses = data;
@@ -126,6 +134,7 @@ function showTab(tab) {
     if (tab === 'reports') { currentReport = 'overview'; applyReportPeriod(); }
     if (tab === 'sessions') loadSessionsHistory();
     if (tab === 'settings') loadSettings();
+    if (tab === 'license') loadLicense();
 }
 
 function toggleSidebar() {
