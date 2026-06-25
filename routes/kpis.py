@@ -533,7 +533,7 @@ def get_kpis_invoices_status():
         brouillon = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'brouillon' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
         envoyee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'envoyee' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
         partiellement_payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'partiellement_payee' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
-        payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
+        payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE (status = 'payee' OR status = 'ticket') AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
         annulee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'annulee' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
         return jsonify({
             'brouillon': brouillon,

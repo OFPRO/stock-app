@@ -237,9 +237,9 @@ function renderInvoicesStatusChart(data) {
 
         charts.invoicesStatus = new ApexCharts(chartEl, {
             chart: { type: 'donut', height: 250, animations: { enabled: true, easing: 'easeinout', speed: 800 } },
-            series: [data.payee || 0, data.envoyee || 0, data.brouillon || 0, data.annulee || 0],
-            labels: ['Payees', 'Envoyees', 'Brouillon', 'Annulees'],
-            colors: [cssVar('--color-success'), cssVar('--color-warning'), cssVar('--color-text-muted'), cssVar('--color-danger')],
+            series: [data.payee || 0, data.envoyee || 0, data.partiellement_payee || 0, data.brouillon || 0, data.annulee || 0],
+            labels: ['Payees', 'Envoyees', 'Part. Payees', 'Brouillon', 'Annulees'],
+            colors: [cssVar('--color-success'), cssVar('--color-warning'), cssVar('--color-info'), cssVar('--color-text-muted'), cssVar('--color-danger')],
             legend: { position: 'right', fontSize: '12px' },
             plotOptions: { pie: { donut: { size: '65%' } } },
             dataLabels: { enabled: false }
