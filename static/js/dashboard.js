@@ -276,6 +276,19 @@ async function updateTableCategories() {
     }
 }
 
+function exportTablePdf(type) {
+    const params = new URLSearchParams();
+    params.set('type', type);
+    const wh = document.getElementById('warehouseFilter')?.value;
+    if (wh) params.set('warehouse_id', wh);
+    const a = document.createElement('a');
+    a.href = '/api/kpis/tables/export/pdf?' + params.toString();
+    a.download = type + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
 function setPresetPeriod(days) {
     const end = new Date();
     const start = new Date();
