@@ -1,6 +1,9 @@
 async function loadMovements() {
     try {
-        const res = await fetch('/api/movements');
+        const typeFilter = document.getElementById('movementsTypeFilter')?.value || '';
+        let url = '/api/movements';
+        if (typeFilter) url += '?type=' + encodeURIComponent(typeFilter);
+        const res = await fetch(url);
         const movements = await res.json();
         const tbody = document.getElementById('movementsTable');
         if (!tbody) return;
@@ -9,14 +12,31 @@ async function loadMovements() {
             return;
         }
         let html = '';
+        const typeLabels = {
+            'in': 'Entrée', 'out': 'Sortie', 'transfer': 'Transfert',
+            'inter_warehouse': 'Tr. Entrepôt', 'sale': 'Vente',
+            'retour': 'Retour', 'destruction': 'Destruction'
+        };
         for (let i = 0; i < movements.length; i++) {
             const m = movements[i];
-            const typeLabel = m.type === 'in' ? 'Entrée' : m.type === 'out' ? 'Sortie' : m.type;
-            const typeClass = m.type === 'in' ? 'success' : m.type === 'out' ? 'warning' : 'primary';
+            const typeLabel = typeLabels[m.type] || m.type;
+            const typeClass = m.type === 'in' || m.type === 'retour' ? 'success' : m.type === 'out' || m.type === 'sale' || m.type === 'destruction' ? 'warning' : 'primary';
             html += '<tr><td>' + (m.created_at ? m.created_at.substring(0, 16) : '-') + '</td><td>' + (m.product_name || '-') + '</td><td><span class="badge badge-' + typeClass + '">' + typeLabel + '</span></td><td>' + m.quantity + '</td><td>' + (m.note || '-') + '</td></tr>';
         }
         tbody.innerHTML = html;
     } catch(e) {
         showError('Erreur lors du chargement des mouvements');
     }
+}
+
+function exportMovementsPdf() {
+    const params = new URLSearchParams();
+    const typeFilter = document.getElementById('movementsTypeFilter')?.value;
+    if (typeFilter) params.set('type', typeFilter);
+    const a = document.createElement('a');
+    a.href = '/api/movements/export/pdf?' + params.toString();
+    a.download = 'mouvements.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }

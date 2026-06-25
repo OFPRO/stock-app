@@ -1,6 +1,11 @@
 import json
 import re
-from flask import Blueprint, request, jsonify
+import io
+import os
+import traceback
+from datetime import datetime
+from flask import Blueprint, request, jsonify, Response
+from fpdf import FPDF
 from routes.db import get_db_ctx as get_db, get_price_by_tier, validate_id
 
 products_bp = Blueprint('products', __name__)
@@ -350,3 +355,114 @@ def get_categories():
             'SELECT id, name_ar, name_fr FROM categories ORDER BY id'
         ).fetchall()
         return jsonify([dict(c) for c in categories])
+
+def _sanitize_pdf(text, maxlen=0):
+    s = ''.join(c if ord(c) < 256 else '?' for c in str(text))
+    return s[:maxlen] if maxlen else s
+
+@products_bp.route('/api/products/export/pdf', methods=['GET'])
+def export_products_pdf():
+    try:
+        category = request.args.get('category', '')
+        search = request.args.get('search', '')
+        include_archived = request.args.get('include_archived', 'false').lower() == 'true'
+
+        with get_db() as conn:
+            params = []
+            where_parts = []
+            if not include_archived:
+                where_parts.append('p.is_deleted = 0')
+            if category:
+                where_parts.append('p.category = ?')
+                params.append(category)
+            if search:
+                where_parts.append('(p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ?)')
+                s = f'%{search}%'
+                params.extend([s, s, s])
+
+            where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
+            products = conn.execute(f'''
+                SELECT p.id, p.name, p.sku, p.category, p.quantity, p.price,
+                       c.name_ar as category_ar
+                FROM products p
+                LEFT JOIN categories c ON p.category = c.name_fr
+                WHERE {where_clause}
+                ORDER BY p.name
+            ''', params).fetchall()
+
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
+
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static', 'img', 'logo.png')
+        if os.path.exists(logo_path):
+            logo_w = 50
+            x = pdf.l_margin + (pdf.epw - logo_w) / 2
+            pdf.image(logo_path, x=x, w=logo_w)
+            pdf.ln(5)
+
+        pdf.set_font('Helvetica', 'B', 16)
+        pdf.cell(0, 10, 'Liste des Produits', align='C', new_x='LMARGIN', new_y='NEXT')
+        pdf.ln(2)
+
+        pdf.set_font('Helvetica', '', 8)
+        pdf.cell(0, 5, f"Genere le {datetime.now().strftime('%d/%m/%Y a %H:%M')}", align='C', new_x='LMARGIN', new_y='NEXT')
+        if category:
+            pdf.cell(0, 5, f"Categorie : {category}", align='C', new_x='LMARGIN', new_y='NEXT')
+        pdf.cell(0, 5, f"Total : {len(products)} produit(s)", align='C', new_x='LMARGIN', new_y='NEXT')
+        pdf.ln(4)
+
+        col_w = [8, 80, 30, 40, 20, 20, 30]
+        headers = ['#', 'Produit', 'SKU', 'Categorie', 'Qte', 'Prix', 'Montant']
+        table_w = sum(col_w)
+        x_start = (pdf.w - table_w) / 2
+
+        def _draw_header():
+            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_fill_color(41, 128, 185)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_x(x_start)
+            for i, h in enumerate(headers):
+                pdf.cell(col_w[i], 7, h, border=1, align='C', fill=True)
+            pdf.ln()
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font('Helvetica', '', 9)
+
+        _draw_header()
+        total_amount = 0
+        for idx, p in enumerate(products, 1):
+            if pdf.get_y() > 185:
+                pdf.add_page()
+                _draw_header()
+
+            cat_label = _sanitize_pdf(p['category'], 25) or '-'
+            amount = (p['price'] or 0) * (p['quantity'] or 0)
+            total_amount += amount
+
+            row_h = 6
+            pdf.set_x(x_start)
+            pdf.cell(col_w[0], row_h, str(idx), border=1, align='C')
+            pdf.cell(col_w[1], row_h, _sanitize_pdf(p['name'], 40), border=1)
+            pdf.cell(col_w[2], row_h, _sanitize_pdf(p['sku'] or '-', 30), border=1, align='C')
+            pdf.cell(col_w[3], row_h, cat_label, border=1)
+            pdf.cell(col_w[4], row_h, str(p['quantity'] or 0), border=1, align='C')
+            pdf.cell(col_w[5], row_h, f"{(p['price'] or 0):.2f}", border=1, align='R')
+            pdf.cell(col_w[6], row_h, f"{amount:.2f}", border=1, align='R')
+            pdf.ln()
+
+        pdf.ln(3)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.cell(0, 6, f"Montant total du stock : {total_amount:.2f} DH", align='R', new_x='LMARGIN', new_y='NEXT')
+
+        buf = io.BytesIO()
+        pdf.output(buf)
+        buf.seek(0)
+
+        return Response(
+            buf.getvalue(),
+            mimetype='application/pdf',
+            headers={'Content-Disposition': 'attachment; filename="produits.pdf"'}
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': 'Erreur lors de la generation du PDF'}), 500

@@ -16,15 +16,40 @@ async function loadCategories() {
     try {
         const res = await fetch('/api/categories');
         const cats = await res.json();
-        const select = document.getElementById('productCategory');
-        if (!select) return;
-        select.innerHTML = '<option value="">-- Sélectionner --</option>' +
-            cats.map(function(c) {
-                return '<option value="' + c.name_fr + '">' + c.name_ar + ' / ' + c.name_fr + '</option>';
-            }).join('');
+        const formSelect = document.getElementById('productCategory');
+        if (formSelect) {
+            formSelect.innerHTML = '<option value="">-- Sélectionner --</option>' +
+                cats.map(function(c) {
+                    return '<option value="' + c.name_fr + '">' + c.name_ar + ' / ' + c.name_fr + '</option>';
+                }).join('');
+        }
+        const filterSelect = document.getElementById('productsCategoryFilter');
+        if (filterSelect) {
+            const currentVal = filterSelect.value;
+            filterSelect.innerHTML = '<option value="">-- Toutes les catégories --</option>' +
+                cats.map(function(c) {
+                    return '<option value="' + c.name_fr + '">' + c.name_ar + ' / ' + c.name_fr + '</option>';
+                }).join('');
+            filterSelect.value = currentVal;
+        }
     } catch(e) {
         console.error('Erreur chargement catégories:', e);
     }
+}
+
+function exportProductsPdf() {
+    const params = new URLSearchParams();
+    const categoryFilter = document.getElementById('productsCategoryFilter')?.value;
+    if (categoryFilter) params.set('category', categoryFilter);
+    const searchInput = document.querySelector('[data-input="filter-products"]');
+    if (searchInput?.value) params.set('search', searchInput.value);
+    if (document.getElementById('showArchivedProducts')?.checked) params.set('include_archived', 'true');
+    const a = document.createElement('a');
+    a.href = '/api/products/export/pdf?' + params.toString();
+    a.download = 'produits.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
 async function loadBestSellers() {
@@ -45,8 +70,14 @@ async function loadBestSellers() {
 function renderProducts(filter) {
     const container = document.getElementById('productsListView');
     if (!container) return;
+    if (filter === undefined) {
+        const searchInput = document.querySelector('[data-input="filter-products"]');
+        filter = searchInput?.value || '';
+    }
     filter = filter || '';
+    const categoryFilter = document.getElementById('productsCategoryFilter')?.value || '';
     const filtered = products.filter(p => {
+        if (categoryFilter && p.category !== categoryFilter) return false;
         return p.name.toLowerCase().indexOf(filter.toLowerCase()) !== -1 || (p.sku && p.sku.toLowerCase().indexOf(filter.toLowerCase()) !== -1);
     });
     if (filtered.length === 0) {
