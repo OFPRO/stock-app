@@ -1,5 +1,9 @@
-from flask import Blueprint, request, jsonify
+import io
+import os
+import traceback
+from flask import Blueprint, request, jsonify, Response
 from datetime import datetime, timedelta
+from fpdf import FPDF
 from routes.db import get_db_ctx as get_db, validate_id, _safe_int
 
 kpis_bp = Blueprint('kpis', __name__)
@@ -1109,3 +1113,157 @@ def get_kpis_registers_status():
             result.append(row)
         
         return jsonify(result)
+
+
+def _sanitize_pdf(text, maxlen=0):
+    s = ''.join(c if ord(c) < 256 else '?' for c in str(text))
+    return s[:maxlen] if maxlen else s
+
+
+@kpis_bp.route('/api/kpis/tables/export/pdf', methods=['GET'])
+def export_table_pdf():
+    try:
+        table_type = request.args.get('type', '')
+        warehouse_id = validate_id(request.args.get('warehouse_id'))
+
+        with get_db() as conn:
+            if table_type == 'to-order':
+                if warehouse_id:
+                    rows = conn.execute('''
+                        SELECT id, name, sku, quantity, min_quantity,
+                               (min_quantity - quantity) as needed
+                        FROM products WHERE quantity < min_quantity AND is_deleted = 0
+                        AND warehouse_id=? ORDER BY needed DESC LIMIT 10
+                    ''', (warehouse_id,)).fetchall()
+                else:
+                    rows = conn.execute('''
+                        SELECT id, name, sku, quantity, min_quantity,
+                               (min_quantity - quantity) as needed
+                        FROM products WHERE quantity < min_quantity AND is_deleted = 0
+                        ORDER BY needed DESC LIMIT 10
+                    ''').fetchall()
+                title = 'Produits a Commander'
+                col_w = [8, 60, 30, 25, 20, 25]
+                headers = ['#', 'Produit', 'SKU', 'Stock', 'Min', 'Besoin']
+                filename = 'a-commander.pdf'
+            elif table_type == 'ruptures':
+                if warehouse_id:
+                    rows = conn.execute('''
+                        SELECT id, name, sku, min_quantity, price
+                        FROM products WHERE (quantity <= 0 OR quantity IS NULL)
+                        AND is_deleted = 0 AND warehouse_id=?
+                        ORDER BY min_quantity DESC LIMIT 10
+                    ''', (warehouse_id,)).fetchall()
+                else:
+                    rows = conn.execute('''
+                        SELECT id, name, sku, min_quantity, price
+                        FROM products WHERE (quantity <= 0 OR quantity IS NULL)
+                        AND is_deleted = 0
+                        ORDER BY min_quantity DESC LIMIT 10
+                    ''').fetchall()
+                title = 'Ruptures de Stock'
+                col_w = [8, 70, 40, 25, 25]
+                headers = ['#', 'Produit', 'SKU', 'Stock', 'Min']
+                filename = 'ruptures.pdf'
+            elif table_type == 'categories':
+                if warehouse_id:
+                    rows = conn.execute('''
+                        SELECT category,
+                               SUM(quantity) as total_qty,
+                               COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) as total_purchase_value,
+                               COALESCE(SUM(quantity * price), 0) as total_sale_value
+                        FROM products WHERE is_deleted = 0 AND warehouse_id=?
+                        GROUP BY category ORDER BY total_qty DESC
+                    ''', (warehouse_id,)).fetchall()
+                else:
+                    rows = conn.execute('''
+                        SELECT category,
+                               SUM(quantity) as total_qty,
+                               COALESCE(SUM(quantity * COALESCE(NULLIF(purchase_price_avg, 0), 0)), 0) as total_purchase_value,
+                               COALESCE(SUM(quantity * price), 0) as total_sale_value
+                        FROM products WHERE is_deleted = 0
+                        GROUP BY category ORDER BY total_qty DESC
+                    ''').fetchall()
+                title = 'Categories Stock'
+                col_w = [8, 80, 25, 35, 35]
+                headers = ['#', 'Categorie', 'Qte', 'Val. Achat', 'Val. Vente']
+                filename = 'categories.pdf'
+            else:
+                return jsonify({'error': 'Type invalide. Utiliser: to-order, ruptures, categories'}), 400
+
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
+
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static', 'img', 'logo.png')
+        if os.path.exists(logo_path):
+            logo_w = 50
+            x = pdf.l_margin + (pdf.epw - logo_w) / 2
+            pdf.image(logo_path, x=x, w=logo_w)
+            pdf.ln(5)
+
+        pdf.set_font('Helvetica', 'B', 16)
+        pdf.cell(0, 10, title, align='C', new_x='LMARGIN', new_y='NEXT')
+        pdf.ln(2)
+
+        pdf.set_font('Helvetica', '', 8)
+        pdf.cell(0, 5, f"Genere le {datetime.now().strftime('%d/%m/%Y a %H:%M')}", align='C', new_x='LMARGIN', new_y='NEXT')
+        if warehouse_id:
+            pdf.cell(0, 5, f"Entrepot : {warehouse_id}", align='C', new_x='LMARGIN', new_y='NEXT')
+        pdf.cell(0, 5, f"Total : {len(rows)} enregistrement(s)", align='C', new_x='LMARGIN', new_y='NEXT')
+        pdf.ln(4)
+
+        table_w = sum(col_w)
+        x_start = (pdf.w - table_w) / 2
+
+        def _draw_header():
+            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_fill_color(41, 128, 185)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_x(x_start)
+            for i, h in enumerate(headers):
+                pdf.cell(col_w[i], 7, h, border=1, align='C', fill=True)
+            pdf.ln()
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font('Helvetica', '', 9)
+
+        _draw_header()
+        for idx, r in enumerate(rows, 1):
+            if pdf.get_y() > 185:
+                pdf.add_page()
+                _draw_header()
+
+            pdf.set_x(x_start)
+            if table_type == 'to-order':
+                pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
+                pdf.cell(col_w[1], 6, _sanitize_pdf(r['name'], 35), border=1)
+                pdf.cell(col_w[2], 6, _sanitize_pdf(r['sku'] or '-', 15), border=1, align='C')
+                pdf.cell(col_w[3], 6, str(r['quantity'] or 0), border=1, align='C')
+                pdf.cell(col_w[4], 6, str(r['min_quantity'] or 0), border=1, align='C')
+                pdf.cell(col_w[5], 6, str(r['needed'] or 0), border=1, align='C')
+            elif table_type == 'ruptures':
+                pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
+                pdf.cell(col_w[1], 6, _sanitize_pdf(r['name'], 40), border=1)
+                pdf.cell(col_w[2], 6, _sanitize_pdf(r['sku'] or '-', 20), border=1, align='C')
+                pdf.cell(col_w[3], 6, '0', border=1, align='C')
+                pdf.cell(col_w[4], 6, str(r['min_quantity'] or 0), border=1, align='C')
+            elif table_type == 'categories':
+                pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
+                pdf.cell(col_w[1], 6, _sanitize_pdf(r['category'] or '-', 40), border=1)
+                pdf.cell(col_w[2], 6, str(r['total_qty'] or 0), border=1, align='C')
+                pdf.cell(col_w[3], 6, f"{(r['total_purchase_value'] or 0):.2f}", border=1, align='R')
+                pdf.cell(col_w[4], 6, f"{(r['total_sale_value'] or 0):.2f}", border=1, align='R')
+            pdf.ln()
+
+        buf = io.BytesIO()
+        pdf.output(buf)
+        buf.seek(0)
+
+        return Response(
+            buf.getvalue(),
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': 'Erreur lors de la generation du PDF'}), 500
