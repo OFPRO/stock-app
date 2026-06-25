@@ -1040,6 +1040,51 @@
         .cash-source-content small { font-size: var(--text-xs); color: var(--color-text-subtle); margin-top: var(--space-xxs); }
         .cash-source-option:hover .cash-source-content { border-color: var(--color-primary-hover); }
         
+        /* DASHBOARD BLOCKS — Thematic groups */
+        .dashboard-block {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--card);
+            border-radius: var(--radius-xl);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .dashboard-block .block-header {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--color-primary);
+        }
+        .dashboard-block .block-header i {
+            font-size: 1rem;
+            color: var(--color-primary);
+        }
+        .dashboard-block .block-header h3 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin: 0;
+        }
+        .dashboard-block > .kpi-cards:first-of-type {
+            margin-bottom: 0.5rem;
+        }
+        .dashboard-block > .dashboard-charts,
+        .dashboard-block > .dashboard-tables {
+            margin-top: 1.25rem;
+            margin-bottom: 0;
+        }
+        .dashboard-block > .dashboard-charts:last-child,
+        .dashboard-block > .dashboard-tables:last-child {
+            margin-bottom: 0;
+        }
+        /* Responsive: single column for small screens */
+        @media (max-width: 768px) {
+            .dashboard-block { padding: 1rem; }
+        }
+
         /* NEW DASHBOARD STYLES */
         .dashboard-charts {
             display: grid;
