@@ -108,6 +108,11 @@ async function loadDashboard() {
             '<i class="fas fa-arrow-down"></i> ' + Math.abs(sales.ca_trend) + '%';
         document.getElementById('caTrend').className = 'kpi-card-trend ' + (sales.ca_trend >= 0 ? 'up' : 'down');
 
+        const caPeriodeEl = document.getElementById('caPeriode');
+        if (caPeriodeEl) caPeriodeEl.textContent = (sales.ca_periode || 0).toLocaleString();
+        const nbVentesPeriodeEl = document.getElementById('nbVentesPeriode');
+        if (nbVentesPeriodeEl) nbVentesPeriodeEl.textContent = sales.nb_ventes_periode || 0;
+
         document.getElementById('totalCreances').textContent = (receivables.total_creances || 0).toLocaleString();
         document.getElementById('tauxEncaissement').textContent = receivables.taux_encaissement || 0;
         document.getElementById('valeurStock').textContent = (dashboard.total_value || 0).toLocaleString();

@@ -133,9 +133,9 @@
             </header>
             
             <div class="content">
-                <!-- DASHBOARD TAB - COMPLETE REDESIGN -->
+                <!-- DASHBOARD TAB - REORGANIZED v1.7.0 -->
                 <div class="tab-content active" id="dashboardTab">
-                    <div class="dashboard-header">
+                    <div class="dashboard-header" id="dashboardHeader">
                         <div class="dashboard-title">
                             <h2 data-i18n="dashboard.title">Dashboard Commercial</h2>
                             <p class="dashboard-subtitle" data-i18n="dashboard.subtitle">Vue d'ensemble de votre activité</p>
@@ -172,10 +172,10 @@
                             </button>
                         </div>
                     </div>
-                    
-                    <!-- KPI CARDS - ROW 1: Sales -->
-                    <div class="kpi-section">
-                        <div class="kpi-section-title" data-i18n="dashboard.salesPerformance">Performance des Ventes</div>
+
+                    <!-- ═══ BLOC 1: VUE D'ENSEMBLE ═══ 4 KPIs — signes vitaux -->
+                    <div class="dashboard-block">
+                        <div class="block-header"><i class="fas fa-chart-line"></i> <h3>Vue d'Ensemble</h3></div>
                         <div class="kpi-cards">
                             <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
                                 <div class="kpi-card-header">
@@ -212,10 +212,70 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- KPI CARDS - ROW 2: Financial -->
-                    <div class="kpi-section">
-                        <div class="kpi-section-title" data-i18n="dashboard.financialStatus">Situation Financière</div>
+
+                    <!-- ═══ BLOC 2: PERFORMANCE COMMERCIALE & DÉPENSES ═══ 4 KPIs + 3 charts -->
+                    <div class="dashboard-block">
+                        <div class="block-header"><i class="fas fa-chart-bar"></i> <h3>Performance Commerciale &amp; Dépenses</h3></div>
+                        <div class="kpi-cards">
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="50">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon primary"><i class="fas fa-calendar-week"></i></div>
+                                </div>
+                                <div class="kpi-card-label">CA Période</div>
+                                <div class="kpi-card-value primary" id="caPeriode">0</div>
+                                <div class="kpi-card-sub">DH</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="100">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon success"><i class="fas fa-shopping-bag"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Nb Ventes Période</div>
+                                <div class="kpi-card-value success" id="nbVentesPeriode">0</div>
+                                <div class="kpi-card-sub">transactions</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="150">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon warning"><i class="fas fa-money-bill-wave"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Total Dépenses</div>
+                                <div class="kpi-card-value warning" id="totalDepenses">0</div>
+                                <div class="kpi-card-sub">DH (période)</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="200">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon danger"><i class="fas fa-clock"></i></div>
+                                    <div class="kpi-card-trend" id="depensesTrend"></div>
+                                </div>
+                                <div class="kpi-card-label">Dépenses Aujourd'hui</div>
+                                <div class="kpi-card-value danger" id="depensesJour">0</div>
+                                <div class="kpi-card-sub">DH</div>
+                            </div>
+                        </div>
+                        <div class="dashboard-charts">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <h3 data-i18n="dashboard.chart.dailySales"><i class="fas fa-chart-area"></i> Ventes Journalières</h3>
+                                </div>
+                                <div id="chartSalesDaily" class="chart-body"></div>
+                            </div>
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <h3 data-i18n="dashboard.chart.salesByCategory"><i class="fas fa-chart-pie"></i> Ventes par Catégorie</h3>
+                                </div>
+                                <div id="chartCategories" class="chart-body"></div>
+                            </div>
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <h3 data-i18n="dashboard.chart.topProducts"><i class="fas fa-chart-bar"></i> Top 10 Produits</h3>
+                                </div>
+                                <div id="chartTopProducts" class="chart-body"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ BLOC 3: TRÉSORERIE & CRÉANCES ═══ 4 KPIs + 2 charts + 1 table -->
+                    <div class="dashboard-block">
+                        <div class="block-header"><i class="fas fa-university"></i> <h3>Trésorerie &amp; Créances</h3></div>
                         <div class="kpi-cards">
                             <div class="kpi-card" data-aos="fade-up" data-aos-delay="200">
                                 <div class="kpi-card-header">
@@ -233,6 +293,52 @@
                                 <div class="kpi-card-value success" id="tauxEncaissement">0</div>
                                 <div class="kpi-card-sub">%</div>
                             </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="400" data-click="show-tab" data-arg="mainAccount" style="cursor:pointer;">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon primary"><i class="fas fa-university"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Compte Principal</div>
+                                <div class="kpi-card-value primary" id="mainAccountKpi">0</div>
+                                <div class="kpi-card-sub">DH</div>
+                            </div>
+                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
+                                <div class="kpi-card-header">
+                                    <div class="kpi-card-icon danger"><i class="fas fa-shopping-cart"></i></div>
+                                </div>
+                                <div class="kpi-card-label">Achats Fournisseur</div>
+                                <div class="kpi-card-value danger" id="depensesFournisseur">0</div>
+                                <div class="kpi-card-sub">DH (période)</div>
+                            </div>
+                        </div>
+                        <div class="dashboard-charts">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <h3 data-i18n="dashboard.chart.invoiceStatus"><i class="fas fa-file-invoice"></i> État des Factures</h3>
+                                </div>
+                                <div id="chartInvoicesStatus" class="chart-body"></div>
+                            </div>
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <h3 data-i18n="dashboard.chart.marginDistribution"><i class="fas fa-percentage"></i> Répartition Marge</h3>
+                                </div>
+                                <div id="chartMargins" class="chart-body"></div>
+                            </div>
+                        </div>
+                        <div class="dashboard-tables" style="grid-template-columns:1fr;">
+                            <div class="table-card">
+                                <div class="table-header">
+                                    <h3 data-i18n="dashboard.receivables"><i class="fas fa-money-bill-wave"></i> Créances Clients</h3>
+                                    <span class="badge badge-danger" id="creancesCount">0</span>
+                                </div>
+                                <div class="table-body" id="tableCreances"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ BLOC 4: STOCK & LOGISTIQUE ═══ 4 KPIs + 1 chart + 3 tables -->
+                    <div class="dashboard-block">
+                        <div class="block-header"><i class="fas fa-boxes"></i> <h3>Stock &amp; Logistique</h3></div>
+                        <div class="kpi-cards">
                             <div class="kpi-card" data-aos="fade-up" data-aos-delay="300">
                                 <div class="kpi-card-header">
                                     <div class="kpi-card-icon primary"><i class="fas fa-boxes"></i></div>
@@ -265,20 +371,43 @@
                                 <div class="kpi-card-value danger" id="rupturesStock">0</div>
                                 <div class="kpi-card-sub">produits</div>
                             </div>
-                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="400" data-click="show-tab" data-arg="mainAccount" style="cursor:pointer;">
-                                <div class="kpi-card-header">
-                                    <div class="kpi-card-icon primary"><i class="fas fa-university"></i></div>
+                        </div>
+                        <div class="dashboard-charts" style="grid-template-columns:1fr;">
+                            <div class="chart-card">
+                                <div class="chart-header">
+                                    <h3 data-i18n="dashboard.chart.stockMovements"><i class="fas fa-exchange-alt"></i> Mouvements Stock</h3>
                                 </div>
-                                <div class="kpi-card-label">Compte Principal</div>
-                                <div class="kpi-card-value primary" id="mainAccountKpi">0</div>
-                                <div class="kpi-card-sub">DH</div>
+                                <div id="chartMovements" class="chart-body"></div>
+                            </div>
+                        </div>
+                        <div class="dashboard-tables" style="grid-template-columns:repeat(3,1fr);">
+                            <div class="table-card">
+                                <div class="table-header">
+                                    <h3 data-i18n="dashboard.toOrder"><i class="fas fa-shopping-cart"></i> À Commander</h3>
+                                    <span class="badge badge-warning" id="toOrderCount">0</span>
+                                </div>
+                                <div class="table-body" id="tableToOrder"></div>
+                            </div>
+                            <div class="table-card">
+                                <div class="table-header">
+                                    <h3><i class="fas fa-exclamation-triangle"></i> Ruptures de Stock</h3>
+                                    <span class="badge badge-danger" id="rupturesCount">0</span>
+                                </div>
+                                <div class="table-body" id="tableRuptures"></div>
+                            </div>
+                            <div class="table-card">
+                                <div class="table-header">
+                                    <h3><i class="fas fa-tags"></i> Catégories</h3>
+                                    <span class="badge badge-primary" id="categoriesCount">0</span>
+                                </div>
+                                <div class="table-body" id="tableCategories"></div>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- KPI CARDS - ROW 3: POS Encaissements -->
-                    <div class="kpi-section">
-                        <div class="kpi-section-title">Encaissements POS</div>
+
+                    <!-- ═══ BLOC 5: CAISSE & OPÉRATIONS (compact) ═══ 3 KPIs + status caisses -->
+                    <div class="dashboard-block">
+                        <div class="block-header"><i class="fas fa-cash-register"></i> <h3>Caisse &amp; Opérations</h3></div>
                         <div class="kpi-cards">
                             <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
                                 <div class="kpi-card-header">
@@ -305,12 +434,7 @@
                                 <div class="kpi-card-sub">DH (caisses + factures)</div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- KPI CARDS - ROW 3b: Multi-Caisse -->
-                    <div class="kpi-section">
-                        <div class="kpi-section-title">Caisses</div>
-                        <div class="kpi-cards" id="registersKpiCards">
+                        <div class="kpi-cards" id="registersKpiCards" style="margin-top:0.5rem;">
                             <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
                                 <div class="kpi-card-header">
                                     <div class="kpi-card-icon success"><i class="fas fa-cash-register"></i></div>
@@ -329,119 +453,7 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- KPI CARDS - ROW 4: Dépenses -->
-                    <div class="kpi-section">
-                        <div class="kpi-section-title">Dépenses</div>
-                        <div class="kpi-cards">
-                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="0">
-                                <div class="kpi-card-header">
-                                    <div class="kpi-card-icon danger"><i class="fas fa-shopping-cart"></i></div>
-                                    <div class="kpi-card-trend" id="depensesTrend"></div>
-                                </div>
-                                <div class="kpi-card-label">Achats Fournisseur</div>
-                                <div class="kpi-card-value danger" id="depensesFournisseur">0</div>
-                                <div class="kpi-card-sub">DH (période)</div>
-                            </div>
-                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="50">
-                                <div class="kpi-card-header">
-                                    <div class="kpi-card-icon danger"><i class="fas fa-money-bill-wave"></i></div>
-                                </div>
-                                <div class="kpi-card-label">Total Dépenses</div>
-                                <div class="kpi-card-value danger" id="totalDepenses">0</div>
-                                <div class="kpi-card-sub">DH (période)</div>
-                            </div>
-                            <div class="kpi-card" data-aos="fade-up" data-aos-delay="100">
-                                <div class="kpi-card-header">
-                                    <div class="kpi-card-icon warning"><i class="fas fa-clock"></i></div>
-                                </div>
-                                <div class="kpi-card-label">Dépenses Aujourd'hui</div>
-                                <div class="kpi-card-value warning" id="depensesJour">0</div>
-                                <div class="kpi-card-sub">DH</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- CHARTS ROW 1 -->
-                    <div class="dashboard-charts">
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3 data-i18n="dashboard.chart.dailySales"><i class="fas fa-chart-area"></i> Ventes Journalières</h3>
-                            </div>
-                            <div id="chartSalesDaily" class="chart-body"></div>
-                        </div>
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3 data-i18n="dashboard.chart.salesByCategory"><i class="fas fa-chart-pie"></i> Ventes par Catégorie</h3>
-                            </div>
-                            <div id="chartCategories" class="chart-body"></div>
-                        </div>
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3 data-i18n="dashboard.chart.topProducts"><i class="fas fa-chart-bar"></i> Top 10 Produits</h3>
-                            </div>
-                            <div id="chartTopProducts" class="chart-body"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- CHARTS ROW 2 -->
-                    <div class="dashboard-charts">
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3 data-i18n="dashboard.chart.invoiceStatus"><i class="fas fa-file-invoice"></i> État des Factures</h3>
-                            </div>
-                            <div id="chartInvoicesStatus" class="chart-body"></div>
-                        </div>
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3 data-i18n="dashboard.chart.stockMovements"><i class="fas fa-exchange-alt"></i> Mouvements Stock</h3>
-                            </div>
-                            <div id="chartMovements" class="chart-body"></div>
-                        </div>
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3 data-i18n="dashboard.chart.marginDistribution"><i class="fas fa-percentage"></i> Répartition Marge</h3>
-                            </div>
-                            <div id="chartMargins" class="chart-body"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- TABLES ROW -->
-                    <div class="dashboard-tables">
-                        <div class="table-card">
-                            <div class="table-header">
-                                <h3 data-i18n="dashboard.toOrder"><i class="fas fa-shopping-cart"></i> À Commander</h3>
-                                <span class="badge badge-warning" id="toOrderCount">0</span>
-                            </div>
-                            <div class="table-body" id="tableToOrder"></div>
-                        </div>
-                        <div class="table-card">
-                            <div class="table-header">
-                                <h3 data-i18n="dashboard.receivables"><i class="fas fa-money-bill-wave"></i> Créances Clients</h3>
-                                <span class="badge badge-danger" id="creancesCount">0</span>
-                            </div>
-                            <div class="table-body" id="tableCreances"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- TABLES ROW 2 -->
-                    <div class="dashboard-tables">
-                        <div class="table-card">
-                            <div class="table-header">
-                                <h3><i class="fas fa-exclamation-triangle"></i> Ruptures de Stock</h3>
-                                <span class="badge badge-danger" id="rupturesCount">0</span>
-                            </div>
-                            <div class="table-body" id="tableRuptures"></div>
-                        </div>
-                        <div class="table-card">
-                            <div class="table-header">
-                                <h3><i class="fas fa-tags"></i> Catégories</h3>
-                                <span class="badge badge-primary" id="categoriesCount">0</span>
-                            </div>
-                            <div class="table-body" id="tableCategories"></div>
-                        </div>
-                    </div>
-                    
+
                     <div class="loading-overlay" id="dashboardLoader">
                         <div class="spinner"></div>
                     </div>
@@ -465,7 +477,15 @@
                                 </button>
                             </div>
                         </div>
-                        <input type="text" class="form-input" data-i18n="common.search" placeholder="Rechercher..." style="margin-bottom:1rem;max-width:300px;" data-input="filter-products">
+                        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+                            <input type="text" class="form-input" data-i18n="common.search" placeholder="Rechercher..." style="max-width:300px;" data-input="filter-products">
+                            <select id="productsCategoryFilter" class="form-input" style="max-width:250px;" onchange="renderProducts()">
+                                <option value="">-- Toutes les catégories --</option>
+                            </select>
+                            <button class="btn btn-outline" onclick="exportProductsPdf()" title="Exporter en PDF">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </button>
+                        </div>
                         <div id="productsListView"></div>
                     </div>
                 </div>
@@ -521,6 +541,21 @@
                     <div class="card">
                         <div class="card-header">
                             <div class="card-title" data-i18n="movements.title">Mouvements</div>
+                        </div>
+                        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+                            <select id="movementsTypeFilter" class="form-input" style="max-width:250px;" onchange="loadMovements()">
+                                <option value="">-- Tous les types --</option>
+                                <option value="in">Entrée</option>
+                                <option value="out">Sortie</option>
+                                <option value="transfer">Transfert</option>
+                                <option value="inter_warehouse">Tr. Entrepôt</option>
+                                <option value="sale">Vente</option>
+                                <option value="retour">Retour</option>
+                                <option value="destruction">Destruction</option>
+                            </select>
+                            <button class="btn btn-outline" onclick="exportMovementsPdf()" title="Exporter en PDF">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </button>
                         </div>
                         <table class="table">
                             <thead>
