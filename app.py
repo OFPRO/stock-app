@@ -13,6 +13,8 @@ import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta, timezone
 from flask import Flask, redirect, render_template, request, jsonify, Response, send_from_directory, session
+import arabic_reshaper
+from bidi.algorithm import get_display
 from license_manager import get_mac_address, get_cached_payload, sign_license, validate_license, load_license, save_license
 from routes.db import get_db, get_catalog_db, get_db_ctx, get_catalog_db_ctx, get_price_by_tier, DB_NAME, CATALOG_DB, _safe_int, validate_id, categories_data, resolve_db_path
 try:
@@ -106,6 +108,18 @@ def _esc(d):
 
 def _n(val, default='-'):
     return val if val else default
+
+_reshape_cache = {}
+def _reshape(text):
+    if not text or not isinstance(text, str):
+        return text
+    if text not in _reshape_cache:
+        try:
+            r = arabic_reshaper.reshape(str(text))
+            _reshape_cache[text] = get_display(r)
+        except Exception:
+            _reshape_cache[text] = text
+    return _reshape_cache[text]
 
 def next_sequence(conn, name):
     conn.execute('SAVEPOINT seq')
@@ -1930,11 +1944,11 @@ def generate_invoice_pdf(invoice_id):
         party_html = f"""
         <div class="party-box">
             <div class="party-title">Client</div>
-            <div class="party-name">{customer_name}</div>
-            <div class="party-detail">Code: <strong>{_n(invoice_data.get('client_code'), '-')}</strong></div>
-            <div class="party-detail">ICE: <strong>{customer_ice}</strong></div>
-            <div class="party-detail">{_n(invoice_data.get('customer_address'), '')}</div>
-            <div class="party-detail">Tel: {_n(invoice_data.get('customer_phone'), '-')}</div>
+            <div class="party-name">{_reshape(customer_name)}</div>
+            <div class="party-detail">Code: <strong>{_reshape(_n(invoice_data.get('client_code'), '-'))}</strong></div>
+            <div class="party-detail">ICE: <strong>{_reshape(customer_ice)}</strong></div>
+            <div class="party-detail">{_reshape(_n(invoice_data.get('customer_address'), ''))}</div>
+            <div class="party-detail">Tel: {_reshape(_n(invoice_data.get('customer_phone'), '-'))}</div>
         </div>
         """
     
@@ -1975,19 +1989,19 @@ def generate_invoice_pdf(invoice_id):
         party_html = f"""
         <div class="party-card">
             <div class="party-title">Fournisseur</div>
-            <div class="party-name">{_n(invoice_data.get('supplier_name'), 'Fournisseur')}</div>
-            <div class="party-detail">{_n(invoice_data.get('supplier_address'), '')}</div>
-            <div class="party-detail">Tel: {_n(invoice_data.get('supplier_phone'), '-')}</div>
+            <div class="party-name">{_reshape(_n(invoice_data.get('supplier_name'), 'Fournisseur'))}</div>
+            <div class="party-detail">{_reshape(_n(invoice_data.get('supplier_address'), ''))}</div>
+            <div class="party-detail">Tel: {_reshape(_n(invoice_data.get('supplier_phone'), '-'))}</div>
         </div>"""
     else:
         party_html = f"""
         <div class="party-card">
             <div class="party-title">Client</div>
-            <div class="party-name">{customer_name}</div>
-            <div class="party-detail">Code: <span class="highlight">{_n(invoice_data.get('client_code'), '-')}</span></div>
-            <div class="party-detail">ICE: <span class="highlight">{customer_ice}</span></div>
-            <div class="party-detail">{_n(invoice_data.get('customer_address'), '')}</div>
-            <div class="party-detail">Tel: {_n(invoice_data.get('customer_phone'), '-')}</div>
+            <div class="party-name">{_reshape(customer_name)}</div>
+            <div class="party-detail">Code: <span class="highlight">{_reshape(_n(invoice_data.get('client_code'), '-'))}</span></div>
+            <div class="party-detail">ICE: <span class="highlight">{_reshape(customer_ice)}</span></div>
+            <div class="party-detail">{_reshape(_n(invoice_data.get('customer_address'), ''))}</div>
+            <div class="party-detail">Tel: {_reshape(_n(invoice_data.get('customer_phone'), '-'))}</div>
         </div>"""
     
     pdf_html = f"""<!DOCTYPE html>
@@ -2103,8 +2117,8 @@ def generate_invoice_pdf(invoice_id):
     for item in items_data:
         pdf_html += f"""
                         <tr>
-                            <td>{_n(item.get('product_name'), 'Article')}</td>
-                            <td style="color:{text_secondary}">{_n(item.get('product_sku'), '-')}</td>
+                            <td>{_reshape(_n(item.get('product_name'), 'Article'))}</td>
+                            <td style="color:{text_secondary}">{_reshape(_n(item.get('product_sku'), '-'))}</td>
                             <td style="text-align:center">{item['quantity']}</td>
                             <td style="text-align:right;font-variant-numeric:tabular-nums">{item['unit_price']:.2f}</td>
                             <td style="text-align:right;font-variant-numeric:tabular-nums">{_n(item.get('discount_percent'), 0)}%</td>
@@ -3029,7 +3043,7 @@ def generate_pos_ticket_pdf(ticket_number):
     for item in items:
         ticket_html += f"""
             <tr>
-                <td class="item-name">{_n(item.get('product_name'), 'Article')}</td>
+                <td class="item-name">{_reshape(_n(item.get('product_name'), 'Article'))}</td>
                 <td class="qty">{item['quantity']}</td>
                 <td class="price">{item['unit_price']:.2f}</td>
                 <td class="total">{item['line_total']:.2f}</td>
