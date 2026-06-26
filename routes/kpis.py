@@ -4,7 +4,7 @@ import traceback
 from flask import Blueprint, request, jsonify, Response
 from datetime import datetime, timedelta
 from fpdf import FPDF
-from services.pdf_utils import setup_pdf, FONT_NAME
+from services.pdf_utils import setup_pdf, FONT_NAME, _arabic_reshape
 from routes.db import get_db_ctx as get_db, validate_id, _safe_int
 
 kpis_bp = Blueprint('kpis', __name__)
@@ -1233,20 +1233,20 @@ def export_table_pdf():
             pdf.set_x(x_start)
             if table_type == 'to-order':
                 pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
-                pdf.cell(col_w[1], 6, (r['name'] or '-')[:35], border=1)
+                pdf.cell(col_w[1], 6, _arabic_reshape((r['name'] or '-')[:35]), border=1)
                 pdf.cell(col_w[2], 6, (r['sku'] or '-')[:15], border=1, align='C')
                 pdf.cell(col_w[3], 6, str(r['quantity'] or 0), border=1, align='C')
                 pdf.cell(col_w[4], 6, str(r['min_quantity'] or 0), border=1, align='C')
                 pdf.cell(col_w[5], 6, str(r['needed'] or 0), border=1, align='C')
             elif table_type == 'ruptures':
                 pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
-                pdf.cell(col_w[1], 6, (r['name'] or '-')[:40], border=1)
+                pdf.cell(col_w[1], 6, _arabic_reshape((r['name'] or '-')[:40]), border=1)
                 pdf.cell(col_w[2], 6, (r['sku'] or '-')[:20], border=1, align='C')
                 pdf.cell(col_w[3], 6, '0', border=1, align='C')
                 pdf.cell(col_w[4], 6, str(r['min_quantity'] or 0), border=1, align='C')
             elif table_type == 'categories':
                 pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
-                pdf.cell(col_w[1], 6, (r['category'] or '-')[:40], border=1)
+                pdf.cell(col_w[1], 6, _arabic_reshape((r['category'] or '-')[:40]), border=1)
                 pdf.cell(col_w[2], 6, str(r['total_qty'] or 0), border=1, align='C')
                 pdf.cell(col_w[3], 6, f"{(r['total_purchase_value'] or 0):.2f}", border=1, align='R')
                 pdf.cell(col_w[4], 6, f"{(r['total_sale_value'] or 0):.2f}", border=1, align='R')

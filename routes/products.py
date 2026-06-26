@@ -6,7 +6,7 @@ import traceback
 from datetime import datetime
 from flask import Blueprint, request, jsonify, Response
 from fpdf import FPDF
-from services.pdf_utils import setup_pdf, FONT_NAME
+from services.pdf_utils import setup_pdf, FONT_NAME, _arabic_reshape
 from routes.db import get_db_ctx as get_db, get_price_by_tier, validate_id
 
 products_bp = Blueprint('products', __name__)
@@ -458,14 +458,15 @@ def export_products_pdf():
                 pdf.add_page()
                 _draw_header()
 
-            cat_label = (p['category'] or '-')[:25]
+            cat_label = _arabic_reshape((p['category'] or '-')[:25])
+            name = _arabic_reshape(p['name'] or '-')
             amount = (p['price'] or 0) * (p['quantity'] or 0)
             total_amount += amount
 
             row_h = 6
             pdf.set_x(x_start)
             pdf.cell(col_w[0], row_h, str(idx), border=1, align='C')
-            pdf.cell(col_w[1], row_h, (p['name'] or '-')[:40], border=1)
+            pdf.cell(col_w[1], row_h, name[:40], border=1)
             pdf.cell(col_w[2], row_h, cat_label, border=1)
             pdf.cell(col_w[3], row_h, str(p['quantity'] or 0), border=1, align='C')
             pdf.cell(col_w[4], row_h, f"{(p['purchase_price_avg'] or 0):.2f}", border=1, align='R')
