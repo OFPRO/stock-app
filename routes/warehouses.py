@@ -4,6 +4,7 @@ import traceback
 from datetime import datetime
 from flask import Blueprint, request, jsonify, Response
 from fpdf import FPDF
+from services.pdf_utils import setup_pdf, FONT_NAME
 from routes.db import get_db, validate_id
 
 warehouses_bp = Blueprint('warehouses', __name__)
@@ -244,11 +245,6 @@ def get_movements(product_id):
     return jsonify([dict(m) for m in movements])
 
 
-def _sanitize_pdf(text, maxlen=0):
-    s = ''.join(c if ord(c) < 256 else '?' for c in str(text))
-    return s[:maxlen] if maxlen else s
-
-
 _TYPE_LABELS = {
     'in': 'Entree',
     'out': 'Sortie',
@@ -292,6 +288,7 @@ def export_movements_pdf():
             movements = conn.execute(query, params).fetchall()
 
         pdf = FPDF(orientation='L', unit='mm', format='A4')
+        setup_pdf(pdf)
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
 
@@ -302,11 +299,11 @@ def export_movements_pdf():
             pdf.image(logo_path, x=x, w=logo_w)
             pdf.ln(5)
 
-        pdf.set_font('Helvetica', 'B', 16)
+        pdf.set_font(FONT_NAME, 'B', 16)
         pdf.cell(0, 10, 'Liste des Mouvements de Stock', align='C', new_x='LMARGIN', new_y='NEXT')
         pdf.ln(2)
 
-        pdf.set_font('Helvetica', '', 8)
+        pdf.set_font(FONT_NAME, '', 8)
         pdf.cell(0, 5, f"Genere le {datetime.now().strftime('%d/%m/%Y a %H:%M')}", align='C', new_x='LMARGIN', new_y='NEXT')
         if movement_type:
             label = _TYPE_LABELS.get(movement_type, movement_type)
@@ -320,7 +317,7 @@ def export_movements_pdf():
         x_start = (pdf.w - table_w) / 2
 
         def _draw_header():
-            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_font(FONT_NAME, 'B', 9)
             pdf.set_fill_color(41, 128, 185)
             pdf.set_text_color(255, 255, 255)
             pdf.set_x(x_start)
@@ -328,7 +325,7 @@ def export_movements_pdf():
                 pdf.cell(col_w[i], 7, h, border=1, align='C', fill=True)
             pdf.ln()
             pdf.set_text_color(0, 0, 0)
-            pdf.set_font('Helvetica', '', 9)
+            pdf.set_font(FONT_NAME, '', 9)
 
         _draw_header()
         for idx, m in enumerate(movements, 1):
@@ -342,15 +339,15 @@ def export_movements_pdf():
             row_h = 6
             pdf.set_x(x_start)
             pdf.cell(col_w[0], row_h, str(idx), border=1, align='C')
-            pdf.cell(col_w[1], row_h, _sanitize_pdf(m['created_at'][:16] if m['created_at'] else '-', 18), border=1)
-            pdf.cell(col_w[2], row_h, _sanitize_pdf(m['product_name'] or '-', 35), border=1)
+            pdf.cell(col_w[1], row_h, (m['created_at'] or '-')[:16], border=1)
+            pdf.cell(col_w[2], row_h, (m['product_name'] or '-')[:35], border=1)
             pdf.cell(col_w[3], row_h, type_label, border=1, align='C')
             pdf.cell(col_w[4], row_h, str(m['quantity'] or 0), border=1, align='C')
-            pdf.cell(col_w[5], row_h, _sanitize_pdf(m['note'] or '-', 35), border=1)
+            pdf.cell(col_w[5], row_h, (m['note'] or '-')[:35], border=1)
             pdf.ln()
 
         pdf.ln(3)
-        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_font(FONT_NAME, 'B', 10)
         pdf.cell(0, 6, f"Total mouvements : {len(movements)}", align='R', new_x='LMARGIN', new_y='NEXT')
 
         buf = io.BytesIO()

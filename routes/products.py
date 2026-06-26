@@ -6,6 +6,7 @@ import traceback
 from datetime import datetime
 from flask import Blueprint, request, jsonify, Response
 from fpdf import FPDF
+from services.pdf_utils import setup_pdf, FONT_NAME
 from routes.db import get_db_ctx as get_db, get_price_by_tier, validate_id
 
 products_bp = Blueprint('products', __name__)
@@ -14,7 +15,17 @@ products_bp = Blueprint('products', __name__)
 def get_products():
     warehouse_id = validate_id(request.args.get('warehouse_id'))
     include_archived = request.args.get('include_archived', 'false').lower() == 'true'
-    
+    page = request.args.get('page', type=int)
+    per_page = request.args.get('per_page', type=int)
+    sort_by = request.args.get('sort_by', 'name')
+    sort_order = request.args.get('sort_order', 'asc').lower()
+
+    allowed_sorts = {'name', 'price', 'quantity', 'category', 'purchase_price_avg', 'sku', 'barcode'}
+    if sort_by not in allowed_sorts:
+        sort_by = 'name'
+    if sort_order not in ('asc', 'desc'):
+        sort_order = 'asc'
+
     with get_db() as conn:
         params = []
         where_parts = []
@@ -25,8 +36,9 @@ def get_products():
             where_parts.append('p.is_deleted = 0')
         
         where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
-        
-        query = '''
+        order_clause = f'ORDER BY p.{sort_by} {sort_order}'
+
+        base_query = '''
             SELECT p.*, s.name as supplier_name, w.name as warehouse_name, l.name as location_name,
                    c.name_ar as category_ar
             FROM products p
@@ -34,11 +46,25 @@ def get_products():
             LEFT JOIN warehouses w ON p.warehouse_id = w.id
             LEFT JOIN locations l ON p.location_id = l.id
             LEFT JOIN categories c ON p.category = c.name_fr
-            WHERE ''' + where_clause + '''
-            ORDER BY p.name
-        '''
-        
-        products = conn.execute(query, params).fetchall()
+            WHERE ''' + where_clause + ' ' + order_clause
+
+        if page and per_page and page > 0 and per_page > 0:
+            count_query = 'SELECT COUNT(*) FROM products p WHERE ' + where_clause
+            total = conn.execute(count_query, params).fetchone()[0]
+            total_pages = max(1, (total + per_page - 1) // per_page)
+
+            query = base_query + ' LIMIT ? OFFSET ?'
+            extended_params = params + [per_page, (page - 1) * per_page]
+            products = conn.execute(query, extended_params).fetchall()
+            return jsonify({
+                'data': [dict(p) for p in products],
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': total_pages
+            })
+
+        products = conn.execute(base_query, params).fetchall()
         return jsonify([dict(p) for p in products])
 
 @products_bp.route('/api/products/<int:product_id>', methods=['GET'])
@@ -356,10 +382,6 @@ def get_categories():
         ).fetchall()
         return jsonify([dict(c) for c in categories])
 
-def _sanitize_pdf(text, maxlen=0):
-    s = ''.join(c if ord(c) < 256 else '?' for c in str(text))
-    return s[:maxlen] if maxlen else s
-
 @products_bp.route('/api/products/export/pdf', methods=['GET'])
 def export_products_pdf():
     try:
@@ -391,6 +413,7 @@ def export_products_pdf():
             ''', params).fetchall()
 
         pdf = FPDF(orientation='L', unit='mm', format='A4')
+        setup_pdf(pdf)
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
 
@@ -401,11 +424,11 @@ def export_products_pdf():
             pdf.image(logo_path, x=x, w=logo_w)
             pdf.ln(5)
 
-        pdf.set_font('Helvetica', 'B', 16)
+        pdf.set_font(FONT_NAME, 'B', 16)
         pdf.cell(0, 10, 'Liste des Produits', align='C', new_x='LMARGIN', new_y='NEXT')
         pdf.ln(2)
 
-        pdf.set_font('Helvetica', '', 8)
+        pdf.set_font(FONT_NAME, '', 8)
         pdf.cell(0, 5, f"Genere le {datetime.now().strftime('%d/%m/%Y a %H:%M')}", align='C', new_x='LMARGIN', new_y='NEXT')
         if category:
             pdf.cell(0, 5, f"Categorie : {category}", align='C', new_x='LMARGIN', new_y='NEXT')
@@ -418,7 +441,7 @@ def export_products_pdf():
         x_start = (pdf.w - table_w) / 2
 
         def _draw_header():
-            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_font(FONT_NAME, 'B', 9)
             pdf.set_fill_color(41, 128, 185)
             pdf.set_text_color(255, 255, 255)
             pdf.set_x(x_start)
@@ -426,7 +449,7 @@ def export_products_pdf():
                 pdf.cell(col_w[i], 7, h, border=1, align='C', fill=True)
             pdf.ln()
             pdf.set_text_color(0, 0, 0)
-            pdf.set_font('Helvetica', '', 9)
+            pdf.set_font(FONT_NAME, '', 9)
 
         _draw_header()
         total_amount = 0
@@ -435,14 +458,14 @@ def export_products_pdf():
                 pdf.add_page()
                 _draw_header()
 
-            cat_label = _sanitize_pdf(p['category'], 25) or '-'
+            cat_label = (p['category'] or '-')[:25]
             amount = (p['price'] or 0) * (p['quantity'] or 0)
             total_amount += amount
 
             row_h = 6
             pdf.set_x(x_start)
             pdf.cell(col_w[0], row_h, str(idx), border=1, align='C')
-            pdf.cell(col_w[1], row_h, _sanitize_pdf(p['name'], 40), border=1)
+            pdf.cell(col_w[1], row_h, (p['name'] or '-')[:40], border=1)
             pdf.cell(col_w[2], row_h, cat_label, border=1)
             pdf.cell(col_w[3], row_h, str(p['quantity'] or 0), border=1, align='C')
             pdf.cell(col_w[4], row_h, f"{(p['purchase_price_avg'] or 0):.2f}", border=1, align='R')
@@ -451,7 +474,7 @@ def export_products_pdf():
             pdf.ln()
 
         pdf.ln(3)
-        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_font(FONT_NAME, 'B', 10)
         pdf.cell(0, 6, f"Montant total du stock : {total_amount:.2f} DH", align='R', new_x='LMARGIN', new_y='NEXT')
 
         buf = io.BytesIO()

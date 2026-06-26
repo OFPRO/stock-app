@@ -139,10 +139,11 @@ def main():
         
         conn.execute('''
             INSERT INTO products (name, sku, barcode, quantity, min_quantity, max_quantity, price,
-            price_base, price_loyal, price_gros, tax_category, category, 
+            price_base, price_loyal, price_gros, price_school, price_student, tax_category, category, 
             supplier_id, warehouse_id, location_id, lot_number, expiry_date, is_deleted)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-        ''', (p[0], p[1], 1234560001000+i, qty, 10, p[5], p[2], round(p[2]*0.6, 2), p[2]*0.9, round(p[2]*0.75, 2), 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        ''', (p[0], p[1], 1234560001000+i, qty, 10, p[5], p[2], round(p[2]*0.6, 2), round(p[2]*0.9, 2), round(p[2]*0.75, 2),
+              round(p[2]*0.8, 2), round(p[2]*0.85, 2),
               '20', p[4], random.choice(sup_ids), random.choice(wh_ids), random.choice(loc_ids),
               f'LOT-{2024}{i+1:03d}', expiry))
         prod_ids.append(conn.execute('SELECT last_insert_rowid()').fetchone()[0])
@@ -184,7 +185,7 @@ def main():
     print(f'✓ 200 stock movements')
     
     # ==== CUSTOMERS (30) with realistic data ====
-    customer_types = ['normal']*14 + ['fidele']*10 + ['gros']*6
+    customer_types = ['normal']*8 + ['fidele']*10 + ['gros']*6 + ['ecole']*3 + ['etudiant']*3
     customer_names = [
         'École Ibn Khaldoun', 'Lycée Mohammed V', 'Centre de Formation Pro',
         'Entreprise ABC', 'SARL Tech Solutions', 'Société Maghreb Commerce',

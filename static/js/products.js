@@ -5,6 +5,7 @@ async function loadProducts() {
         if (showArchived) url += '?include_archived=true';
         const res = await fetch(url);
         products = await res.json();
+        productsPage = 1;
         renderProducts();
         loadBestSellers();
     } catch(e) {
@@ -67,6 +68,12 @@ async function loadBestSellers() {
     }
 }
 
+var productsPage = 1;
+var productsPerPage = 25;
+var productsSortBy = '';
+var productsSortOrder = 'asc';
+var _lastFilterHash = '';
+
 function renderProducts(filter) {
     const container = document.getElementById('productsListView');
     if (!container) return;
@@ -76,6 +83,11 @@ function renderProducts(filter) {
     }
     filter = filter || '';
     const categoryFilter = document.getElementById('productsCategoryFilter')?.value || '';
+    const currentHash = filter + '|' + categoryFilter;
+    if (currentHash !== _lastFilterHash) {
+        productsPage = 1;
+        _lastFilterHash = currentHash;
+    }
     const filtered = products.filter(p => {
         if (categoryFilter && p.category !== categoryFilter) return false;
         return p.name.toLowerCase().indexOf(filter.toLowerCase()) !== -1 || (p.sku && p.sku.toLowerCase().indexOf(filter.toLowerCase()) !== -1);
@@ -84,15 +96,40 @@ function renderProducts(filter) {
         container.innerHTML = '<div class="empty">Aucun produit</div>';
         return;
     }
+    if (productsSortBy) {
+        filtered.sort(function(a, b) {
+            var va = a[productsSortBy], vb = b[productsSortBy];
+            if (va == null) va = '';
+            if (vb == null) vb = '';
+            if (typeof va === 'string') {
+                va = va.toLowerCase();
+                vb = (vb || '').toLowerCase();
+            }
+            if (va < vb) return productsSortOrder === 'asc' ? -1 : 1;
+            if (va > vb) return productsSortOrder === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+    const totalPages = Math.max(1, Math.ceil(filtered.length / productsPerPage));
+    if (productsPage > totalPages) productsPage = totalPages;
+    const startIdx = (productsPage - 1) * productsPerPage;
+    const pageItems = filtered.slice(startIdx, startIdx + productsPerPage);
     let html = '<table class="table" id="productsTable"><thead><tr>';
     if (productsSelectionMode) {
         html += '<th style="width:40px;"><input type="checkbox" id="selectAllProducts" onchange="toggleSelectAllProducts(this)" style="width:18px;height:18px;cursor:pointer;"></th>';
     }
-    html += '<th></th><th>Produit</th><th>Qte</th><th>Prix d\'Achat</th><th>Prix de Vente</th>';
+    function sortIcon(field) {
+        if (productsSortBy !== field) return '';
+        return productsSortOrder === 'asc' ? ' &#9650;' : ' &#9660;';
+    }
+    function sortLink(field, label) {
+        return '<a href="#" onclick="event.preventDefault();productsSortBy=\'' + field + '\';productsSortOrder=productsSortBy===\'' + field + '\'&&productsSortOrder===\'asc\'?\'desc\':\'asc\';renderProducts()" style="text-decoration:none;color:inherit;">' + label + sortIcon(field) + '</a>';
+    }
+    html += '<th></th><th>' + sortLink('name', 'Produit') + '</th><th>' + sortLink('quantity', 'Qte') + '</th><th>' + sortLink('purchase_price_avg', "Prix d'Achat") + '</th><th>' + sortLink('price', 'Prix de Vente') + '</th>';
     if (!productsSelectionMode) html += '<th>Actions</th>';
     html += '</tr></thead><tbody>';
-    for (let i = 0; i < filtered.length; i++) {
-        const p = filtered[i];
+    for (let i = 0; i < pageItems.length; i++) {
+        const p = pageItems[i];
         const isDeleted = p.is_deleted == 1;
         const rowClass = isDeleted ? ' style="opacity:0.5;text-decoration:line-through;"' : '';
         const statusClass = p.quantity <= p.min_quantity ? 'badge-danger' : (p.quantity <= p.min_quantity * 1.5 ? 'badge-warning' : 'badge-success');
@@ -127,6 +164,15 @@ function renderProducts(filter) {
         html += '<div style="display:flex;gap:8px;justify-content:center;padding:12px 0;">';
         html += '<button class="btn btn-danger" onclick="deleteSelectedProducts()"><i class="fas fa-trash"></i> Supprimer la sélection</button>';
         html += '<button class="btn btn-outline" onclick="exitSelectionMode()">Annuler la sélection</button>';
+        html += '</div>';
+    }
+    if (!productsSelectionMode) {
+        html += '<div style="display:flex;justify-content:center;align-items:center;gap:8px;padding:12px 0;">';
+        html += '<button class="btn btn-sm btn-outline" onclick="productsPage=1;renderProducts()" title="Premiere page"><i class="fas fa-angle-double-left"></i></button>';
+        html += '<button class="btn btn-sm btn-outline" onclick="productsPage=Math.max(1,productsPage-1);renderProducts()" title="Page precedente"><i class="fas fa-angle-left"></i></button>';
+        html += '<span style="font-size:0.85rem;margin:0 4px;">Page ' + productsPage + ' / ' + totalPages + ' (' + filtered.length + ' produits)</span>';
+        html += '<button class="btn btn-sm btn-outline" onclick="productsPage=Math.min(' + totalPages + ',productsPage+1);renderProducts()" title="Page suivante"><i class="fas fa-angle-right"></i></button>';
+        html += '<button class="btn btn-sm btn-outline" onclick="productsPage=' + totalPages + ';renderProducts()" title="Derniere page"><i class="fas fa-angle-double-right"></i></button>';
         html += '</div>';
     }
     container.innerHTML = html;

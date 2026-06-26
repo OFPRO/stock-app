@@ -51,4 +51,6 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.okhttp)
 }

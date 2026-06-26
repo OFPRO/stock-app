@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from fpdf import FPDF
+from services.pdf_utils import setup_pdf, FONT_NAME
 
 
 RECEIPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'receipts')
@@ -9,21 +10,22 @@ RECEIPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 class ReceiptPdf:
     def __init__(self):
         self.pdf = FPDF(orientation='P', unit='mm', format=(80, 200))
+        setup_pdf(self.pdf)
         self.pdf.set_auto_page_break(auto=True, margin=5)
         self.pdf.add_page()
 
     def _add_line(self, text, size=8, bold=False, align='C'):
-        self.pdf.set_font('Helvetica', 'B' if bold else '', size)
+        self.pdf.set_font(FONT_NAME, 'B' if bold else '', size)
         self.pdf.cell(0, 4, text, align=align, new_x='LMARGIN', new_y='NEXT')
 
     def _add_pair(self, left, right, size=8):
-        self.pdf.set_font('Helvetica', '', size)
+        self.pdf.set_font(FONT_NAME, '', size)
         w = self.pdf.w - 2 * self.pdf.l_margin
         self.pdf.cell(w * 0.55, 4, left)
         self.pdf.cell(w * 0.45, 4, right, align='R', new_x='LMARGIN', new_y='NEXT')
 
     def _add_separator(self, char='-'):
-        self.pdf.set_font('Helvetica', '', 6)
+        self.pdf.set_font(FONT_NAME, '', 6)
         self.pdf.cell(0, 2, char * 48, align='C', new_x='LMARGIN', new_y='NEXT')
 
     def header(self, ticket_number):
@@ -44,23 +46,23 @@ class ReceiptPdf:
         self._add_separator()
 
     def table_header(self):
-        self.pdf.set_font('Helvetica', 'B', 7)
+        self.pdf.set_font(FONT_NAME, 'B', 7)
         w = self.pdf.w - 2 * self.pdf.l_margin
         col_w = [w * 0.45, w * 0.15, w * 0.20, w * 0.20]
         self.pdf.cell(col_w[0], 4, 'Article')
         self.pdf.cell(col_w[1], 4, 'Qte', align='C')
         self.pdf.cell(col_w[2], 4, 'Prix', align='R')
         self.pdf.cell(col_w[3], 4, 'Total', align='R', new_x='LMARGIN', new_y='NEXT')
-        self.pdf.set_font('Helvetica', '', 6)
+        self.pdf.set_font(FONT_NAME, '', 6)
         self.pdf.cell(0, 1, '-' * 48, align='C', new_x='LMARGIN', new_y='NEXT')
 
     def add_item(self, name, qty, price, total):
         w = self.pdf.w - 2 * self.pdf.l_margin
         col_w = [w * 0.45, w * 0.15, w * 0.20, w * 0.20]
         name_trunc = name[:28] if name else ''
-        self.pdf.set_font('Helvetica', '', 6)
+        self.pdf.set_font(FONT_NAME, '', 6)
         self.pdf.cell(col_w[0], 4, name_trunc)
-        self.pdf.set_font('Helvetica', '', 7)
+        self.pdf.set_font(FONT_NAME, '', 7)
         self.pdf.cell(col_w[1], 4, str(qty), align='C')
         self.pdf.cell(col_w[2], 4, f'{price:.2f}', align='R')
         self.pdf.cell(col_w[3], 4, f'{total:.2f}', align='R', new_x='LMARGIN', new_y='NEXT')
@@ -72,7 +74,7 @@ class ReceiptPdf:
             self._add_pair('Remise:', f'{discount:.2f} DH')
         self._add_pair('TVA (20%):', f'{tax:.2f} DH')
         self._add_separator()
-        self.pdf.set_font('Helvetica', 'B', 10)
+        self.pdf.set_font(FONT_NAME, 'B', 10)
         w = self.pdf.w - 2 * self.pdf.l_margin
         self.pdf.cell(w * 0.55, 6, 'TOTAL:')
         self.pdf.cell(w * 0.45, 6, f'{total:.2f} DH', align='R', new_x='LMARGIN', new_y='NEXT')

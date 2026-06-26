@@ -1,7 +1,10 @@
 package com.app2.feature.dashboard
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.app2.core.data.network.PdfExporter
+import com.app2.core.data.remote.KPIApiService
 import com.app2.core.data.remote.dto.AlertesDTO
 import com.app2.core.data.remote.dto.CategoryDistributionDTO
 import com.app2.core.data.remote.dto.DashboardKPIDTO
@@ -19,7 +22,9 @@ import com.app2.core.data.repository.MainAccountRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,6 +34,8 @@ data class DashboardDisplayData(
     val salesCount: String = "0",
     val averageTicket: String = "0 MAD",
     val grossMargin: String = "0%",
+    val caPeriode: String = "0 MAD",
+    val nbVentesPeriode: String = "0",
     val receivables: String = "0 MAD",
     val collectionRate: String = "0%",
     val stockValue: String = "0 MAD",
@@ -58,7 +65,8 @@ data class SalesDayData(val date: String, val ca: Double, val nbVentes: Int)
 data class TopProductData(val name: String, val qtySold: Int, val ca: Double)
 data class CategoryData(val category: String, val qtyVendue: Int, val ca: Double)
 data class InvoicesStatusData(
-    val brouillon: Int = 0, val envoyee: Int = 0, val payee: Int = 0, val annulee: Int = 0
+    val brouillon: Int = 0, val envoyee: Int = 0, val payee: Int = 0,
+    val annulee: Int = 0, val partiellementPayee: Int = 0
 )
 data class StockTrendData(val date: String, val entries: Int, val exits: Int, val net: Int)
 data class ReorderItem(val name: String, val sku: String, val quantity: Int, val minQuantity: Int, val needed: Int)
@@ -68,11 +76,19 @@ data class ExpiringItem(val name: String, val lotNumber: String?, val daysLeft: 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val kpiRepository: KPIRepository,
-    private val mainAccountRepository: MainAccountRepository
+    private val mainAccountRepository: MainAccountRepository,
+    private val kpiApiService: KPIApiService,
+    private val pdfExporter: PdfExporter
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ViewState<DashboardDisplayData>>(ViewState.Loading)
     val state = _state.asStateFlow()
+
+    private val _isExporting = MutableStateFlow<Set<String>>(emptySet())
+    val isExporting = _isExporting.asStateFlow()
+
+    private val _pdfEvent = MutableSharedFlow<Uri>()
+    val pdfEvent = _pdfEvent.asSharedFlow()
 
     init {
         loadDashboard()
@@ -107,6 +123,21 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun exportTablePdf(type: String) {
+        viewModelScope.launch {
+            _isExporting.value = _isExporting.value + type
+            try {
+                val response = kpiApiService.exportTablePdf(type = type)
+                val uri = pdfExporter.saveResponseAndGetUri(response, "tableau-$type.pdf")
+                _pdfEvent.emit(uri)
+            } catch (e: Exception) {
+                _state.value = ViewState.Error("Erreur d'export PDF: ${e.message}")
+            } finally {
+                _isExporting.value = _isExporting.value - type
+            }
+        }
+    }
+
     private fun mapToDisplayData(
         dash: DashboardKPIDTO, sales: SalesKPIDTO, salesDaily: List<SalesDayDTO>,
         topJson: List<TopProductDTO>, margins: MarginDTO, receivables: ReceivablesKPIDTO,
@@ -118,6 +149,8 @@ class DashboardViewModel @Inject constructor(
         val salesCount = (sales.nbVentesJour ?: 0).toString()
         val avgTicket = formatMoney(sales.ticketMoyen ?: 0.0)
         val margin = formatPercent(margins.margeGlobale ?: 0.0)
+        val caP = formatMoney(sales.caPeriode ?: 0.0)
+        val nbVentesP = (sales.nbVentesPeriode ?: 0).toString()
         val recv = formatMoney(receivables.totalCreances ?: 0.0)
         val collection = formatPercent(receivables.tauxEncaissement ?: 0.0)
         val stockValue = formatMoney(dash.totalValue ?: 0.0)
@@ -168,7 +201,8 @@ class DashboardViewModel @Inject constructor(
             brouillon = invoicesStatus.brouillon ?: 0,
             envoyee = invoicesStatus.envoyee ?: 0,
             payee = invoicesStatus.payee ?: 0,
-            annulee = invoicesStatus.annulee ?: 0
+            annulee = invoicesStatus.annulee ?: 0,
+            partiellementPayee = invoicesStatus.partiellementPayee ?: 0
         )
 
         val trendData = trends.mapNotNull { item ->
@@ -179,6 +213,7 @@ class DashboardViewModel @Inject constructor(
         return DashboardDisplayData(
             caToday = caToday, salesCount = salesCount,
             averageTicket = avgTicket, grossMargin = margin,
+            caPeriode = caP, nbVentesPeriode = nbVentesP,
             receivables = recv, collectionRate = collection,
             stockValue = stockValue, stockouts = stockouts,
             totalEncaissement = totalEnc, cashAmount = cashAmt,

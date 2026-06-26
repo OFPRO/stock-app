@@ -478,7 +478,7 @@ private fun ProductsPanel(
             onExpandedChange = onCustomerDropdownExpandedChange
         ) {
             OutlinedTextField(
-                value = if (selectedCustomer != null) "Client: ${selectedCustomer!!.name}" else "Client comptoir",
+                value = if (selectedCustomer != null) "${selectedCustomer!!.name}  •  ${selectedCustomer!!.pricingTier.label}" else "Client comptoir",
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = customerDropdownExpanded) },
@@ -502,7 +502,7 @@ private fun ProductsPanel(
                 customers.forEach { customer ->
                     DropdownMenuItem(
                         text = {
-                            Text("${customer.name}${if (customer.discountRate != null) " (-${customer.discountRate}%)" else ""}")
+                            Text("${customer.name}  •  ${customer.pricingTier.label}")
                         },
                         onClick = {
                             onSelectCustomer(customer)
