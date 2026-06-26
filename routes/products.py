@@ -460,7 +460,7 @@ def export_products_pdf():
 
             name = _arabic_pdf(p['name'] or '-')
             cat_label = _arabic_pdf((p['category'] or '-')[:25])
-            amount = (p['price'] or 0) * (p['quantity'] or 0)
+            amount = (p['purchase_price_avg'] or 0) * (p['quantity'] or 0)
             total_amount += amount
 
             row_h = 6
