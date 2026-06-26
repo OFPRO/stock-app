@@ -49,6 +49,8 @@ a = Analysis(
         'PIL',
         'win32print',
         'win32file',
+        'arabic_reshaper',
+        'six',
     ],
     hookspath=[],
     hooksconfig={},

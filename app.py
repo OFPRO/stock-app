@@ -13,7 +13,11 @@ import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta, timezone
 from flask import Flask, redirect, render_template, request, jsonify, Response, send_from_directory, session
-import arabic_reshaper
+try:
+    import arabic_reshaper
+    _HAS_ARABIC_RESHAPER = True
+except ImportError:
+    _HAS_ARABIC_RESHAPER = False
 from license_manager import get_mac_address, get_cached_payload, sign_license, validate_license, load_license, save_license
 from routes.db import get_db, get_catalog_db, get_db_ctx, get_catalog_db_ctx, get_price_by_tier, DB_NAME, CATALOG_DB, _safe_int, validate_id, categories_data, resolve_db_path
 try:
@@ -110,7 +114,7 @@ def _n(val, default='-'):
 
 _reshape_cache = {}
 def _reshape(text):
-    if not text or not isinstance(text, str):
+    if not text or not isinstance(text, str) or not _HAS_ARABIC_RESHAPER:
         return text
     if text not in _reshape_cache:
         try:
