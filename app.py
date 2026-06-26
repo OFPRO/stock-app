@@ -175,6 +175,8 @@ def init_db():
             price_base REAL DEFAULT 0,
             price_loyal REAL DEFAULT 0,
             price_gros REAL DEFAULT 0,
+            price_school REAL DEFAULT 0,
+            price_student REAL DEFAULT 0,
             tax_category TEXT DEFAULT '20',
             lot_number TEXT,
             serial_number TEXT,
@@ -202,6 +204,14 @@ def init_db():
         pass
     try:
         c.execute("ALTER TABLE products ADD COLUMN tax_category TEXT DEFAULT '20'")
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE products ADD COLUMN price_school REAL DEFAULT 0')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE products ADD COLUMN price_student REAL DEFAULT 0')
     except Exception:
         pass
     try:
@@ -1986,8 +1996,10 @@ def generate_invoice_pdf(invoice_id):
     <meta charset="UTF-8">
     <title>Facture {invoice_data['invoice_number']}</title>
     <style>
+        @font-face {{ font-family: 'DejaVu Sans'; src: url('/static/fonts/DejaVuSans.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }}
+        @font-face {{ font-family: 'DejaVu Sans'; src: url('/static/fonts/DejaVuSans-Bold.ttf') format('truetype'); font-weight: bold; font-style: normal; font-display: swap; }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 11px; padding: 30px; color: {text_primary}; background: #f3f4f6; }}
+        body {{ font-family: 'DejaVu Sans', 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 11px; padding: 30px; color: {text_primary}; background: #f3f4f6; }}
         .page {{ position: relative; max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }}
         .watermark {{ position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 80px; font-weight: 800; color: rgba(0,0,0,0.04); letter-spacing: 0.1em; pointer-events: none; white-space: nowrap; user-select: none; z-index: 0; }}
         .watermark.hidden {{ display: none; }}
@@ -2383,6 +2395,8 @@ def create_pos_transaction():
             cid = _safe_int(customer_id, None)
             if cid:
                 customer_row = conn.execute('SELECT * FROM customers WHERE id = ?', (cid,)).fetchone()
+                if customer_row and customer_row['type'] != 'normal':
+                    pricing_tier = customer_row['type']
         
         # Calculate totals
         subtotal = 0
@@ -2394,12 +2408,12 @@ def create_pos_transaction():
                 item['unit_price'] = get_price_by_tier(dict(product), pricing_tier)
             unit_price = item.get('unit_price', 0) or 0
             item['unit_price'] = unit_price
-        line_ht = item['quantity'] * unit_price
-        line_tax = line_ht * 0.20
-        subtotal += line_ht
-        if apply_tax:
-            tax += line_tax
-        discount += line_ht * (item.get('discount_percent', 0) / 100)
+            line_ht = item['quantity'] * unit_price
+            line_tax = line_ht * 0.20
+            subtotal += line_ht
+            if apply_tax:
+                tax += line_tax
+            discount += line_ht * (item.get('discount_percent', 0) / 100)
     
         total = subtotal + (tax if apply_tax else 0) - discount
         change_amount = max(0, tendered_amount - total) if payment_method == 'cash' else 0
@@ -2959,8 +2973,10 @@ def generate_pos_ticket_pdf(ticket_number):
     <meta charset="UTF-8">
     <title>Recu - {ticket_number}</title>
     <style>
+        @font-face {{ font-family: 'DejaVu Sans'; src: url('/static/fonts/DejaVuSans.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }}
+        @font-face {{ font-family: 'DejaVu Sans'; src: url('/static/fonts/DejaVuSans-Bold.ttf') format('truetype'); font-weight: bold; font-style: normal; font-display: swap; }}
         * {{ margin:0; padding:0; box-sizing:border-box; }}
-        body {{ font-family:'Courier New',monospace; font-size:14px; font-weight:900; width:300px; margin:0 auto; padding:8px; color:#000; }}
+        body {{ font-family:'DejaVu Sans','Courier New',monospace; font-size:14px; font-weight:900; width:300px; margin:0 auto; padding:8px; color:#000; }}
         .header {{ text-align:center; margin-bottom:12px; border-bottom:1px dashed #000; padding-bottom:8px; }}
         .ticket-title {{ font-size:22px; font-weight:900; margin:8px 0; }}
         .ticket-number {{ font-size:14px; font-weight:900; border:1px solid #000; padding:4px 8px; display:inline-block; margin-bottom:8px; }}

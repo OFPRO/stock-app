@@ -5,9 +5,11 @@ import { toast } from "sonner"
 import {
   type ColumnDef,
   type SortingState,
+  type PaginationState,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table"
 import {
@@ -289,6 +291,7 @@ export function ProductsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }])
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 20 })
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState<ProductFormData>({ name: "" })
@@ -582,10 +585,12 @@ export function ProductsPage() {
   const table = useReactTable({
     data: filtered,
     columns,
-    state: { sorting },
+    state: { sorting, pagination },
     onSortingChange: setSorting,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   })
 
   return (
@@ -594,7 +599,7 @@ export function ProductsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("products.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            {products.length} {t("products.count", { count: products.length })} {t("products.registered", { count: products.length })}
+            {filtered.length} {t("products.count", { count: filtered.length })} {t("products.registered", { count: filtered.length })}
           </p>
         </div>
         <Button onClick={openCreate}>
@@ -674,6 +679,35 @@ export function ProductsPage() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between px-2">
+          <div className="text-sm text-muted-foreground">
+            {table.getFilteredSelectedRowModel().rows.length} sur {filtered.length} produit(s)
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Précédent
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {table.getState().pagination.pageIndex + 1} sur {table.getPageCount()}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Suivant
+            </Button>
+          </div>
+        </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

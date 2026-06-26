@@ -4,6 +4,15 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class PagedProductResponse(
+    val data: List<ProductDetailDTO>,
+    val total: Int,
+    val page: Int,
+    @SerialName("per_page") val perPage: Int,
+    @SerialName("total_pages") val totalPages: Int
+)
+
+@Serializable
 data class ProductDetailDTO(
     val id: Int,
     val name: String,

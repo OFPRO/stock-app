@@ -64,7 +64,23 @@ def get_price_by_tier(product, tier):
         return product.get('price_loyal', 0) or base_price
     elif tier in ('gros', 'price_gros'):
         return product.get('price_gros', 0) or base_price
+    elif tier in ('ecole', 'price_school'):
+        return product.get('price_school', 0) or base_price
+    elif tier in ('etudiant', 'price_student'):
+        return product.get('price_student', 0) or base_price
     return base_price
+
+def get_price_for_customer(db, product_id, customer_id):
+    product = db.execute('SELECT * FROM products WHERE id=?', (product_id,)).fetchone()
+    if not product:
+        return 0
+    product = dict(product)
+    if customer_id:
+        customer = db.execute('SELECT * FROM customers WHERE id=?', (customer_id,)).fetchone()
+        if customer:
+            tier = customer['pricing_tier'] or customer.get('type', 'normal')
+            return get_price_by_tier(product, tier)
+    return product.get('price_base', 0) or product.get('price', 0)
 
 def resolve_db_path(store_id=None):
     if store_id is None:

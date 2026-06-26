@@ -1,5 +1,6 @@
 package com.app2.feature.dashboard
 
+import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,19 +19,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -41,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,7 +71,19 @@ import com.app2.core.ui.theme.Warning
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isExporting by viewModel.isExporting.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.pdfEvent.collect { uri ->
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/pdf")
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(intent)
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -81,7 +100,12 @@ fun DashboardScreen(
                 }
             }
             is ViewState.Loaded -> {
-                DashboardContent(data = s.data, onRefresh = { viewModel.loadDashboard() })
+                DashboardContent(
+                    data = s.data,
+                    onRefresh = { viewModel.loadDashboard() },
+                    isExporting = isExporting,
+                    onExportPdf = { viewModel.exportTablePdf(it) }
+                )
             }
             is ViewState.Error -> {
                 StockErrorView(message = s.message, onRetry = { viewModel.loadDashboard() })
@@ -96,6 +120,8 @@ fun DashboardScreen(
 private fun DashboardContent(
     data: DashboardDisplayData,
     onRefresh: () -> Unit,
+    isExporting: Set<String>,
+    onExportPdf: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     PullToRefreshBox(
@@ -131,7 +157,11 @@ private fun DashboardContent(
                     }
                     if (data.categoryData.isNotEmpty()) {
                         Column(modifier = Modifier.weight(1f)) {
-                            SectionTitle("Par catégorie")
+                            SectionTitleWithExport(
+                                title = "Par cat\u00E9gorie",
+                                isExporting = "categories" in isExporting,
+                                onExport = { onExportPdf("categories") }
+                            )
                             DonutChart(items = data.categoryData.map { it.category to it.ca })
                         }
                     }
@@ -143,18 +173,26 @@ private fun DashboardContent(
                 CombinedTrendChart(data = data.trendData)
             }
 
-            if (data.invoicesStatusData.let { it.brouillon + it.envoyee + it.payee + it.annulee } > 0) {
-                SectionTitle("État des factures")
+            if (data.invoicesStatusData.let { it.brouillon + it.envoyee + it.payee + it.annulee + it.partiellementPayee } > 0) {
+                SectionTitle("\u00C9tat des factures")
                 InvoicesStatusChart(data = data.invoicesStatusData)
             }
 
             if (data.reorderItems.isNotEmpty()) {
-                SectionTitle("Produits à commander")
+                SectionTitleWithExport(
+                    title = "Produits \u00E0 commander",
+                    isExporting = "to-order" in isExporting,
+                    onExport = { onExportPdf("to-order") }
+                )
                 ReorderTable(items = data.reorderItems)
             }
 
             if (data.lowStockItems.isNotEmpty() || data.outOfStockItems.isNotEmpty() || data.expiringItems.isNotEmpty()) {
-                SectionTitle("Alertes")
+                SectionTitleWithExport(
+                    title = "Alertes",
+                    isExporting = "ruptures" in isExporting,
+                    onExport = { onExportPdf("ruptures") }
+                )
                 AlertsSection(data = data)
             }
 
@@ -174,6 +212,39 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
+private fun SectionTitleWithExport(
+    title: String,
+    isExporting: Boolean,
+    onExport: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 4.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
+        if (isExporting) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp
+            )
+        } else {
+            IconButton(onClick = onExport, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = "Exporter PDF",
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun KpiSection(data: DashboardDisplayData) {
     KpiRow(
         KpiCardData("CA Aujourd'hui", data.caToday, Icons.Default.AttachMoney, Success),
@@ -184,7 +255,7 @@ private fun KpiSection(data: DashboardDisplayData) {
         KpiCardData("Marge brute", data.grossMargin, Icons.Default.AccountBalance, Brand)
     )
     KpiRow(
-        KpiCardData("Créances", data.receivables, Icons.Default.Warning, Error),
+        KpiCardData("Cr\u00E9ances", data.receivables, Icons.Default.Warning, Error),
         KpiCardData("Taux recouvr.", data.collectionRate, Icons.AutoMirrored.Filled.TrendingUp, Success)
     )
     KpiRow(
@@ -202,6 +273,10 @@ private fun KpiSection(data: DashboardDisplayData) {
             Icons.Default.Warning,
             if (data.hasAlerts) Error else Success
         )
+    )
+    KpiRow(
+        KpiCardData("CA P\u00E9riode", data.caPeriode, Icons.Default.AttachMoney, Brand),
+        KpiCardData("Ventes P\u00E9riode", data.nbVentesPeriode, Icons.Default.ShoppingCart, Info)
     )
 }
 
@@ -449,7 +524,7 @@ private fun CombinedTrendChart(data: List<StockTrendData>) {
                         }
                     }
                     Spacer(Modifier.width(4.dp))
-                    Text("Entrées", style = MaterialTheme.typography.labelSmall)
+                    Text("Entr\u00E9es", style = MaterialTheme.typography.labelSmall)
                 }
                 Spacer(Modifier.width(20.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -470,9 +545,10 @@ private fun CombinedTrendChart(data: List<StockTrendData>) {
 private fun InvoicesStatusChart(data: InvoicesStatusData) {
     val items = listOf(
         "Brouillon" to data.brouillon.toFloat() to MaterialTheme.colorScheme.onSurfaceVariant,
-        "Envoyée" to data.envoyee.toFloat() to Accent,
-        "Payée" to data.payee.toFloat() to Success,
-        "Annulée" to data.annulee.toFloat() to Error
+        "Envoy\u00E9e" to data.envoyee.toFloat() to Accent,
+        "Pay\u00E9e" to data.payee.toFloat() to Success,
+        "Partielle" to data.partiellementPayee.toFloat() to Info,
+        "Annul\u00E9e" to data.annulee.toFloat() to Error
     )
     val maxVal = items.maxOf { it.first.second }.coerceAtLeast(1f)
     StockCard(modifier = Modifier.fillMaxWidth()) {
@@ -496,9 +572,10 @@ private fun InvoicesStatusChart(data: InvoicesStatusData) {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatusLabel("Brouillon", data.brouillon, MaterialTheme.colorScheme.onSurfaceVariant)
-                StatusLabel("Envoyée", data.envoyee, Accent)
-                StatusLabel("Payée", data.payee, Success)
-                StatusLabel("Annulée", data.annulee, Error)
+                StatusLabel("Envoy\u00E9e", data.envoyee, Accent)
+                StatusLabel("Pay\u00E9e", data.payee, Success)
+                StatusLabel("Partielle", data.partiellementPayee, Info)
+                StatusLabel("Annul\u00E9e", data.annulee, Error)
             }
         }
     }
@@ -562,7 +639,7 @@ private fun AlertsSection(data: DashboardDisplayData) {
                 }
             }
             if (data.expiringItems.isNotEmpty()) {
-                Text("Périmés (DLC < 30j)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Accent)
+                Text("P\u00E9rim\u00E9s (DLC < 30j)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Accent)
                 data.expiringItems.forEach { item ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(item.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)

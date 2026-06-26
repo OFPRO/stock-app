@@ -5,6 +5,7 @@ import com.app2.core.data.local.entity.ProductEntity
 import com.app2.core.data.remote.ProductApiService
 import com.app2.core.data.remote.dto.CategoryDTO
 import com.app2.core.data.remote.dto.ForSaleProductDTO
+import com.app2.core.data.remote.dto.PagedProductResponse
 import com.app2.core.data.remote.dto.ProductDetailDTO
 import com.app2.core.data.remote.dto.deserialize
 import kotlinx.serialization.json.JsonElement
@@ -29,6 +30,19 @@ class ProductRepository(
                 throw e
             }
         }
+    }
+
+    suspend fun getProductsPaged(
+        page: Int = 1,
+        perPage: Int = 50,
+        includeArchived: Boolean = false,
+        sortBy: String? = null,
+        sortOrder: String? = null
+    ): PagedProductResponse {
+        val response = api.getProducts(includeArchived, page, perPage, sortBy, sortOrder)
+        val paged = response.deserialize<PagedProductResponse>()
+        productDao.insertAll(paged.data.map { it.toEntity() })
+        return paged
     }
 
     suspend fun getProductRaw(id: Int): JsonElement {

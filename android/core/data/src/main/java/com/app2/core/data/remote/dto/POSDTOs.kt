@@ -82,7 +82,8 @@ data class POSCustomerDTO(
     val id: Int,
     val name: String,
     @SerialName("client_code") val clientCode: String? = null,
-    @SerialName("discount_rate") val discountRate: Double? = null
+    @SerialName("discount_rate") val discountRate: Double? = null,
+    val type: String? = null
 )
 
 @Serializable
@@ -92,6 +93,7 @@ data class POSTransactionRequest(
     val items: List<TransactionItem>,
     @SerialName("payment_method") val paymentMethod: String,
     @SerialName("tendered_amount") val tenderedAmount: Double,
+    @SerialName("pricing_tier") val pricingTier: String? = null,
     val notes: String = "",
     @SerialName("is_credit") val isCredit: Boolean = false
 ) {
@@ -121,17 +123,29 @@ data class POSTransactionResponse(
 @Serializable
 enum class DiscountTier {
     @SerialName("normal") Normal,
-    @SerialName("loyal") Loyal,
-    @SerialName("student") Student,
-    @SerialName("school") School;
+    @SerialName("fidele") Loyal,
+    @SerialName("gros") Bulk,
+    @SerialName("etudiant") Student,
+    @SerialName("ecole") School;
 
     val label: String
         get() = when (this) {
             Normal -> "Normal"
             Loyal -> "Fidèle"
+            Bulk -> "Gros"
             Student -> "Étudiant"
             School -> "École"
         }
+
+    companion object {
+        fun fromType(type: String?): DiscountTier = when (type) {
+            "fidele" -> Loyal
+            "gros" -> Bulk
+            "etudiant" -> Student
+            "ecole" -> School
+            else -> Normal
+        }
+    }
 }
 
 @Serializable

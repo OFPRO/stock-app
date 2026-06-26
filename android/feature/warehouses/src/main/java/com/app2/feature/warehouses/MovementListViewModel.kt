@@ -1,11 +1,16 @@
 package com.app2.feature.warehouses
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.app2.core.data.network.PdfExporter
+import com.app2.core.data.remote.MovementApiService
 import com.app2.core.data.repository.MovementRepository
 import com.app2.core.ui.ViewState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,7 +29,9 @@ data class MovementListItem(
 
 @HiltViewModel
 class MovementListViewModel @Inject constructor(
-    private val movementRepository: MovementRepository
+    private val movementRepository: MovementRepository,
+    private val movementApiService: MovementApiService,
+    private val pdfExporter: PdfExporter
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ViewState<List<MovementListItem>>>(ViewState.Loading)
@@ -35,6 +42,12 @@ class MovementListViewModel @Inject constructor(
 
     private val _selectedFilter = MutableStateFlow(0)
     val selectedFilter = _selectedFilter.asStateFlow()
+
+    private val _isExporting = MutableStateFlow(false)
+    val isExporting = _isExporting.asStateFlow()
+
+    private val _pdfEvent = MutableSharedFlow<Uri>()
+    val pdfEvent = _pdfEvent.asSharedFlow()
 
     private var allMovements: List<MovementListItem> = emptyList()
 
@@ -81,6 +94,27 @@ class MovementListViewModel @Inject constructor(
     fun refresh() {
         allMovements = emptyList()
         loadMovements()
+    }
+
+    fun exportPdf() {
+        viewModelScope.launch {
+            _isExporting.value = true
+            try {
+                val typeParam = when (_selectedFilter.value) {
+                    0 -> null
+                    1 -> "in"
+                    2 -> "out"
+                    else -> null
+                }
+                val response = movementApiService.exportMovementsPdf(type = typeParam)
+                val uri = pdfExporter.saveResponseAndGetUri(response, "mouvements.pdf")
+                _pdfEvent.emit(uri)
+            } catch (e: Exception) {
+                _state.value = ViewState.Error("Erreur d'export PDF: ${e.message}")
+            } finally {
+                _isExporting.value = false
+            }
+        }
     }
 
     private fun applyFilters() {

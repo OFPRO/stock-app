@@ -4,6 +4,7 @@ import traceback
 from flask import Blueprint, request, jsonify, Response
 from datetime import datetime, timedelta
 from fpdf import FPDF
+from services.pdf_utils import setup_pdf, FONT_NAME
 from routes.db import get_db_ctx as get_db, validate_id, _safe_int
 
 kpis_bp = Blueprint('kpis', __name__)
@@ -1115,11 +1116,6 @@ def get_kpis_registers_status():
         return jsonify(result)
 
 
-def _sanitize_pdf(text, maxlen=0):
-    s = ''.join(c if ord(c) < 256 else '?' for c in str(text))
-    return s[:maxlen] if maxlen else s
-
-
 @kpis_bp.route('/api/kpis/tables/export/pdf', methods=['GET'])
 def export_table_pdf():
     try:
@@ -1192,6 +1188,7 @@ def export_table_pdf():
                 return jsonify({'error': 'Type invalide. Utiliser: to-order, ruptures, categories'}), 400
 
         pdf = FPDF(orientation='L', unit='mm', format='A4')
+        setup_pdf(pdf)
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
 
@@ -1202,11 +1199,11 @@ def export_table_pdf():
             pdf.image(logo_path, x=x, w=logo_w)
             pdf.ln(5)
 
-        pdf.set_font('Helvetica', 'B', 16)
+        pdf.set_font(FONT_NAME, 'B', 16)
         pdf.cell(0, 10, title, align='C', new_x='LMARGIN', new_y='NEXT')
         pdf.ln(2)
 
-        pdf.set_font('Helvetica', '', 8)
+        pdf.set_font(FONT_NAME, '', 8)
         pdf.cell(0, 5, f"Genere le {datetime.now().strftime('%d/%m/%Y a %H:%M')}", align='C', new_x='LMARGIN', new_y='NEXT')
         if warehouse_id:
             pdf.cell(0, 5, f"Entrepot : {warehouse_id}", align='C', new_x='LMARGIN', new_y='NEXT')
@@ -1217,7 +1214,7 @@ def export_table_pdf():
         x_start = (pdf.w - table_w) / 2
 
         def _draw_header():
-            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_font(FONT_NAME, 'B', 9)
             pdf.set_fill_color(41, 128, 185)
             pdf.set_text_color(255, 255, 255)
             pdf.set_x(x_start)
@@ -1225,7 +1222,7 @@ def export_table_pdf():
                 pdf.cell(col_w[i], 7, h, border=1, align='C', fill=True)
             pdf.ln()
             pdf.set_text_color(0, 0, 0)
-            pdf.set_font('Helvetica', '', 9)
+            pdf.set_font(FONT_NAME, '', 9)
 
         _draw_header()
         for idx, r in enumerate(rows, 1):
@@ -1236,20 +1233,20 @@ def export_table_pdf():
             pdf.set_x(x_start)
             if table_type == 'to-order':
                 pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
-                pdf.cell(col_w[1], 6, _sanitize_pdf(r['name'], 35), border=1)
-                pdf.cell(col_w[2], 6, _sanitize_pdf(r['sku'] or '-', 15), border=1, align='C')
+                pdf.cell(col_w[1], 6, (r['name'] or '-')[:35], border=1)
+                pdf.cell(col_w[2], 6, (r['sku'] or '-')[:15], border=1, align='C')
                 pdf.cell(col_w[3], 6, str(r['quantity'] or 0), border=1, align='C')
                 pdf.cell(col_w[4], 6, str(r['min_quantity'] or 0), border=1, align='C')
                 pdf.cell(col_w[5], 6, str(r['needed'] or 0), border=1, align='C')
             elif table_type == 'ruptures':
                 pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
-                pdf.cell(col_w[1], 6, _sanitize_pdf(r['name'], 40), border=1)
-                pdf.cell(col_w[2], 6, _sanitize_pdf(r['sku'] or '-', 20), border=1, align='C')
+                pdf.cell(col_w[1], 6, (r['name'] or '-')[:40], border=1)
+                pdf.cell(col_w[2], 6, (r['sku'] or '-')[:20], border=1, align='C')
                 pdf.cell(col_w[3], 6, '0', border=1, align='C')
                 pdf.cell(col_w[4], 6, str(r['min_quantity'] or 0), border=1, align='C')
             elif table_type == 'categories':
                 pdf.cell(col_w[0], 6, str(idx), border=1, align='C')
-                pdf.cell(col_w[1], 6, _sanitize_pdf(r['category'] or '-', 40), border=1)
+                pdf.cell(col_w[1], 6, (r['category'] or '-')[:40], border=1)
                 pdf.cell(col_w[2], 6, str(r['total_qty'] or 0), border=1, align='C')
                 pdf.cell(col_w[3], 6, f"{(r['total_purchase_value'] or 0):.2f}", border=1, align='R')
                 pdf.cell(col_w[4], 6, f"{(r['total_sale_value'] or 0):.2f}", border=1, align='R')

@@ -2,6 +2,7 @@ package com.app2.core.data.remote
 
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -9,10 +10,17 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 interface ProductApiService {
     @GET("api/products")
-    suspend fun getProducts(@Query("include_archived") includeArchived: Boolean = false): JsonElement
+    suspend fun getProducts(
+        @Query("include_archived") includeArchived: Boolean = false,
+        @Query("page") page: Int? = null,
+        @Query("per_page") perPage: Int? = null,
+        @Query("sort_by") sortBy: String? = null,
+        @Query("sort_order") sortOrder: String? = null
+    ): JsonElement
 
     @GET("api/products/{id}")
     suspend fun getProduct(@Path("id") id: Int): JsonElement
@@ -34,6 +42,14 @@ interface ProductApiService {
 
     @DELETE("api/products/{id}")
     suspend fun deleteProduct(@Path("id") id: Int): JsonElement
+
+    @GET("api/products/export/pdf")
+    @Streaming
+    suspend fun exportProductsPdf(
+        @Query("category") category: String? = null,
+        @Query("search") search: String? = null,
+        @Query("include_archived") includeArchived: Boolean = false
+    ): ResponseBody
 }
 
 interface CustomerApiService {
@@ -113,6 +129,14 @@ interface MovementApiService {
 
     @POST("api/stock/inter-warehouse")
     suspend fun interWarehouseTransfer(@Body body: JsonObject): JsonElement
+
+    @GET("api/movements/export/pdf")
+    @Streaming
+    suspend fun exportMovementsPdf(
+        @Query("type") type: String? = null,
+        @Query("product_id") productId: Int? = null,
+        @Query("warehouse_id") warehouseId: Int? = null
+    ): ResponseBody
 }
 
 interface POSApiService {
@@ -273,6 +297,13 @@ interface KPIApiService {
 
     @GET("api/kpis/trends")
     suspend fun getTrends(): JsonElement
+
+    @GET("api/kpis/tables/export/pdf")
+    @Streaming
+    suspend fun exportTablePdf(
+        @Query("type") type: String,
+        @Query("warehouse_id") warehouseId: Int? = null
+    ): ResponseBody
 }
 
 interface MainAccountApiService {

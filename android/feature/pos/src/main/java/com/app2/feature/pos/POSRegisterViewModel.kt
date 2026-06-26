@@ -2,6 +2,7 @@ package com.app2.feature.pos
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.app2.core.data.remote.dto.DiscountTier
 import com.app2.core.data.remote.dto.ForSaleProductDTO
 import com.app2.core.data.remote.dto.POSCustomerDTO
 import com.app2.core.data.repository.POSRepository
@@ -40,7 +41,8 @@ data class CartItem(
 data class POSCustomer(
     val id: Int,
     val name: String,
-    val discountRate: Int? = null
+    val discountRate: Int? = null,
+    val pricingTier: DiscountTier = DiscountTier.Normal
 )
 
 data class PaymentResult(
@@ -101,7 +103,14 @@ class POSRegisterViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val result = posRepository.getPOSCustomers()
-                _customers.value = result.map { POSCustomer(id = it.id, name = it.name, discountRate = it.discountRate?.toInt()) }
+                _customers.value = result.map {
+                    POSCustomer(
+                        id = it.id,
+                        name = it.name,
+                        discountRate = it.discountRate?.toInt(),
+                        pricingTier = DiscountTier.fromType(it.type)
+                    )
+                }
             } catch (_: Exception) {}
         }
     }
@@ -174,7 +183,10 @@ class POSRegisterViewModel @Inject constructor(
                     put("session_id", currentSessionId)
                     put("payment_method", paymentMethod)
                     put("tendered_amount", tenderedAmount)
-                    _selectedCustomer.value?.let { put("customer_id", it.id) }
+                    _selectedCustomer.value?.let { cust ->
+                        put("customer_id", cust.id)
+                        put("pricing_tier", cust.pricingTier.name.lowercase())
+                    }
                     put("items", buildJsonArray {
                         cartItems.forEach { item ->
                             add(buildJsonObject {

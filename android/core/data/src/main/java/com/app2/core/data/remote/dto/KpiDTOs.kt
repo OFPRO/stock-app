@@ -28,7 +28,9 @@ data class ReorderProductDTO(
 data class SalesKPIDTO(
     @SerialName("ca_jour") val caJour: Double? = null,
     @SerialName("nb_ventes_jour") val nbVentesJour: Int? = null,
-    @SerialName("ticket_moyen") val ticketMoyen: Double? = null
+    @SerialName("ticket_moyen") val ticketMoyen: Double? = null,
+    @SerialName("ca_periode") val caPeriode: Double? = null,
+    @SerialName("nb_ventes_periode") val nbVentesPeriode: Int? = null
 )
 
 @Serializable
@@ -103,7 +105,8 @@ data class InvoicesStatusDTO(
     val brouillon: Int? = null,
     val envoyee: Int? = null,
     val payee: Int? = null,
-    val annulee: Int? = null
+    val annulee: Int? = null,
+    @SerialName("partiellement_payee") val partiellementPayee: Int? = null
 )
 
 @Serializable
