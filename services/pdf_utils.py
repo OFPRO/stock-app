@@ -1,4 +1,6 @@
 import os
+import re
+from bidi.algorithm import get_display
 
 _SERVICES_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_DIR = os.path.dirname(_SERVICES_DIR)
@@ -79,3 +81,22 @@ def _arabic_reshape(text):
         else:
             r.append(ch)
     return ''.join(r)
+
+
+_HAS_ARABIC_RE = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF'
+                            r'\uFB50-\uFDFF\uFE70-\uFEFF]')
+
+
+def _contains_arabic(text):
+    return bool(_HAS_ARABIC_RE.search(text))
+
+
+def _arabic_pdf(text):
+    """BiDi reorder (for LTR renderer) + reshape (presentation forms).
+
+    get_display() converts logical-order Arabic to visual-order for LTR,
+    then _arabic_reshape() applies the correct presentation forms.
+    """
+    if not text or not isinstance(text, str):
+        return text
+    return _arabic_reshape(get_display(text))

@@ -6,7 +6,7 @@ import traceback
 from datetime import datetime
 from flask import Blueprint, request, jsonify, Response
 from fpdf import FPDF
-from services.pdf_utils import setup_pdf, FONT_NAME, _arabic_reshape
+from services.pdf_utils import setup_pdf, FONT_NAME, _arabic_pdf, _contains_arabic
 from routes.db import get_db_ctx as get_db, get_price_by_tier, validate_id
 
 products_bp = Blueprint('products', __name__)
@@ -458,16 +458,18 @@ def export_products_pdf():
                 pdf.add_page()
                 _draw_header()
 
-            cat_label = _arabic_reshape((p['category'] or '-')[:25])
-            name = _arabic_reshape(p['name'] or '-')
+            name = _arabic_pdf(p['name'] or '-')
+            cat_label = _arabic_pdf((p['category'] or '-')[:25])
             amount = (p['price'] or 0) * (p['quantity'] or 0)
             total_amount += amount
 
             row_h = 6
             pdf.set_x(x_start)
+            align_name = 'R' if _contains_arabic(name) else ''
+            align_cat = 'R' if _contains_arabic(cat_label) else ''
             pdf.cell(col_w[0], row_h, str(idx), border=1, align='C')
-            pdf.cell(col_w[1], row_h, name[:40], border=1)
-            pdf.cell(col_w[2], row_h, cat_label, border=1)
+            pdf.cell(col_w[1], row_h, name[:40], border=1, align=align_name)
+            pdf.cell(col_w[2], row_h, cat_label, border=1, align=align_cat)
             pdf.cell(col_w[3], row_h, str(p['quantity'] or 0), border=1, align='C')
             pdf.cell(col_w[4], row_h, f"{(p['purchase_price_avg'] or 0):.2f}", border=1, align='R')
             pdf.cell(col_w[5], row_h, f"{(p['price'] or 0):.2f}", border=1, align='R')
