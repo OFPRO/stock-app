@@ -88,7 +88,7 @@ function renderProducts(filter) {
     if (productsSelectionMode) {
         html += '<th style="width:40px;"><input type="checkbox" id="selectAllProducts" onchange="toggleSelectAllProducts(this)" style="width:18px;height:18px;cursor:pointer;"></th>';
     }
-    html += '<th></th><th>Produit</th><th>SKU</th><th>Qte</th><th>Prix</th>';
+    html += '<th></th><th>Produit</th><th>Qte</th><th>Prix d\'Achat</th><th>Prix de Vente</th>';
     if (!productsSelectionMode) html += '<th>Actions</th>';
     html += '</tr></thead><tbody>';
     for (let i = 0; i < filtered.length; i++) {
@@ -105,8 +105,8 @@ function renderProducts(filter) {
             html += '<td style="width:44px;"><img src="' + imgSrc + '" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px;" onerror="this.src=\'/static/img/no-image.png\'"></td>';
         }
         html += '<td><a href="#" onclick="openProductDetail(' + p.id + ')" class="product-link">' + p.name + (isDeleted ? ' <span class="badge badge-danger">Supprimé</span>' : '') + '</a></td>';
-        html += '<td>' + (p.sku || '-') + '</td>';
         html += '<td><span class="badge ' + statusClass + '">' + p.quantity + '</span></td>';
+        html += '<td>' + (p.purchase_price_avg || 0).toFixed(2) + ' DH</td>';
         html += '<td>' + (p.price || 0).toFixed(2) + ' DH</td>';
         if (!productsSelectionMode) {
             html += '<td>';

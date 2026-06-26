@@ -382,7 +382,7 @@ def export_products_pdf():
 
             where_clause = ' AND '.join(where_parts) if where_parts else '1=1'
             products = conn.execute(f'''
-                SELECT p.id, p.name, p.sku, p.category, p.quantity, p.price,
+                SELECT p.id, p.name, p.sku, p.category, p.quantity, p.purchase_price_avg, p.price,
                        c.name_ar as category_ar
                 FROM products p
                 LEFT JOIN categories c ON p.category = c.name_fr
@@ -412,8 +412,8 @@ def export_products_pdf():
         pdf.cell(0, 5, f"Total : {len(products)} produit(s)", align='C', new_x='LMARGIN', new_y='NEXT')
         pdf.ln(4)
 
-        col_w = [8, 80, 30, 40, 20, 20, 30]
-        headers = ['#', 'Produit', 'SKU', 'Categorie', 'Qte', 'Prix', 'Montant']
+        col_w = [8, 80, 40, 20, 20, 20, 30]
+        headers = ['#', 'Produit', 'Categorie', 'Qte', 'Prix Achat', 'Prix Vente', 'Montant']
         table_w = sum(col_w)
         x_start = (pdf.w - table_w) / 2
 
@@ -443,9 +443,9 @@ def export_products_pdf():
             pdf.set_x(x_start)
             pdf.cell(col_w[0], row_h, str(idx), border=1, align='C')
             pdf.cell(col_w[1], row_h, _sanitize_pdf(p['name'], 40), border=1)
-            pdf.cell(col_w[2], row_h, _sanitize_pdf(p['sku'] or '-', 30), border=1, align='C')
-            pdf.cell(col_w[3], row_h, cat_label, border=1)
-            pdf.cell(col_w[4], row_h, str(p['quantity'] or 0), border=1, align='C')
+            pdf.cell(col_w[2], row_h, cat_label, border=1)
+            pdf.cell(col_w[3], row_h, str(p['quantity'] or 0), border=1, align='C')
+            pdf.cell(col_w[4], row_h, f"{(p['purchase_price_avg'] or 0):.2f}", border=1, align='R')
             pdf.cell(col_w[5], row_h, f"{(p['price'] or 0):.2f}", border=1, align='R')
             pdf.cell(col_w[6], row_h, f"{amount:.2f}", border=1, align='R')
             pdf.ln()
