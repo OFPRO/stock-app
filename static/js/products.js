@@ -651,12 +651,16 @@ function resetProductForm() {
     document.getElementById('productMaxQty').value = 100;
     document.getElementById('productImagePreview').src = '/static/img/no-image.png';
     document.getElementById('productImageClearBtn').style.display = 'none';
+    var modal = document.getElementById('productModal');
+    if (modal) modal.dataset.originalImageUrl = '';
 }
 
 function clearProductImage() {
     document.getElementById('productImageInput').value = '';
     document.getElementById('productImagePreview').src = '/static/img/no-image.png';
     document.getElementById('productImageClearBtn').style.display = 'none';
+    var modal = document.getElementById('productModal');
+    if (modal) modal.dataset.originalImageUrl = '';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -904,6 +908,7 @@ function editProductModal(product) {
         imgPreview.src = product.image_url || '/static/img/no-image.png';
         document.getElementById('productImageClearBtn').style.display = product.image_url ? '' : 'none';
     }
+    document.getElementById('productModal').dataset.originalImageUrl = product.image_url || '';
     openModal('productModal');
 }
 
@@ -930,7 +935,6 @@ async function saveProduct(e) {
         max_quantity: parseInt(document.getElementById('productMaxQty').value) || 100
     };
     var imgInput = document.getElementById('productImageInput');
-    var currentPreview = document.getElementById('productImagePreview').src;
     if (imgInput && imgInput.files && imgInput.files[0]) {
         var formData = new FormData();
         formData.append('file', imgInput.files[0]);
@@ -943,10 +947,8 @@ async function saveProduct(e) {
         } catch(e) {
             console.error('Upload failed:', e);
         }
-    } else if (currentPreview && currentPreview.indexOf('/static/uploads/') !== -1) {
-        data.image_url = currentPreview;
     } else {
-        data.image_url = null;
+        data.image_url = document.getElementById('productModal').dataset.originalImageUrl || null;
     }
     try {
         const method = id ? 'PUT' : 'POST';
