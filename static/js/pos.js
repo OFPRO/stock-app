@@ -449,6 +449,18 @@ function updatePosCartItemQty(productId, delta) {
     renderPosCart();
 }
 
+function setPosCartItemQty(productId, newQty) {
+    var item = posCart.find(function(i) { return i.product_id === productId; });
+    if (!item) return;
+    var qty = parseInt(newQty) || 0;
+    if (qty <= 0) {
+        posCart = posCart.filter(function(i) { return i.product_id !== productId; });
+    } else {
+        item.quantity = qty;
+    }
+    renderPosCart();
+}
+
 function removePosCartItem(productId) {
     posCart = posCart.filter(function(i) { return i.product_id !== productId; });
     renderPosCart();
@@ -485,7 +497,7 @@ function renderPosCart() {
         return '<div class="pos-cart-item">' +
             '<div class="pos-cart-item-qty">' +
             '<button onclick="updatePosCartItemQty(' + item.product_id + ', -1)">-</button>' +
-            '<span>' + item.quantity + '</span>' +
+            '<input type="number" class="pos-cart-item-qty-input" value="' + item.quantity + '" min="1" onchange="setPosCartItemQty(' + item.product_id + ', this.value)">' +
             '<button onclick="updatePosCartItemQty(' + item.product_id + ', 1)">+</button></div>' +
             '<div class="pos-cart-item-name">' + item.product_name + '<br><small style="color:var(--text-light)">' + (item.product_sku || '') + '</small></div>' +
             '<input type="number" class="pos-cart-item-price-input" style="width:80px;padding:4px;border:1px solid var(--border);border-radius:4px;" value="' + item.unit_price.toFixed(2) + '" step="0.01" onchange="updatePosCartItemPrice(' + item.product_id + ', this.value)">' +

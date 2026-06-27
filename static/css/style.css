@@ -977,6 +977,8 @@
         .pos-cart-item-qty { display: flex; align-items: center; gap: 0.25rem; }
         .pos-cart-item-qty button { width: 24px; height: 24px; border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; border-radius: var(--radius-xs); }
         .pos-cart-item-qty span { min-width: 30px; text-align: center; font-weight: 600; }
+        .pos-cart-item-qty input[type="number"] { width: 50px; text-align: center; font-weight: 600; border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px; -moz-appearance: textfield; }
+        .pos-cart-item-qty input[type="number"]::-webkit-inner-spin-button, .pos-cart-item-qty input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .pos-cart-item-name { flex: 1; }
         .pos-cart-item-price { font-weight: 600; color: var(--primary); }
         .pos-cart-item-remove { color: var(--danger); cursor: pointer; }
