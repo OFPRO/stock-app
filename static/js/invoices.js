@@ -29,10 +29,10 @@ function renderInvoices() {
     for (let i = 0; i < invoices.length; i++) {
         const inv = invoices[i];
         const isTicket = inv.invoice_number && inv.invoice_number.startsWith('Ticket-');
-        const isFacture = inv.invoice_number && inv.invoice_number.startsWith('FAC-') && inv.type !== 'fournisseur';
+        const isBL = inv.type === 'bon_de_livraison';
         const isFournisseur = inv.type === 'fournisseur';
-        const badgeClass = isTicket ? 'badge badge-primary' : (isFournisseur ? 'badge badge-warning' : 'badge badge-success');
-        const label = isTicket ? 'Ticket' : (isFournisseur ? 'Fact-Fourn' : 'Facture');
+        const badgeClass = isTicket ? 'badge badge-primary' : (isBL ? 'badge badge-purple' : (isFournisseur ? 'badge badge-warning' : 'badge badge-success'));
+        const label = isTicket ? 'Ticket' : (isBL ? 'BL' : (isFournisseur ? 'Fact-Fourn' : 'Facture'));
         const btnLabel = isTicket ? 'Ticket' : 'Voir';
         const partyName = isFournisseur ? (inv.supplier_name || 'Fournisseur') : (inv.customer_name || 'Client Comptoir');
         const createdDate = inv.created_at ? inv.created_at.substring(0, 10) : '-';
@@ -56,7 +56,9 @@ function renderInvoices() {
             : ((isTicket || inv.status === 'payee') ? total.toFixed(2) + ' DH' : '-');
 
         let actionBtn = '<button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + inv.invoice_number + '\')">' + btnLabel + '</button>';
-        if (inv.status === 'partiellement_payee' || inv.status === 'envoyee') {
+        if (isBL && inv.status === 'envoyee') {
+            actionBtn += ' <button class="btn btn-sm btn-primary" onclick="convertBLToInvoice(' + inv.id + ')"><i class="fas fa-exchange-alt"></i> Convertir</button>';
+        } else if (!isBL && (inv.status === 'partiellement_payee' || inv.status === 'envoyee')) {
             actionBtn += ' <button class="btn btn-sm btn-primary" onclick="openPayCreditModal(' + inv.id + ')"><i class="fas fa-credit-card"></i> Payer</button>';
         }
 
@@ -155,5 +157,21 @@ async function submitPayCredit() {
         }
     } catch(e) {
         showError('Erreur lors du paiement');
+    }
+}
+
+async function convertBLToInvoice(id) {
+    if (!confirm('Convertir ce bon de livraison en facture ? Le statut passera à "Payée".')) return;
+    try {
+        var res = await fetch('/api/invoices/' + id + '/convert-to-invoice', { method: 'POST' });
+        var data = await res.json();
+        if (data.success) {
+            showError('Bon de livraison converti avec succès');
+            loadInvoices();
+        } else {
+            showError(data.error || 'Erreur de conversion');
+        }
+    } catch(e) {
+        showError('Erreur de conversion');
     }
 }

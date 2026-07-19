@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Search, Eye, Trash2, FileText, Printer } from "lucide-react"
+import { Plus, Search, Eye, Trash2, FileText, Printer, Truck } from "lucide-react"
 import { type ColumnDef, type SortingState, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
-import { getInvoices, getInvoice, createInvoice, updateInvoice, deleteInvoice, removeInvoiceItem, getCustomers, getProducts, getInvoiceStats, type Invoice, type InvoiceDetail, type Customer, type Product } from "@/lib/api"
+import { getInvoices, getInvoice, createInvoice, updateInvoice, deleteInvoice, removeInvoiceItem, getCustomers, getProducts, getInvoiceStats, convertToInvoice, type Invoice, type InvoiceDetail, type Customer, type Product } from "@/lib/api"
 import { NativeSelect } from "@/components/ui/native-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ export function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [typeFilter, setTypeFilter] = useState("all")
   const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }])
   const [createOpen, setCreateOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
@@ -28,7 +29,7 @@ export function InvoicesPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [stats, setStats] = useState({ total_invoices: 0, total_amount: 0, paid_amount: 0, pending_amount: 0 })
-  const [formData, setFormData] = useState({ customer_id: 0, notes: "" })
+  const [formData, setFormData] = useState({ customer_id: 0, notes: "", type: "facture" })
   const [formItems, setFormItems] = useState<{ product_id: number; quantity: number; unit_price: number }[]>([{ product_id: 0, quantity: 1, unit_price: 0 }])
   const [saving, setSaving] = useState(false)
 
@@ -46,17 +47,18 @@ export function InvoicesPage() {
 
   const filtered = useMemo(() => invoices.filter(inv => {
     if (statusFilter !== "all" && inv.status !== statusFilter) return false
+    if (typeFilter !== "all" && inv.type !== typeFilter) return false
     if (search) {
       const q = search.toLowerCase()
       return inv.invoice_number.toLowerCase().includes(q) || (inv.customer_name ?? "").toLowerCase().includes(q)
     }
     return true
-  }), [invoices, statusFilter, search])
+  }), [invoices, statusFilter, typeFilter, search])
 
-  const openCreate = async () => {
+  const openCreate = async (type: string = "facture") => {
     const [c, p] = await Promise.all([getCustomers(), getProducts()])
     setCustomers(c); setProducts(p)
-    setFormData({ customer_id: 0, notes: "" })
+    setFormData({ customer_id: 0, notes: "", type })
     setFormItems([{ product_id: 0, quantity: 1, unit_price: 0 }])
     setCreateOpen(true)
   }
@@ -75,7 +77,7 @@ export function InvoicesPage() {
     try {
       const items = formItems.filter(i => i.product_id && i.quantity > 0)
       const customerPayload = formData.customer_id ? { customer_id: formData.customer_id } : {}
-      const res = await createInvoice({ ...customerPayload, notes: formData.notes, items })
+      const res = await createInvoice({ ...customerPayload, notes: formData.notes, type: formData.type, items })
       if (res.success) { setCreateOpen(false); load() }
     } finally { setSaving(false) }
   }
@@ -96,6 +98,17 @@ export function InvoicesPage() {
     if (res.success) load()
   }, [load])
 
+  const handleConvertToInvoice = useCallback(async (id: number) => {
+    if (!confirm(t("invoices.confirm.convert_to_invoice"))) return
+    const res = await convertToInvoice(id)
+    if (res.success) {
+      load()
+      if (detailOpen) {
+        setDetailOpen(false)
+      }
+    }
+  }, [load, detailOpen, t])
+
   const handleItemRemove = async (itemId: number) => {
     if (!detailData || !confirm(t("invoices.confirm.remove_item"))) return
     const res = await removeInvoiceItem(detailData.id, itemId)
@@ -108,6 +121,7 @@ export function InvoicesPage() {
 
   const columns = useMemo<ColumnDef<Invoice>[]>(() => [
     { accessorKey: "invoice_number", header: t("invoices.number"), cell: ({ getValue }) => <span className="font-mono text-xs text-muted-foreground">{getValue() as string}</span> },
+    { accessorKey: "type", header: t("common.type"), cell: ({ getValue }) => { const v = getValue() as string; return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${v === "bon_de_livraison" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>{v === "bon_de_livraison" ? t("invoices.type.delivery_note") : t("invoices.type.invoice")}</span> } },
     { accessorKey: "customer_name", header: t("common.client"), cell: ({ getValue }) => <span>{(getValue() as string) ?? "—"}</span> },
     { accessorKey: "total", header: t("common.total"), cell: ({ getValue }) => <span className="tabular-nums">{(getValue() as number).toFixed(2)} DH</span> },
     { accessorKey: "status", header: t("common.status"), cell: ({ getValue }) => { const v = getValue() as string; return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[v] ?? ""}`}>{t(`invoices.status.${v === "partiellement_payee" ? "partially_paid" : v === "payee" ? "paid" : v === "envoyee" ? "sent" : v === "brouillon" ? "draft" : v === "annulee" ? "cancelled" : v}`)}</span> } },
@@ -130,7 +144,10 @@ export function InvoicesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div><h1 className="text-2xl font-bold tracking-tight">{t("invoices.title")}</h1><p className="text-sm text-muted-foreground">{t("invoices.count", { count: stats.total_invoices })}</p></div>
-        <Button onClick={openCreate}><Plus className="size-4" />{t("invoices.new")}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => openCreate("bon_de_livraison")}><Truck className="size-4" />{t("invoices.new_delivery_note")}</Button>
+          <Button onClick={() => openCreate("facture")}><Plus className="size-4" />{t("invoices.new")}</Button>
+        </div>
       </div>
 
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
@@ -141,6 +158,7 @@ export function InvoicesPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm"><Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pl-8" placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <Select value={typeFilter} onValueChange={setTypeFilter}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{t("common.all")}</SelectItem><SelectItem value="facture">{t("invoices.type.invoice")}</SelectItem><SelectItem value="bon_de_livraison">{t("invoices.type.delivery_note")}</SelectItem></SelectContent></Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{t("common.all")}</SelectItem><SelectItem value="brouillon">{t("invoices.status.draft")}</SelectItem><SelectItem value="envoyee">{t("invoices.status.sent")}</SelectItem><SelectItem value="payee">{t("invoices.status.paid")}</SelectItem><SelectItem value="annulee">{t("invoices.status.cancelled")}</SelectItem></SelectContent></Select>
       </div>
 
@@ -149,9 +167,10 @@ export function InvoicesPage() {
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{t("invoices.new")}</DialogTitle><DialogDescription>{t("invoices.dialog.create_description")}</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{formData.type === "bon_de_livraison" ? t("invoices.new_delivery_note") : t("invoices.new")}</DialogTitle><DialogDescription>{t("invoices.dialog.create_description")}</DialogDescription></DialogHeader>
           <div className="grid gap-3">
             <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1"><label className="text-xs font-medium">{t("common.type")}</label><NativeSelect value={formData.type} onChange={(v) => setFormData({ ...formData, type: v })} options={[{ value: "facture", label: t("invoices.type.invoice") }, { value: "bon_de_livraison", label: t("invoices.type.delivery_note") }]} /></div>
               <div className="space-y-1"><label className="text-xs font-medium">{t("invoices.form.customer")}</label><NativeSelect value={String(formData.customer_id)} onChange={(v) => setFormData({ ...formData, customer_id: parseInt(v) })} placeholder={t("invoices.form.select_customer")} options={[{ value: "0", label: t("invoices.counter_customer") }, ...customers.map(c => ({ value: String(c.id), label: `${c.name} (${c.client_code})` }))]} /></div>
             </div>
             <div className="space-y-1"><label className="text-xs font-medium">{t("common.notes")}</label><Input value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} /></div>
@@ -209,7 +228,8 @@ export function InvoicesPage() {
                 <Button variant="destructive" onClick={() => handleStatusChange(detailData.id, "annulee")}>{t("invoices.action.cancel")}</Button>
               </>}
               {detailData.status === "envoyee" && <>
-                <Button onClick={() => handleStatusChange(detailData.id, "payee")}>{t("invoices.action.mark_paid")}</Button>
+                {detailData.type === "bon_de_livraison" && <Button onClick={() => handleConvertToInvoice(detailData.id)}>{t("invoices.action.convert_to_invoice")}</Button>}
+                {detailData.type !== "bon_de_livraison" && <Button onClick={() => handleStatusChange(detailData.id, "payee")}>{t("invoices.action.mark_paid")}</Button>}
                 <Button variant="destructive" onClick={() => handleStatusChange(detailData.id, "annulee")}>{t("invoices.action.cancel")}</Button>
               </>}
             </div>

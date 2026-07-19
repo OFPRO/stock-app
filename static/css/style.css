@@ -257,6 +257,7 @@
         .badge-warning { background: var(--color-warning-soft); color: var(--color-warning); }
         .badge-danger { background: var(--color-danger-soft); color: var(--color-danger); }
         .badge-primary { background: var(--color-primary-soft); color: var(--color-primary); }
+        .badge-purple { background: #f3e8ff; color: #9333ea; }
         
         /* BUTTONS */
         .btn { padding: var(--space-sm) var(--space-lg); border: none; border-radius: var(--radius-md); font-weight: var(--font-weight-semibold); cursor: pointer; display: inline-flex; align-items: center; gap: var(--space-xs); font-size: var(--text-sm); transition: all var(--transition); }

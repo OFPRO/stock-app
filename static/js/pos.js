@@ -6,6 +6,7 @@ let posCashMovementType = 'in';
 let posRegisterId = 1;
 let posRegisters = [];
 let posEventSource = null;
+let posDocType = 'bon_de_livraison';
 
 const POS_REGISTER_KEY = 'stockpro_pos_register_id';
 const POS_SESSION_KEY = 'stockpro_pos_session_id';
@@ -619,7 +620,8 @@ async function processPosPayment() {
                 pricing_tier: pricingTier,
                 apply_tax: applyTax,
                 notes: '',
-                is_credit: isCredit
+                is_credit: isCredit,
+                doc_type: customerId ? posDocType : undefined
             })
         });
         var data = await res.json();
@@ -632,7 +634,9 @@ async function processPosPayment() {
             var docType = data.document_type;
             var docNum = data.document_number;
             var docStatus = data.document_status;
-            var msg = (docType === 'facture')
+            var msg = (docType === 'bon_de_livraison')
+                ? 'Bon de livraison généré: ' + docNum
+                : (docType === 'facture')
                 ? (docStatus === 'envoyee' ? 'Facture credit generee (en attente): '
                    : docStatus === 'partiellement_payee' ? 'Facture partiellement payee: '
                    : 'Facture payee: ') + docNum
@@ -696,18 +700,31 @@ function onCustomerChange() {
     var customerId = customerSelect ? parseInt(customerSelect.value) : null;
     var creditSection = document.getElementById('posCreditSection');
     var creditCheckbox = document.getElementById('posCreditCheckbox');
+    var docTypeSection = document.getElementById('posDocTypeSection');
     var customer = customerId && !isNaN(customerId) ? customers.find(function(c) { return c.id === customerId; }) : null;
     if (customer) {
         if (customer.type === 'fidele') discountSelect.value = 'price_loyal';
         else if (customer.type === 'gros') discountSelect.value = 'price_gros';
         else discountSelect.value = 'price_base';
         if (creditSection) creditSection.style.display = '';
+        if (docTypeSection) docTypeSection.style.display = 'block';
+        posDocType = 'bon_de_livraison';
+        setPosDocType('bon_de_livraison');
     } else {
         discountSelect.value = 'price_base';
         if (creditSection) creditSection.style.display = 'none';
         if (creditCheckbox) creditCheckbox.checked = false;
+        if (docTypeSection) docTypeSection.style.display = 'none';
     }
     applyPosDiscount();
+}
+
+function setPosDocType(type) {
+    posDocType = type;
+    var btnBL = document.getElementById('btnBL');
+    var btnFacture = document.getElementById('btnFacture');
+    if (btnBL) btnBL.className = type === 'bon_de_livraison' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+    if (btnFacture) btnFacture.className = type === 'facture' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
 }
 
 function applyPosDiscount() {

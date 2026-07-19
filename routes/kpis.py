@@ -239,7 +239,7 @@ def get_kpis_sales():
             "SELECT COALESCE(SUM(total), 0) as total FROM pos_transactions WHERE status = 'completed' " + pos_date_filter,
             tuple(date_params)
         ).fetchone()[0] + conn.execute(
-            "SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 " + inv_date_filter,
+            "SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND id NOT IN (SELECT invoice_id FROM pos_transactions WHERE invoice_id IS NOT NULL) " + inv_date_filter,
             tuple(date_params)
         ).fetchone()[0]
 
@@ -247,7 +247,7 @@ def get_kpis_sales():
             "SELECT COUNT(*) as count FROM pos_transactions WHERE status = 'completed' " + pos_date_filter,
             tuple(date_params)
         ).fetchone()[0] + conn.execute(
-            "SELECT COUNT(*) as count FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 " + inv_date_filter,
+            "SELECT COUNT(*) as count FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND id NOT IN (SELECT invoice_id FROM pos_transactions WHERE invoice_id IS NOT NULL) " + inv_date_filter,
             tuple(date_params)
         ).fetchone()[0]
 
@@ -261,7 +261,7 @@ def get_kpis_sales():
             ca_prev_inv = conn.execute("""
                 SELECT COALESCE(SUM(total), 0) as total 
                 FROM invoices 
-                WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND paid_at >= date('now', '-60 days') AND paid_at < date('now', '-30 days')
+                WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND id NOT IN (SELECT invoice_id FROM pos_transactions WHERE invoice_id IS NOT NULL) AND paid_at >= date('now', '-60 days') AND paid_at < date('now', '-30 days')
             """).fetchone()[0]
             ca_prev = ca_prev_pos + ca_prev_inv
             ca_trend = ((ca_periode - ca_prev) / ca_prev * 100) if ca_prev > 0 else 0
@@ -273,7 +273,7 @@ def get_kpis_sales():
         """).fetchone()[0] + conn.execute("""
             SELECT COALESCE(SUM(total), 0) as total 
             FROM invoices 
-            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) = date('now')
+            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND id NOT IN (SELECT invoice_id FROM pos_transactions WHERE invoice_id IS NOT NULL) AND date(paid_at) = date('now')
         """).fetchone()[0]
 
         nb_ventes_jour = conn.execute("""
@@ -283,7 +283,7 @@ def get_kpis_sales():
         """).fetchone()[0] + conn.execute("""
             SELECT COUNT(*) as count 
             FROM invoices 
-            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) = date('now')
+            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND id NOT IN (SELECT invoice_id FROM pos_transactions WHERE invoice_id IS NOT NULL) AND date(paid_at) = date('now')
         """).fetchone()[0]
 
         ticket_moyen = ca_periode / nb_ventes_periode if nb_ventes_periode > 0 else 0
@@ -563,7 +563,7 @@ def get_kpis_sales_daily():
         inv_rows = conn.execute("""
             SELECT date(paid_at) as dt, COALESCE(SUM(total), 0) as ca, COUNT(*) as nb
             FROM invoices
-            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) BETWEEN ? AND ?
+            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND id NOT IN (SELECT invoice_id FROM pos_transactions WHERE invoice_id IS NOT NULL) AND date(paid_at) BETWEEN ? AND ?
             GROUP BY date(paid_at)
         """, (start_date, end_date)).fetchall()
 

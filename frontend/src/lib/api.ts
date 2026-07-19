@@ -666,6 +666,7 @@ export interface Invoice {
   customer_id: number | null
   warehouse_id: number
   status: string
+  type: string
   subtotal: number
   discount_total: number
   tax_amount: number
@@ -706,6 +707,7 @@ export interface InvoiceFormData {
   warehouse_id?: number
   customer_id?: number | null
   notes?: string
+  type?: string
   items: { product_id: number; quantity?: number; unit_price?: number; discount_percent?: number; tax_rate?: number }[]
 }
 
@@ -761,6 +763,13 @@ export function getInvoiceStats(): Promise<{ total_invoices: number; total_amoun
   return fetchJson("/invoice-stats")
 }
 
+export function convertToInvoice(invoiceId: number): Promise<{ success: boolean; invoice_id?: number; invoice_number?: string; error?: string }> {
+  return fetch(BASE + `/invoices/${invoiceId}/convert-to-invoice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  }).then((r) => r.json())
+}
+
 // POS / Caisse
 export interface PosSession {
   id: number
@@ -790,6 +799,8 @@ export interface PosTransaction {
   status: string
   created_at: string
   customer_name: string | null
+  invoice_id: number | null
+  invoice_type: string | null
 }
 
 export interface PosCartItem {
@@ -860,6 +871,7 @@ export function createPosTransaction(data: {
   pricing_tier?: string
   apply_tax?: boolean
   notes?: string
+  doc_type?: 'facture' | 'bon_de_livraison'
 }): Promise<{ success: boolean; document_number?: string; document_type?: string; document_id?: number; total?: number; change_amount?: number; customer_name?: string; error?: string }> {
   return fetch(BASE + "/pos/transactions", {
     method: "POST",

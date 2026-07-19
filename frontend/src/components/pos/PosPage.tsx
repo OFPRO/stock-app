@@ -38,6 +38,7 @@ export function PosPage() {
   const [paymentMethod, setPaymentMethod] = useState("cash")
   const [tenderedAmount, setTenderedAmount] = useState("")
   const [saving, setSaving] = useState(false)
+  const [docType, setDocType] = useState<'facture' | 'bon_de_livraison'>('bon_de_livraison')
   const [openSessionOpen, setOpenSessionOpen] = useState(false)
   const [openingCash, setOpeningCash] = useState("0")
   const [closeSessionOpen, setCloseSessionOpen] = useState(false)
@@ -69,6 +70,7 @@ export function PosPage() {
 
   const handleCustomerChange = (value: string) => {
     setSelectedCustomerId(value)
+    setDocType('bon_de_livraison')
     if (value !== "0") {
       const customer = customers.find(c => String(c.id) === value)
       if (customer && (customer.type === "fidele" || customer.type === "gros")) {
@@ -178,23 +180,25 @@ export function PosPage() {
 
   const handleCompleteSale = async () => {
     if (cart.length === 0 || !session) return
-    setSaving(true)
-    try {
-      const res = await createPosTransaction({
-        session_id: session.id,
-        customer_id: selectedCustomerId !== "0" ? parseInt(selectedCustomerId) : null,
-        items: cart,
-        payment_method: paymentMethod,
-        tendered_amount: paymentMethod === "cash" ? (parseFloat(tenderedAmount) || total) : total,
-        pricing_tier: pricingTier,
-        apply_tax: applyTax,
-      })
-      if (res.success) {
-        setCart([])
-        setTenderedAmount("")
-        setSelectedCustomerId("0")
-        setPricingTier("normal")
-        setApplyTax(true)
+        setSaving(true)
+      try {
+        const res = await createPosTransaction({
+          session_id: session.id,
+          customer_id: selectedCustomerId !== "0" ? parseInt(selectedCustomerId) : null,
+          items: cart,
+          payment_method: paymentMethod,
+          tendered_amount: paymentMethod === "cash" ? (parseFloat(tenderedAmount) || total) : total,
+          pricing_tier: pricingTier,
+          apply_tax: applyTax,
+          doc_type: selectedCustomerId !== "0" ? docType : undefined,
+        })
+        if (res.success) {
+          setCart([])
+          setTenderedAmount("")
+          setSelectedCustomerId("0")
+          setPricingTier("normal")
+          setApplyTax(true)
+          setDocType('bon_de_livraison')
         const [txns, movs] = await Promise.all([
           getRecentTransactions(20, session.id),
           getCashMovements(),
@@ -377,6 +381,12 @@ export function PosPage() {
                   <SelectItem value="gros">{t("pos.pricing_tier.bulk")}</SelectItem>
                 </SelectContent></Select></div>
               </div>
+              {selectedCustomerId !== "0" && (
+                <div className="flex gap-1">
+                  <Button variant={docType === 'bon_de_livraison' ? 'default' : 'outline'} size="sm" onClick={() => setDocType('bon_de_livraison')}>{t("invoices.type_bon_de_livraison")}</Button>
+                  <Button variant={docType === 'facture' ? 'default' : 'outline'} size="sm" onClick={() => setDocType('facture')}>{t("invoices.type_facture")}</Button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1"><label className="text-xs font-medium">{t("pos.payment_method")}</label><Select value={paymentMethod} onValueChange={setPaymentMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash"><div className="flex items-center gap-2"><Banknote className="size-3.5" />{t("pos.payment.cash")}</div></SelectItem><SelectItem value="card"><div className="flex items-center gap-2"><CreditCard className="size-3.5" />{t("pos.payment.card")}</div></SelectItem></SelectContent></Select></div>
               </div>
@@ -465,6 +475,7 @@ export function PosPage() {
               <TableRow>
                 <TableHead>{t("pos.ticket_number")}</TableHead>
                 <TableHead>{t("common.client")}</TableHead>
+                <TableHead>{t("common.type")}</TableHead>
                 <TableHead className="text-right">{t("common.total")}</TableHead>
                 <TableHead>{t("pos.payment")}</TableHead>
                 <TableHead>{t("common.date")}</TableHead>
@@ -473,11 +484,16 @@ export function PosPage() {
             </TableHeader>
             <TableBody>
               {transactions.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">{t("pos.no_transactions")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">{t("pos.no_transactions")}</TableCell></TableRow>
               ) : transactions.map(tx => (
                 <TableRow key={tx.id}>
                   <TableCell className="font-mono text-xs text-muted-foreground">{tx.transaction_number}</TableCell>
                   <TableCell className="text-sm">{tx.customer_name ?? t("pos.counter_customer")}</TableCell>
+                  <TableCell>
+                    {tx.invoice_type === "bon_de_livraison" && <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">{t("invoices.type.delivery_note")}</span>}
+                    {tx.invoice_type === "facture" && <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{t("invoices.type.invoice")}</span>}
+                    {(!tx.invoice_type || tx.invoice_type === "ticket") && <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{t("pos.ticket")}</span>}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums font-medium">{tx.total.toFixed(2)} DH</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1 text-xs">
@@ -487,7 +503,12 @@ export function PosPage() {
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{tx.created_at.slice(11, 19)}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon-sm" onClick={() => window.open('/api/pos/tickets/' + tx.transaction_number, '_blank')}>
+                    <Button variant="ghost" size="icon-sm" onClick={() => {
+                      const url = tx.invoice_type === 'ticket' || !tx.invoice_type
+                        ? `/api/pos/tickets/${tx.transaction_number}`
+                        : `/api/invoices/${tx.invoice_id}/pdf`
+                      window.open(url, '_blank')
+                    }}>
                       <Printer className="size-3.5" />
                     </Button>
                   </TableCell>
