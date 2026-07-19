@@ -22,3 +22,4 @@ receipts/
 logs/printing.log
 static/uploads/
 private.pem
+.secret_key
