@@ -389,7 +389,7 @@ function loadSecuritySettings() {
                 html += '<p style="color:var(--text-light);margin-bottom:12px;">Définissez un mot de passe pour protéger la réinitialisation des données.</p>';
                 html += '<div class="form-group">';
                 html += '  <label>Nouveau mot de passe</label>';
-                html += '  <input type="password" id="newResetPassword" class="form-input" placeholder="Minimum 4 caractères" style="max-width:250px;">';
+                html += '  <input type="password" id="newResetPassword" class="form-input" placeholder="Minimum 12 caractères" style="max-width:250px;">';
                 html += '</div>';
                 html += '<button class="btn btn-primary" onclick="saveResetPassword()"><i class="fas fa-save"></i> Enregistrer</button>';
             } else {
@@ -402,7 +402,7 @@ function loadSecuritySettings() {
                 html += '</div>';
                 html += '<div class="form-group">';
                 html += '  <label>Nouveau mot de passe</label>';
-                html += '  <input type="password" id="newResetPassword" class="form-input" placeholder="Minimum 4 caractères" style="max-width:250px;">';
+                html += '  <input type="password" id="newResetPassword" class="form-input" placeholder="Minimum 12 caractères" style="max-width:250px;">';
                 html += '</div>';
                 html += '<button class="btn btn-primary" onclick="saveResetPassword()"><i class="fas fa-save"></i> Changer le mot de passe</button>';
             }
@@ -416,8 +416,8 @@ function loadSecuritySettings() {
 
 function saveResetPassword() {
     var newPw = document.getElementById('newResetPassword').value;
-    if (!newPw || newPw.length < 4) {
-        showError('Le mot de passe doit contenir au moins 4 caractères');
+    if (!newPw || newPw.length < 12) {
+        showError('Le mot de passe doit contenir au moins 12 caractères');
         return;
     }
 

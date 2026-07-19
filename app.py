@@ -7,14 +7,16 @@ import sys
 import json
 import uuid
 import queue
+import secrets
 import argparse
 import platform
 import webbrowser
 from io import StringIO
 from datetime import datetime, timedelta, timezone
 from flask import Flask, redirect, render_template, request, jsonify, Response, send_from_directory, session
+from extensions import limiter
 from license_manager import get_mac_address, get_cached_payload, sign_license, validate_license, load_license, save_license
-from routes.db import get_db, get_catalog_db, get_db_ctx, get_catalog_db_ctx, get_price_by_tier, DB_NAME, CATALOG_DB, _safe_int, validate_id, categories_data, resolve_db_path
+from routes.db import get_db, get_catalog_db, get_db_ctx, get_catalog_db_ctx, get_price_by_tier, DB_NAME, CATALOG_DB, STOCKPRO_DATA_DIR, _safe_int, validate_id, categories_data, resolve_db_path
 try:
     from reset_test_db import reset_transactional_data, reset_products_data, reset_products_qty
     _HAS_RESET = True
@@ -47,8 +49,21 @@ def broadcast_event(event_type, data):
 
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24).hex()
+_secret_file = os.path.join(STOCKPRO_DATA_DIR, '.secret_key')
+if os.environ.get('SECRET_KEY'):
+    app.secret_key = os.environ['SECRET_KEY']
+elif os.path.exists(_secret_file):
+    with open(_secret_file, 'r') as f:
+        app.secret_key = f.read().strip()
+else:
+    app.secret_key = os.urandom(24).hex()
+    with open(_secret_file, 'w') as f:
+        f.write(app.secret_key)
+    os.chmod(_secret_file, 0o600)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max upload
+limiter.init_app(app)
 app.register_blueprint(products_bp)
 app.register_blueprint(kpis_bp)
 app.register_blueprint(customers_bp)
@@ -97,12 +112,106 @@ def license_check():
             return
         return jsonify({'error': 'Licence requise'}), 403
 
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    return response
+
+@app.before_request
+def csrf_protect():
+    if request.method in ('GET', 'HEAD', 'OPTIONS'):
+        return
+    if request.path.startswith('/static/'):
+        return
+    if request.path.startswith('/api/auth/'):
+        return
+    if request.path.startswith('/api/') and session.get('csrf_token'):
+        token = request.headers.get('X-CSRF-Token') or (request.get_json(silent=True) or {}).get('_csrf_token')
+        if not token or token != session.get('csrf_token'):
+            return jsonify({'error': 'Token CSRF invalide'}), 403
+
+@app.route('/api/csrf-token', methods=['GET'])
+def get_csrf_token():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
+    return jsonify({'csrf_token': session['csrf_token']})
+
+@app.before_request
+def pin_protect():
+    if app.testing:
+        return
+    if request.method in ('GET', 'HEAD', 'OPTIONS'):
+        return
+    if request.path.startswith('/static/'):
+        return
+    if not request.path.startswith('/api/'):
+        return
+    if session.get('pin_verified'):
+        return
+    if request.path.startswith('/api/auth/'):
+        return
+    return jsonify({'error': 'Authentification requise', 'auth_required': True}), 401
+
+@app.route('/api/auth/pin-status', methods=['GET'])
+def pin_status():
+    db = get_catalog_db()
+    row = db.execute("SELECT value FROM settings WHERE key='app_pin'").fetchone()
+    db.close()
+    return jsonify({'pin_set': row is not None})
+
+@app.route('/api/auth/verify', methods=['POST'])
+@limiter.limit("5 per minute")
+def pin_verify():
+    data = request.get_json(silent=True) or {}
+    pin = data.get('pin', '')
+    db = get_catalog_db()
+    row = db.execute("SELECT value FROM settings WHERE key='app_pin'").fetchone()
+    db.close()
+    if not row:
+        return jsonify({'error': 'Aucun PIN configuré'}), 400
+    if not check_password_hash(row[0], pin):
+        return jsonify({'error': 'Code PIN incorrect'}), 401
+    session['pin_verified'] = True
+    return jsonify({'success': True})
+
+@app.route('/api/auth/change-pin', methods=['POST'])
+@limiter.limit("3 per minute")
+def pin_change():
+    if not session.get('pin_verified'):
+        return jsonify({'error': 'Authentification requise'}), 401
+    data = request.get_json(silent=True) or {}
+    current = data.get('current_pin', '')
+    new_pin = data.get('new_pin', '')
+    if len(new_pin) < 6:
+        return jsonify({'error': 'Le PIN doit faire au moins 6 chiffres'}), 400
+    db = get_catalog_db()
+    row = db.execute("SELECT value FROM settings WHERE key='app_pin'").fetchone()
+    if not row or not check_password_hash(row[0], current):
+        db.close()
+        return jsonify({'error': 'Code PIN actuel incorrect'}), 401
+    db.execute("UPDATE settings SET value=? WHERE key='app_pin'", (generate_password_hash(new_pin),))
+    db.commit()
+    db.close()
+    return jsonify({'success': True})
+
 def _esc(d):
     for k, v in d.items():
         if v is None:
             d[k] = ''
         elif isinstance(v, str):
             d[k] = html.escape(v)
+
+def _safe_err(e, fallback='Erreur interne du serveur'):
+    import logging
+    logging.getLogger('stockpro').exception('API error')
+    if isinstance(e, ValueError):
+        return str(e)
+    return fallback
 
 def _n(val, default='-'):
     return val if val else default
@@ -734,10 +843,22 @@ def init_db():
     ''')
     c.execute("SELECT COUNT(*) FROM settings")
     if c.fetchone()[0] == 0:
+        import secrets
+        default_pw = secrets.token_urlsafe(16)
+        app_pin = f'{secrets.randbelow(1000000):06d}'
         c.execute(
             "INSERT INTO settings (key, value) VALUES (?, ?)",
-            ('reset_password', generate_password_hash('admin'))
+            ('reset_password', generate_password_hash(default_pw))
         )
+        c.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?)",
+            ('app_pin', generate_password_hash(app_pin))
+        )
+        print(f'\n=== StockPro — Identifiants par défaut ===')
+        print(f'Mot de passe reset : {default_pw}')
+        print(f'Code PIN application: {app_pin}')
+        print(f'Changez-les dans Réglages > Sécurité')
+        print(f'==========================================\n')
 
     conn.execute("PRAGMA foreign_keys=ON")
     conn.commit()
@@ -822,6 +943,7 @@ def license_activate():
 
 
 @app.route('/api/license/generate', methods=['POST'])
+@limiter.limit("3 per minute")
 def license_generate():
     if platform.system() == 'Windows':
         return jsonify({'error': 'Réservé au développeur'}), 403
@@ -840,7 +962,7 @@ def license_generate():
         token = sign_license(mac, client, days)
         return jsonify({'token': token, 'mac': mac, 'client': client, 'days': days})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
 
 
 
@@ -1065,7 +1187,7 @@ def create_order():
         return jsonify({'success': True, 'order_id': order_id})
     except Exception as e:
         conn.close()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e, 'Données invalides')}), 400
 
 @app.route('/api/orders/<int:order_id>', methods=['PUT'])
 def update_order(order_id):
@@ -1212,10 +1334,10 @@ def update_order(order_id):
         return jsonify({'success': True})
     except sqlite3.Error as e:
         conn.rollback()
-        return jsonify({'success': False, 'error': f'Erreur base de données: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': 'Erreur de base de données'}), 500
     except Exception as e:
         conn.rollback()
-        return jsonify({'success': False, 'error': f'Erreur inattendue: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': 'Erreur inattendue'}), 500
     finally:
         conn.close()
 
@@ -1241,7 +1363,7 @@ def delete_order(order_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -1287,7 +1409,7 @@ def add_reorder_rule():
         return jsonify({'success': True})
     except Exception as e:
         conn.close()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e, 'Données invalides')}), 400
 
 @app.route('/api/reorder-rules/<int:rule_id>', methods=['PUT'])
 def update_reorder_rule(rule_id):
@@ -1303,7 +1425,7 @@ def update_reorder_rule(rule_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -1316,7 +1438,7 @@ def delete_reorder_rule(rule_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -1383,7 +1505,7 @@ def mark_notification_read(notification_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -1396,7 +1518,7 @@ def mark_all_notifications_read():
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -1641,7 +1763,7 @@ def create_invoice():
         return jsonify({'success': True, 'invoice_id': invoice_id, 'invoice_number': invoice_number})
     except Exception as e:
         conn.close()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e, 'Données invalides')}), 400
 
 @app.route('/api/invoices/<int:invoice_id>', methods=['GET'])
 def get_invoice(invoice_id):
@@ -1694,7 +1816,7 @@ def update_invoice(invoice_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -1755,7 +1877,7 @@ def pay_invoice_credit(invoice_id):
             'remaining': 0 if is_now_fully_paid else total - new_paid
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e, 'Données invalides')}), 400
     finally:
         conn.close()
 
@@ -1781,7 +1903,7 @@ def delete_invoice(invoice_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -1810,7 +1932,7 @@ def convert_to_invoice(invoice_id):
         return jsonify({'success': True, 'invoice_id': invoice_id, 'invoice_number': bl['invoice_number']})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -1868,7 +1990,7 @@ def add_invoice_item(invoice_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.close()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e, 'Données invalides')}), 400
 
 def recalculate_invoice(invoice_id, conn):
     items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
@@ -1906,7 +2028,7 @@ def delete_invoice_item(invoice_id, item_id):
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': _safe_err(e)}), 500
     finally:
         conn.close()
 
@@ -2327,10 +2449,10 @@ def open_pos_session():
         })
     except sqlite3.Error as e:
         conn.rollback()
-        return jsonify({'error': f'Erreur base de données: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur de base de données'}), 500
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': f'Erreur inattendue: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur inattendue'}), 500
     finally:
         conn.close()
 
@@ -2383,14 +2505,15 @@ def close_pos_session(session_id):
         return jsonify({'success': True, 'expected_cash': expected_cash, 'deposited': deposit_to_main and net_to_deposit > 0})
     except sqlite3.Error as e:
         conn.rollback()
-        return jsonify({'error': f'Erreur base de données: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur de base de données'}), 500
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': f'Erreur inattendue: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur inattendue'}), 500
     finally:
         conn.close()
 
 @app.route('/api/pos/transactions', methods=['POST'])
+@limiter.limit("30 per minute")
 def create_pos_transaction():
     """Create a POS transaction and decrement stock"""
     data = request.json or {}
@@ -2645,10 +2768,10 @@ def create_pos_transaction():
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()
-        return jsonify({'error': f'Erreur base de données: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur de base de données'}), 500
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': f'Erreur inattendue: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur inattendue'}), 500
     finally:
         conn.close()
 
@@ -2688,7 +2811,7 @@ def create_pos_transaction():
                 print_error = print_result.get('print_error')
     except Exception as e:
         print_status = 'error'
-        print_error = str(e)
+        print_error = 'Erreur d\'impression'
 
     register_name = session['register_name'] if session['register_name'] else (session['cashier_name'] or '')
     stock_updates = []
@@ -3364,4 +3487,4 @@ if __name__ == '__main__':
         import threading
         threading.Thread(target=_open_browser, daemon=True).start()
 
-    app.run(host=args.host, debug=True, port=args.port, threaded=True)
+    app.run(host=args.host, debug=False, port=args.port, threaded=True)

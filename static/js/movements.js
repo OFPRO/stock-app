@@ -1,3 +1,10 @@
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 async function loadMovements() {
     try {
         const typeFilter = document.getElementById('movementsTypeFilter')?.value || '';
@@ -21,7 +28,7 @@ async function loadMovements() {
             const m = movements[i];
             const typeLabel = typeLabels[m.type] || m.type;
             const typeClass = m.type === 'in' || m.type === 'retour' ? 'success' : m.type === 'out' || m.type === 'sale' || m.type === 'destruction' ? 'warning' : 'primary';
-            html += '<tr><td>' + (m.created_at ? m.created_at.substring(0, 16) : '-') + '</td><td>' + (m.product_name || '-') + '</td><td><span class="badge badge-' + typeClass + '">' + typeLabel + '</span></td><td>' + m.quantity + '</td><td>' + (m.note || '-') + '</td></tr>';
+            html += '<tr><td>' + (m.created_at ? m.created_at.substring(0, 16) : '-') + '</td><td>' + escapeHtml(m.product_name || '-') + '</td><td><span class="badge badge-' + typeClass + '">' + typeLabel + '</span></td><td>' + m.quantity + '</td><td>' + escapeHtml(m.note || '-') + '</td></tr>';
         }
         tbody.innerHTML = html;
     } catch(e) {

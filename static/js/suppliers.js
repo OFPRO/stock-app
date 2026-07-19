@@ -1,3 +1,10 @@
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 async function loadSuppliers() {
     try {
         const res = await fetch('/api/suppliers');
@@ -7,7 +14,7 @@ async function loadSuppliers() {
         const orderSupplier = document.getElementById('orderSupplier');
         if (orderSupplier) {
             orderSupplier.innerHTML = '<option value="">Selectionnez un fournisseur</option>' +
-                suppliers.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
+                suppliers.map(s => '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>').join('');
         }
     } catch(e) {
         showError('Erreur lors du chargement des fournisseurs');
@@ -24,7 +31,7 @@ function renderSuppliers() {
     let html = '';
     for (let i = 0; i < suppliers.length; i++) {
         const s = suppliers[i];
-        html += '<tr><td>' + s.name + '</td><td>' + (s.email || '-') + '</td><td>' + (s.phone || '-') + '</td><td><button class="btn btn-sm" onclick="editSupplier(' + s.id + ')">✎</button></td></tr>';
+        html += '<tr><td>' + escapeHtml(s.name) + '</td><td>' + escapeHtml(s.email || '-') + '</td><td>' + escapeHtml(s.phone || '-') + '</td><td><button class="btn btn-sm" onclick="editSupplier(' + s.id + ')">✎</button></td></tr>';
     }
     tbody.innerHTML = html;
 }

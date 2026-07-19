@@ -1,3 +1,10 @@
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 async function loadCustomers() {
     try {
         const res = await fetch('/api/customers');
@@ -18,7 +25,7 @@ function renderCustomers() {
     let html = '';
     for (let i = 0; i < customers.length; i++) {
         const c = customers[i];
-        html += '<tr><td>' + (c.client_code || '-') + '</td><td>' + c.name + '</td><td>' + (c.email || '-') + '</td><td>' + (c.phone || '-') + '</td><td>' + (c.is_loyal ? 'Oui' : 'Non') + '</td><td><button class="btn btn-sm" onclick="editCustomer(' + c.id + ')">✎</button></td></tr>';
+        html += '<tr><td>' + escapeHtml(c.client_code || '-') + '</td><td>' + escapeHtml(c.name) + '</td><td>' + escapeHtml(c.email || '-') + '</td><td>' + escapeHtml(c.phone || '-') + '</td><td>' + (c.is_loyal ? 'Oui' : 'Non') + '</td><td><button class="btn btn-sm" onclick="editCustomer(' + c.id + ')">✎</button></td></tr>';
     }
     tbody.innerHTML = html;
 }
@@ -97,7 +104,7 @@ function renderDeliveryNotes() {
     let html = '';
     for (let i = 0; i < deliveryNotes.length; i++) {
         const d = deliveryNotes[i];
-        html += '<tr><td>' + (d.note_number || '-') + '</td><td>' + (d.product_name || '-') + '</td><td>' + d.quantity + '</td><td>' + d.type + '</td><td>' + (d.created_at ? d.created_at.substring(0, 10) : '-') + '</td><td>' + (d.status === 'draft' ? '<button class="btn btn-sm">→ Facture</button>' : '-') + '</td></tr>';
+        html += '<tr><td>' + escapeHtml(d.note_number || '-') + '</td><td>' + escapeHtml(d.product_name || '-') + '</td><td>' + d.quantity + '</td><td>' + d.type + '</td><td>' + (d.created_at ? d.created_at.substring(0, 10) : '-') + '</td><td>' + (d.status === 'draft' ? '<button class="btn btn-sm">→ Facture</button>' : '-') + '</td></tr>';
     }
     tbody.innerHTML = html;
 }

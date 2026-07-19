@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from routes.db import get_db, validate_id
+from routes.db import get_db, validate_id, _safe_err
 
 locations_bp = Blueprint('locations', __name__)
 
@@ -32,7 +32,7 @@ def add_location():
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e)}), 400
     finally:
         conn.close()
 
@@ -46,7 +46,7 @@ def update_location(location_id):
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e)}), 400
     finally:
         conn.close()
 
@@ -62,6 +62,6 @@ def delete_location(location_id):
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e)}), 400
     finally:
         conn.close()

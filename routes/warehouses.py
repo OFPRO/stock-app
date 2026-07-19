@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, Response
 from fpdf import FPDF
 from services.pdf_utils import setup_pdf, FONT_NAME
-from routes.db import get_db, validate_id
+from routes.db import get_db, validate_id, _safe_err
 
 warehouses_bp = Blueprint('warehouses', __name__)
 
@@ -28,7 +28,7 @@ def add_warehouse():
         conn.commit()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e)}), 400
     finally:
         conn.close()
 

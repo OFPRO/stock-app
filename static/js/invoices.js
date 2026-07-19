@@ -1,3 +1,10 @@
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 async function loadInvoices() {
     try {
         const dateStart = document.getElementById('invoiceDateStart')?.value || '';
@@ -55,7 +62,7 @@ function renderInvoices() {
             ? amountPaid.toFixed(2) + ' / ' + total.toFixed(2) + ' DH'
             : ((isTicket || inv.status === 'payee') ? total.toFixed(2) + ' DH' : '-');
 
-        let actionBtn = '<button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + inv.invoice_number + '\')">' + btnLabel + '</button>';
+        let actionBtn = '<button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + escapeHtml(inv.invoice_number) + '\')">' + btnLabel + '</button>';
         if (isBL && inv.status === 'envoyee') {
             actionBtn += ' <button class="btn btn-sm btn-primary" onclick="convertBLToInvoice(' + inv.id + ')"><i class="fas fa-exchange-alt"></i> Convertir</button>';
         } else if (!isBL && (inv.status === 'partiellement_payee' || inv.status === 'envoyee')) {
@@ -63,8 +70,8 @@ function renderInvoices() {
         }
 
         html += '<tr>' +
-            '<td><span class="' + badgeClass + '">' + label + '</span> ' + inv.invoice_number + '</td>' +
-            '<td>' + partyName + '</td>' +
+            '<td><span class="' + badgeClass + '">' + label + '</span> ' + escapeHtml(inv.invoice_number) + '</td>' +
+            '<td>' + escapeHtml(partyName) + '</td>' +
             '<td>' + createdDate + '</td>' +
             '<td>' + paidDate + '</td>' +
             '<td>' + paidDisplay + '</td>' +

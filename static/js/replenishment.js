@@ -1,3 +1,10 @@
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 async function loadReplenishment() {
     try {
         const res = await fetch('/api/replenishment');
@@ -11,7 +18,7 @@ async function loadReplenishment() {
         let html = '';
         for (let i = 0; i < prods.length; i++) {
             const p = prods[i];
-            html += '<tr><td>' + p.name + '</td><td><span class="badge badge-' + (p.current_qty <= p.min_quantity ? 'danger' : 'warning') + '">' + p.current_qty + '</span></td><td>' + p.min_quantity + '</td><td>' + (p.supplier_name || '-') + '</td></tr>';
+            html += '<tr><td>' + escapeHtml(p.name) + '</td><td><span class="badge badge-' + (p.current_qty <= p.min_quantity ? 'danger' : 'warning') + '">' + p.current_qty + '</span></td><td>' + p.min_quantity + '</td><td>' + escapeHtml(p.supplier_name || '-') + '</td></tr>';
         }
         tbody.innerHTML = html;
     } catch(e) {

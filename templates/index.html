@@ -2191,5 +2191,72 @@
 <script src="/static/js/replenishment.js"></script>
 <script src="/static/js/settings.js"></script>
 <script src="/static/js/license.js"></script>
+
+<div id="pinModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:380px;margin-top:15vh;">
+        <div class="modal-header">
+            <h3 style="margin:0;"><i class="fas fa-lock"></i> Sécurité</h3>
+        </div>
+        <div class="modal-body" style="text-align:center;padding:24px;">
+            <p style="margin-bottom:16px;color:var(--text-secondary);">Entrez le code PIN pour accéder à l'application</p>
+            <input type="password" id="pinInput" class="form-control" maxlength="12"
+                   style="text-align:center;font-size:1.3rem;letter-spacing:8px;width:200px;margin:0 auto 16px;"
+                   placeholder="••••••" autocomplete="off">
+            <p id="pinError" style="color:var(--danger);font-size:0.85rem;display:none;"></p>
+        </div>
+        <div class="modal-footer" style="justify-content:center;">
+            <button class="btn btn-primary" onclick="verifyPin()" id="pinVerifyBtn">Valider</button>
+        </div>
+    </div>
+</div>
+
+<script>
+async function checkPinStatus() {
+    try {
+        const res = await fetch('/api/auth/pin-status');
+        const data = await res.json();
+        if (data.pin_set) {
+            document.getElementById('pinModal').style.display = 'flex';
+            document.getElementById('pinInput').focus();
+        }
+    } catch(e) { /* PIN not configured or error — proceed */ }
+}
+function verifyPin() {
+    const pin = document.getElementById('pinInput').value;
+    const errEl = document.getElementById('pinError');
+    const btn = document.getElementById('pinVerifyBtn');
+    errEl.style.display = 'none';
+    if (!pin) { errEl.textContent = 'Veuillez entrer un code PIN'; errEl.style.display = 'block'; return; }
+    btn.disabled = true;
+    btn.textContent = 'Vérification...';
+    fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({pin})
+    }).then(r => r.json()).then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Valider';
+        if (data.success) {
+            document.getElementById('pinModal').style.display = 'none';
+        } else {
+            errEl.textContent = data.error || 'Code PIN incorrect';
+            errEl.style.display = 'block';
+            document.getElementById('pinInput').value = '';
+            document.getElementById('pinInput').focus();
+        }
+    }).catch(() => {
+        btn.disabled = false;
+        btn.textContent = 'Valider';
+        errEl.textContent = 'Erreur de connexion';
+        errEl.style.display = 'block';
+    });
+}
+document.getElementById('pinInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') verifyPin();
+});
+window.addEventListener('load', function() {
+    setTimeout(checkPinStatus, 100);
+});
+</script>
 </body>
 </html>

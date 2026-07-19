@@ -216,7 +216,7 @@ def check_printer_status(config):
         printer = EscposPrinter(config)
         return printer.check_status()
     except Exception as e:
-        return {'status': 'offline', 'error': str(e)}
+        return {'status': 'offline', 'error': 'Imprimante indisponible'}
 
 
 def print_receipt(ticket_data, printer_config):
@@ -235,7 +235,7 @@ def print_receipt(ticket_data, printer_config):
         _log('info', f"PDF sauvegardé: {pdf_path}")
     except Exception as e:
         _log('error', f"Erreur sauvegarde PDF: {e}")
-        result['print_error'] = f"Erreur PDF: {str(e)}"
+        result['print_error'] = 'Erreur lors de la génération du PDF'
         return result
 
     if not printer_config or not printer_config.get('auto_print', 1):
@@ -258,7 +258,7 @@ def print_receipt(ticket_data, printer_config):
         _log('info', f"Ticket {result['ticket_number']} → {printer_name} | SUCCÈS")
     except Exception as e:
         result['print_status'] = 'error'
-        result['print_error'] = str(e)
+        result['print_error'] = 'Erreur d\'impression'
         _log('error', f"Ticket {result['ticket_number']} → ÉCHEC: {e}")
 
     return result
@@ -284,7 +284,7 @@ def print_ticket_raw(ticket_data, printer_config):
         _log('info', f"Ticket {result['ticket_number']} → RAW | SUCCÈS")
     except Exception as e:
         result['print_status'] = 'error'
-        result['print_error'] = str(e)
+        result['print_error'] = 'Erreur d\'impression'
         _log('error', f"Ticket {result['ticket_number']} → RAW | ÉCHEC: {e}")
     return result
 
@@ -294,4 +294,4 @@ def auto_print_async(ticket_data, printer_config):
         return print_receipt(ticket_data, printer_config)
     except Exception as e:
         _log('error', f"Erreur impression asynchrone: {e}")
-        return {'print_status': 'error', 'print_error': str(e)}
+        return {'print_status': 'error', 'print_error': 'Erreur d\'impression'}

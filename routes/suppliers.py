@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from routes.db import get_db
+from routes.db import get_db, _safe_err
 
 suppliers_bp = Blueprint('suppliers', __name__)
 
@@ -25,7 +25,7 @@ def add_supplier():
         return jsonify({'success': True})
     except Exception as e:
         conn.close()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e)}), 400
 
 @suppliers_bp.route('/api/suppliers/<int:supplier_id>', methods=['PUT'])
 def update_supplier(supplier_id):

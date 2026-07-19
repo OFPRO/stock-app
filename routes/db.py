@@ -514,3 +514,10 @@ def init_store_db(store_id, name):
 
     conn.commit()
     conn.close()
+
+def _safe_err(e, fallback='Erreur interne du serveur'):
+    import logging
+    logging.getLogger('stockpro').exception('API error')
+    if isinstance(e, ValueError):
+        return str(e)
+    return fallback

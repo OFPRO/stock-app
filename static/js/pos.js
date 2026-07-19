@@ -8,6 +8,13 @@ let posRegisters = [];
 let posEventSource = null;
 let posDocType = 'bon_de_livraison';
 
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 const POS_REGISTER_KEY = 'stockpro_pos_register_id';
 const POS_SESSION_KEY = 'stockpro_pos_session_id';
 
@@ -73,7 +80,7 @@ async function loadPosRegisters() {
         const select = document.getElementById('posRegisterSelect');
         if (select && posRegisters.length > 0) {
             select.innerHTML = posRegisters.map(function(r) {
-                return '<option value="' + r.id + '">' + r.name + '</option>';
+                return '<option value="' + r.id + '">' + escapeHtml(r.name) + '</option>';
             }).join('');
             var saved = localStorage.getItem(POS_REGISTER_KEY);
             if (saved) {
@@ -346,7 +353,7 @@ function searchPosProducts() {
             var stockClass = p.quantity <= 0 ? 'danger' : (p.quantity <= p.min_quantity ? 'warning' : 'success');
             var stockLabel = p.quantity <= 0 ? 'Rupture' : p.quantity;
             return '<div class="pos-search-item" onclick="addPosProduct(' + p.id + ')">' +
-                '<div><div class="pos-search-item-name">' + p.name + '</div><small style="color:var(--text-light)">' + (p.sku || p.barcode || '-') + '</small></div>' +
+                '<div><div class="pos-search-item-name">' + escapeHtml(p.name) + '</div><small style="color:var(--text-light)">' + escapeHtml(p.sku || p.barcode || '-') + '</small></div>' +
                 '<div style="text-align:right;"><div class="pos-search-item-price">' + (salePrice || 0).toFixed(2) + ' DH</div><span class="badge badge-' + stockClass + '" style="font-size:0.65rem;">Stock: ' + stockLabel + '</span></div></div>';
         }).join('');
     }
@@ -500,7 +507,7 @@ function renderPosCart() {
             '<button onclick="updatePosCartItemQty(' + item.product_id + ', -1)">-</button>' +
             '<input type="number" class="pos-cart-item-qty-input" value="' + item.quantity + '" min="1" onchange="setPosCartItemQty(' + item.product_id + ', this.value)">' +
             '<button onclick="updatePosCartItemQty(' + item.product_id + ', 1)">+</button></div>' +
-            '<div class="pos-cart-item-name">' + item.product_name + '<br><small style="color:var(--text-light)">' + (item.product_sku || '') + '</small></div>' +
+            '<div class="pos-cart-item-name">' + escapeHtml(item.product_name) + '<br><small style="color:var(--text-light)">' + escapeHtml(item.product_sku || '') + '</small></div>' +
             '<input type="number" class="pos-cart-item-price-input" style="width:80px;padding:4px;border:1px solid var(--border);border-radius:4px;" value="' + item.unit_price.toFixed(2) + '" step="0.01" onchange="updatePosCartItemPrice(' + item.product_id + ', this.value)">' +
             '<i class="fas fa-trash pos-cart-item-remove" onclick="removePosCartItem(' + item.product_id + ')"></i></div>';
     }).join('');
@@ -687,7 +694,7 @@ async function loadPosCustomers() {
         var select = document.getElementById('posCustomer');
         if (select) {
             select.innerHTML = '<option value="">Client au comptoir (sans facture)</option>' +
-                data.map(function(c) { return '<option value="' + c.id + '">' + c.name + ' (' + (c.client_code || '-') + ')</option>'; }).join('');
+                data.map(function(c) { return '<option value="' + c.id + '">' + escapeHtml(c.name) + ' (' + escapeHtml(c.client_code || '-') + ')</option>'; }).join('');
         }
     } catch(e) {
         console.error(e);
@@ -788,10 +795,10 @@ async function loadPosCashMovements() {
                 if (m.reason === 'sale') icon = 'shopping-cart';
                 else if (m.reason === 'change') icon = 'receipt';
                 else if (m.reason === 'expense') icon = 'coffee';
-                var registerTag = m.register_name ? '<span class="badge badge-info" style="margin-right:0.25rem;">' + m.register_name + '</span>' : '';
+                var registerTag = m.register_name ? '<span class="badge badge-info" style="margin-right:0.25rem;">' + escapeHtml(m.register_name) + '</span>' : '';
                 return '<div class="pos-cash-movement-item ' + m.type + '">' +
                     '<div class="pos-cash-movement-info">' +
-                    '<span class="pos-cash-movement-reason">' + registerTag + '<i class="fas fa-' + icon + '"></i> ' + formatReason(m.reason, m.note) + '</span>' +
+                    '<span class="pos-cash-movement-reason">' + registerTag + '<i class="fas fa-' + icon + '"></i> ' + escapeHtml(formatReason(m.reason, m.note)) + '</span>' +
                     '<span class="pos-cash-movement-time"><i class="fas fa-clock"></i> ' + dateStr + ' ' + timeStr + '</span></div>' +
                     '<span class="pos-cash-movement-amount ' + m.type + '">' + (m.type === 'in' ? '+' : '-') + m.amount.toFixed(2) + ' DH</span></div>';
             }).join('');
@@ -822,11 +829,11 @@ async function loadPosTransactions() {
                             t.payment_method === 'card' ? 'Carte' : 'Mixed';
             var icon = isInvoice ? '<i class="fas fa-file-invoice"></i>' : '<i class="fas fa-receipt"></i>';
             var label = isInvoice ? 'Facture' : (t.ticket_number || t.transaction_number || '-');
-            var registerTag = t.register_name ? '<span class="badge badge-info" style="margin-right:0.25rem;">' + t.register_name + '</span>' : '';
+            var registerTag = t.register_name ? '<span class="badge badge-info" style="margin-right:0.25rem;">' + escapeHtml(t.register_name) + '</span>' : '';
             return '<div class="pos-transaction-item">' +
                 '<div class="pos-transaction-info">' +
-                '<span class="pos-transaction-number">' + registerTag + icon + ' ' + label + '</span>' +
-                '<span class="pos-transaction-time"><i class="fas fa-clock"></i> ' + dateStr + ' ' + timeStr + ' | ' + customer + ' | ' + methodIcon + ' ' + methodText + '</span></div>' +
+                '<span class="pos-transaction-number">' + registerTag + icon + ' ' + escapeHtml(label) + '</span>' +
+                '<span class="pos-transaction-time"><i class="fas fa-clock"></i> ' + dateStr + ' ' + timeStr + ' | ' + escapeHtml(customer) + ' | ' + methodIcon + ' ' + escapeHtml(methodText) + '</span></div>' +
                 '<span class="pos-transaction-total">' + t.total.toFixed(2) + ' DH</span></div>';
         }).join('');
     } catch(e) { console.error('Error loading transactions:', e); }

@@ -7,6 +7,55 @@ let orders = [];
 let customers = [];
 let deliveryNotes = [];
 let invoices = [];
+let csrfToken = null;
+
+async function initCsrfToken() {
+    try {
+        const res = await fetch('/api/csrf-token');
+        const data = await res.json();
+        csrfToken = data.csrf_token;
+    } catch (e) {
+        console.warn('Failed to fetch CSRF token:', e);
+    }
+}
+
+const _originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+    if (options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method.toUpperCase())) {
+        if (csrfToken) {
+            options.headers = options.headers || {};
+            if (options.headers instanceof Headers) {
+                options.headers.set('X-CSRF-Token', csrfToken);
+            } else {
+                options.headers['X-CSRF-Token'] = csrfToken;
+            }
+        }
+    }
+    return _originalFetch.call(this, url, options).then(response => {
+        if (response.status === 401) {
+            return response.clone().json().then(data => {
+                if (data.auth_required) {
+                    const modal = document.getElementById('pinModal');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        document.getElementById('pinInput').value = '';
+                        document.getElementById('pinInput').focus();
+                        const errEl = document.getElementById('pinError');
+                        if (errEl) { errEl.textContent = data.error || 'Authentification requise'; errEl.style.display = 'block'; }
+                    }
+                }
+                return response;
+            }).catch(() => response);
+        }
+        if (response.status === 429) {
+            const retryAfter = response.headers.get('Retry-After') || '60';
+            if (typeof showError === 'function') {
+                showError('Trop de requêtes. Réessayez dans ' + retryAfter + ' secondes.');
+            }
+        }
+        return response;
+    });
+};
 
 function initTheme() {
     const savedTheme = localStorage.getItem('stockpro-theme');
@@ -44,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
+    await initCsrfToken();
     try {
         var licRes = await fetch('/api/license/status');
         var licData = await licRes.json();

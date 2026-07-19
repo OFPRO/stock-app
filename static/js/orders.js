@@ -1,3 +1,10 @@
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 async function saveOrder(e) {
     e.preventDefault();
     const supplierId = document.getElementById('orderSupplier').value;
@@ -120,9 +127,9 @@ function populateRuptureTags() {
         container.innerHTML = '<span style="font-size:0.75rem;color:var(--success);"><i class="fas fa-check-circle"></i> Stock OK</span>';
         return;
     }
-    container.innerHTML = '<span style="font-size:0.7rem;font-weight:600;color:var(--danger);margin-right:0.5rem;">🚨 RUPTURE:</span>' +
+        container.innerHTML = '<span style="font-size:0.7rem;font-weight:600;color:var(--danger);margin-right:0.5rem;">🚨 RUPTURE:</span>' +
         outOfStock.map(p => {
-            return '<span class="rupture-tag" onclick="addRuptureProduct(' + p.id + ')">' + p.name + '<span class="rupture-qty">' + (p.quantity || 0) + '</span></span>';
+            return '<span class="rupture-tag" onclick="addRuptureProduct(' + p.id + ')">' + escapeHtml(p.name) + '<span class="rupture-qty">' + (p.quantity || 0) + '</span></span>';
         }).join('');
 }
 
@@ -187,9 +194,9 @@ function filterProductSuggestions(input) {
         const outOfStockClass = p.quantity <= p.min_quantity ? 'out-of-stock' : '';
         const barcodeLabel = p.barcode ? p.barcode : '';
         return '<div class="product-suggestion-item ' + outOfStockClass + '" data-id="' + p.id + '" data-price="' + (p.purchase_price_avg || p.price || 0) + '">' +
-            '<span class="product-name">' + p.name + '</span>' +
-            '<span class="product-sku">' + (p.sku || '-') + '</span>' +
-            '<span class="product-barcode">' + barcodeLabel + '</span>' +
+            '<span class="product-name">' + escapeHtml(p.name) + '</span>' +
+            '<span class="product-sku">' + escapeHtml(p.sku || '-') + '</span>' +
+            '<span class="product-barcode">' + escapeHtml(barcodeLabel) + '</span>' +
             '<span class="stock-badge ' + stockClass + '">' + stockLabel + '</span>' +
         '</div>';
     }).join('');
@@ -199,9 +206,9 @@ function filterProductSuggestions(input) {
             topRupture.map(p => {
                 const barcodeLabel = p.barcode ? p.barcode : '';
                 return '<div class="product-suggestion-item out-of-stock" data-id="' + p.id + '" data-price="' + (p.purchase_price_avg || p.price || 0) + '">' +
-                    '<span class="product-name">' + p.name + '</span>' +
-                    '<span class="product-sku">' + (p.sku || '-') + '</span>' +
-                    '<span class="product-barcode">' + barcodeLabel + '</span>' +
+                    '<span class="product-name">' + escapeHtml(p.name) + '</span>' +
+                    '<span class="product-sku">' + escapeHtml(p.sku || '-') + '</span>' +
+                    '<span class="product-barcode">' + escapeHtml(barcodeLabel) + '</span>' +
                     '<span class="stock-badge danger">Rupture</span>' +
                 '</div>';
             }).join('');
@@ -423,7 +430,7 @@ async function loadCustomersForSelect() {
         const select = document.getElementById('invoiceCustomer');
         if (select) {
             select.innerHTML = '<option value="">Selectionnez un client</option>' +
-                customersData.map(c => '<option value="' + c.id + '">' + c.name + '</option>').join('');
+                customersData.map(c => '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>').join('');
         }
     } catch(e) { console.error(e); }
 }
@@ -497,9 +504,9 @@ function renderOrders() {
         const o = orders[i];
         const statusClass = o.status === 'paye' ? 'primary' : (o.status === 'recue' ? 'success' : 'warning');
         html += '<tr>';
-        html += '<td>' + (o.order_number || '-') + '</td>';
+        html += '<td>' + escapeHtml(o.order_number || '-') + '</td>';
         html += '<td>' + (o.created_at ? o.created_at.substring(0, 10) : '-') + '</td>';
-        html += '<td>' + (o.supplier_name || '-') + '</td>';
+        html += '<td>' + escapeHtml(o.supplier_name || '-') + '</td>';
         html += '<td>' + (o.total || 0).toFixed(2) + ' DH</td>';
         html += '<td><span class="badge badge-' + statusClass + '">' + (statusLabels[o.status] || o.status) + '</span></td>';
         html += '<td>' + (o.received_at ? o.received_at.substring(0, 10) : '-') + '</td>';
@@ -615,8 +622,8 @@ async function loadMainAccount() {
                 '<td><span class="badge badge-' + typeClass + '">' + typeLabel + '</span></td>' +
                 '<td' + (t.type === 'out' ? ' style="color:var(--danger);"' : ' style="color:var(--success);"') + '>' +
                 (t.type === 'in' ? '+' : '-') + t.amount.toFixed(2) + ' DH</td>' +
-                '<td>' + reasonIcon + (reasonLabels[t.reason] || t.reason || '-') + '</td>' +
-                '<td>' + (t.note || '-') + '</td>' +
+                '<td>' + reasonIcon + escapeHtml(reasonLabels[t.reason] || t.reason || '-') + '</td>' +
+                '<td>' + escapeHtml(t.note || '-') + '</td>' +
             '</tr>';
         }).join('');
     } catch(e) {

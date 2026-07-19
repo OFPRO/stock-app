@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from routes.db import get_db, validate_id
+from routes.db import get_db, validate_id, _safe_err
 from datetime import datetime
 
 customers_bp = Blueprint('customers', __name__)
@@ -37,7 +37,7 @@ def add_customer():
         return jsonify({'success': True})
     except Exception as e:
         conn.close()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e)}), 400
 
 @customers_bp.route('/api/customers/<int:customer_id>', methods=['GET'])
 def get_customer(customer_id):

@@ -1,5 +1,12 @@
 let dashboardEventSource = null;
 
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 function startDashboardSSE() {
     if (dashboardEventSource) return;
     dashboardEventSource = new EventSource('/api/events');
@@ -95,7 +102,7 @@ async function loadDashboard() {
         const whSelect = document.getElementById('warehouseFilter');
         if (whSelect && warehousesData.length > 0) {
             whSelect.innerHTML = '<option value="">Tous les entrepots</option>' +
-                warehousesData.map(w => '<option value="' + w.id + '">' + w.name + '</option>').join('');
+                warehousesData.map(w => '<option value="' + w.id + '">' + escapeHtml(w.name) + '</option>').join('');
             whSelect.value = warehouse;
         }
 
@@ -204,7 +211,7 @@ function updateTableToOrder(products) {
     } else {
         for (const p of products.slice(0, 8)) {
             const qtyClass = p.quantity <= 0 ? 'danger' : (p.quantity <= p.min_quantity ? 'warning' : 'success');
-            html += '<tr><td class="product-name">' + p.name + '</td>' +
+            html += '<tr><td class="product-name">' + escapeHtml(p.name) + '</td>' +
                 '<td><span class="qty ' + qtyClass + '">' + p.quantity + '</span></td>' +
                 '<td>' + p.min_quantity + '</td>' +
                 '<td><button class="btn btn-sm btn-primary" onclick="openOrderWithProduct(' + p.id + ')">Commander</button></td></tr>';
@@ -222,7 +229,7 @@ function updateTableCreances(clients) {
     } else {
         for (const c of clients.slice(0, 8)) {
             const isOverdue = c.premiere_echeance && new Date(c.premiere_echeance) < new Date();
-            html += '<tr><td>' + c.name + '</td>' +
+            html += '<tr><td>' + escapeHtml(c.name) + '</td>' +
                 '<td class="amount negative">' + c.montant.toLocaleString() + ' DH</td>' +
                 '<td class="due-date ' + (isOverdue ? 'overdue' : '') + '">' + (c.premiere_echeance || '-') + '</td></tr>';
         }
@@ -238,7 +245,7 @@ function updateTableRuptures(products) {
         html += '<tr><td colspan="3" style="text-align:center;color:var(--text-light)">Aucune rupture</td></tr>';
     } else {
         for (const p of products.slice(0, 8)) {
-            html += '<tr><td class="product-name">' + p.name + '</td>' +
+            html += '<tr><td class="product-name">' + escapeHtml(p.name) + '</td>' +
                 '<td><span class="qty danger">0</span></td>' +
                 '<td>' + p.min_quantity + '</td></tr>';
         }
@@ -261,7 +268,7 @@ async function updateTableCategories() {
         } else {
             for (const c of cats) {
                 html += '<tr>'
-                    + '<td class="product-name">' + c.category + '</td>'
+                    + '<td class="product-name">' + escapeHtml(c.category) + '</td>'
                     + '<td class="qty">' + c.total_qty + '</td>'
                     + '<td class="price">' + Number(c.total_purchase_value).toFixed(2) + ' DH</td>'
                     + '<td class="total">' + Number(c.total_sale_value).toFixed(2) + ' DH</td>'

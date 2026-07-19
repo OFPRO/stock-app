@@ -1,7 +1,8 @@
 import os, time, shutil
 from datetime import datetime
 from flask import Blueprint, request, jsonify, session
-from routes.db import get_catalog_db, get_db, categories_data, init_store_db, resolve_db_path
+from routes.db import get_catalog_db, get_db, categories_data, init_store_db, resolve_db_path, _safe_err
+from extensions import limiter
 from services.printing_service import check_printer_status, list_printers, discover_printers
 from services.escpos_receipt import EscposPrinter, build_escpos_commands
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -46,7 +47,7 @@ def create_store():
     except Exception as e:
         catalog.rollback()
         catalog.close()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e)}), 400
     catalog.close()
 
     try:
@@ -56,7 +57,7 @@ def create_store():
         catalog.execute('DELETE FROM stores WHERE id = ?', (max_id,))
         catalog.commit()
         catalog.close()
-        return jsonify({'error': f'Erreur création base: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur lors de la création de la base'}), 500
 
     return jsonify({'id': max_id, 'name': name, 'message': 'Magasin créé avec succès'}), 201
 
@@ -122,7 +123,7 @@ def add_category():
         return jsonify({'id': cat_id, 'name_ar': name_ar, 'name_fr': name_fr}), 201
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': _safe_err(e)}), 400
     finally:
         conn.close()
 
@@ -320,7 +321,7 @@ def test_printer():
         else:
             return jsonify({'error': result.get('print_error', 'Échec impression'), 'details': result}), 500
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Erreur serveur'}), 500
 
 
 @stores_bp.route('/api/settings/reset-password', methods=['GET'])
@@ -335,16 +336,17 @@ def get_reset_password_status():
     except Exception as e:
         import traceback
         print(f"[PASSWORD] get_reset_password_status: {e}\n{traceback.format_exc()}", flush=True)
-        return jsonify({'has_password': False, 'is_default': False, 'error': str(e)}), 500
+        return jsonify({'has_password': False, 'is_default': False, 'error': 'Erreur serveur'}), 500
 
 
 @stores_bp.route('/api/settings/reset-password', methods=['PUT'])
+@limiter.limit("3 per minute")
 def set_reset_password():
     try:
         data = request.get_json(silent=True) or {}
         new_pw = data.get('new_password', '').strip()
-        if len(new_pw) < 4:
-            return jsonify({'error': 'Le mot de passe doit contenir au moins 4 caractères'}), 400
+        if len(new_pw) < 12:
+            return jsonify({'error': 'Le mot de passe doit contenir au moins 12 caractères'}), 400
 
         catalog = get_catalog_db()
         row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
@@ -362,10 +364,11 @@ def set_reset_password():
     except Exception as e:
         import traceback
         print(f"[PASSWORD] set_reset_password: {e}\n{traceback.format_exc()}", flush=True)
-        return jsonify({'error': f'Erreur serveur: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur serveur'}), 500
 
 
 @stores_bp.route('/api/settings/verify-reset-password', methods=['POST'])
+@limiter.limit("3 per minute")
 def verify_reset_password():
     try:
         data = request.get_json(silent=True) or {}
@@ -381,7 +384,7 @@ def verify_reset_password():
     except Exception as e:
         import traceback
         print(f"[PASSWORD] verify_reset_password: {e}\n{traceback.format_exc()}", flush=True)
-        return jsonify({'valid': False, 'error': f'Erreur serveur: {str(e)}'}), 500
+        return jsonify({'valid': False, 'error': 'Erreur serveur'}), 500
 
 
 @stores_bp.route('/api/stores/<int:store_id>/backup', methods=['POST'])
@@ -409,7 +412,7 @@ def backup_store(store_id):
         if os.path.exists(dest_db):
             os.remove(dest_db)
         conn = get_db(store_id)
-        conn.execute(f"VACUUM INTO '{dest_db}'")
+        conn.execute("VACUUM INTO ?", (dest_db,))
         conn.close()
     except Exception as e:
         try: conn.close()
@@ -417,7 +420,7 @@ def backup_store(store_id):
         catalog.execute('DELETE FROM stores WHERE id = ?', (new_id,))
         catalog.commit()
         catalog.close()
-        return jsonify({'error': f'Erreur lors de la sauvegarde: {str(e)}'}), 500
+        return jsonify({'error': 'Erreur lors de la sauvegarde'}), 500
 
     catalog.close()
     return jsonify({'success': True, 'id': new_id, 'name': name})

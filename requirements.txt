@@ -1,10 +1,11 @@
 Flask==3.1.3
-fpdf2
-python-escpos
-Pillow
-qrcode[pil]
-pyusb
-pywin32; sys_platform == 'win32'
-PyJWT
-cryptography
-python-bidi
+flask-limiter==4.1.1
+fpdf2==2.8.7
+python-escpos==3.1
+Pillow==12.2.0
+qrcode==8.2
+pyusb==1.3.1
+pywin32==308; sys_platform == 'win32'
+PyJWT==2.13.0
+cryptography==49.0.0
+python-bidi==0.6.10

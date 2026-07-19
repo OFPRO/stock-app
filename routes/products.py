@@ -7,7 +7,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, Response
 from fpdf import FPDF
 from services.pdf_utils import setup_pdf, FONT_NAME, _arabic_pdf, _contains_arabic
-from routes.db import get_db_ctx as get_db, get_price_by_tier, validate_id
+from routes.db import get_db_ctx as get_db, get_price_by_tier, validate_id, _safe_err
 
 products_bp = Blueprint('products', __name__)
 
@@ -172,7 +172,7 @@ def add_product():
             conn.commit()
             return jsonify({'success': True})
         except Exception as e:
-            return jsonify({'error': str(e)}), 400
+            return jsonify({'error': _safe_err(e)}), 400
 
 @products_bp.route('/api/products/<int:product_id>', methods=['PUT'])
 def update_product(product_id):

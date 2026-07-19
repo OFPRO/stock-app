@@ -459,17 +459,13 @@ class EscposPrinter:
             self.disconnect()
             return {'status': 'online'}
         except Exception as e:
-            return {'status': 'offline', 'error': str(e)}
+            return {'status': 'offline', 'error': 'Imprimante indisponible'}
 
     def print_text(self, text):
         if not self._printer:
             self.connect()
         self._printer.set(align='left', font='a', width=1, height=1)
         for line in text.split('\n'):
-            if line.startswith('\x1d'):
-                raw_data = eval(line)
-                self._printer._raw(raw_data)
-                continue
             self._printer.text(line + '\n')
 
     def print_receipt_escpos(self, text):
