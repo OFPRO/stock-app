@@ -984,6 +984,13 @@
                                     <select id="posCustomer" class="form-select" data-change="on-customer-change">
                                         <option value="">Client au comptoir (sans facture)</option>
                                     </select>
+                                    <div id="posDocTypeSection" style="display:none;margin-top:8px;">
+                                        <label style="font-size:0.8rem;color:var(--text-light);">Type de document :</label>
+                                        <div style="display:flex;gap:4px;margin-top:4px;">
+                                            <button type="button" class="btn btn-sm btn-primary" id="btnBL" onclick="setPosDocType('bon_de_livraison')" style="flex:1;padding:0.4rem 0.6rem;font-size:0.75rem;">Bon de livraison</button>
+                                            <button type="button" class="btn btn-sm btn-outline" id="btnFacture" onclick="setPosDocType('facture')" style="flex:1;padding:0.4rem 0.6rem;font-size:0.75rem;">Facture</button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="pos-discount-section">
                                     <label>Remise:</label>

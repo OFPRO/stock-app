@@ -233,9 +233,14 @@
     "title": "Factures",
     "number": "N° Facture",
     "new": "Nouvelle facture",
+    "new_delivery_note": "Nouveau bon de livraison",
     "count": "facture(s)",
     "counter_customer": "Client comptoir",
     "unit_price": "P.U.",
+    "type": {
+      "invoice": "Facture",
+      "delivery_note": "Bon de livraison"
+    },
     "status": {
       "draft": "Brouillon",
       "sent": "Envoyée",
@@ -270,7 +275,13 @@
       "mark_sent": "Marquer envoyée",
       "cancel": "Annuler",
       "cancel_confirm": "Cette action est irréversible. Voulez-vous vraiment annuler cette commande ?",
-      "mark_paid": "Marquer payée"
+      "mark_paid": "Marquer payée",
+      "convert_to_invoice": "Convertir en facture"
+    },
+    "confirm": {
+      "delete": "Voulez-vous vraiment supprimer ce document ?",
+      "remove_item": "Voulez-vous vraiment supprimer cet article ?",
+      "convert_to_invoice": "Voulez-vous vraiment convertir ce bon de livraison en facture ? Une nouvelle facture sera créée."
     }
   },
   "orders": {
@@ -497,6 +508,7 @@
     "expected": "Attendu",
     "recent_transactions": "Transactions récentes",
     "ticket_number": "N° Ticket",
+    "ticket": "Ticket",
     "payment": "Paiement",
     "no_transactions": "Aucune transaction",
     "no_session": "Aucune session ouverte",
