@@ -1501,3 +1501,180 @@
         html[dir="rtl"] .sidebar-footer { border-top: 1px solid var(--border); padding: 0.75rem 1rem; margin-top: auto; }
         html[dir="rtl"] .nav-item .notifBadge { margin-right: auto; margin-left: 0; }
         html[dir="rtl"] input, html[dir="rtl"] textarea, html[dir="rtl"] select { text-align: right; }
+
+        /* ═══════════════════════════════════════════════════════════════
+           REPORTS ENGINE — Modern Dashboard Styles
+           ═══════════════════════════════════════════════════════════════ */
+
+        .report-content {
+            animation: fadeIn 0.3s ease;
+        }
+
+        .report-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .report-kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .report-kpi-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 4px 12px rgba(41, 128, 185, 0.1);
+        }
+
+        .report-kpi-card .label {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .report-kpi-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .report-kpi-card .value.primary { color: var(--color-primary); }
+        .report-kpi-card .value.success { color: #27ae60; }
+        .report-kpi-card .value.warning { color: #f39c12; }
+        .report-kpi-card .value.danger { color: #e74c3c; }
+
+        .report-kpi-card .trend {
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
+
+        .report-kpi-card .trend.up { color: #27ae60; }
+        .report-kpi-card .trend.down { color: #e74c3c; }
+
+        .report-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .report-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .report-section h3 i {
+            color: var(--color-primary);
+            font-size: 0.9rem;
+        }
+
+        .report-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .report-grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .report-chart-container {
+            min-height: 280px;
+        }
+
+        .report-table-wrap {
+            overflow-x: auto;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .report-table th {
+            background: var(--bg-secondary, #f8fafc);
+            color: var(--text-light);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .report-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .report-table tr:hover td {
+            background: var(--hover-bg, #f8fafc);
+        }
+
+        .report-table .success { color: #27ae60; font-weight: 600; }
+        .report-table .warning { color: #f39c12; font-weight: 600; }
+        .report-table .danger { color: #e74c3c; font-weight: 600; }
+
+        .reports-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: var(--text-light);
+        }
+
+        .reports-loading i {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--color-primary);
+        }
+
+        .reports-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+            color: var(--text-light);
+        }
+
+        .reports-empty i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .report-insight {
+            background: var(--hover-bg, #f0f9ff);
+            border-left: 4px solid var(--color-primary);
+            padding: 1rem;
+            border-radius: 0 8px 8px 0;
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }

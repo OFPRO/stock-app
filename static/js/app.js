@@ -181,9 +181,10 @@ function showTab(tab) {
     if (tab === 'dashboard') loadDashboard();
     if (tab === 'pos') { loadProducts(); loadPosRegisters(); loadPosCashMovements(); loadPosTransactions(); if (typeof startSSE === 'function' && typeof posSession !== 'undefined' && posSession) startSSE(); setTimeout(function () { document.getElementById('posSearchInput').focus(); }, 100); }
     if (tab === 'mainAccount') loadMainAccount();
-    if (tab === 'reports') { currentReport = 'overview'; applyReportPeriod(); }
+    if (tab === 'reports') { ReportsEngine.load('overview'); }
     if (tab === 'sessions') loadSessionsHistory();
     if (tab === 'settings') loadSettings();
+    if (tab === 'backup') loadBackups();
     if (tab === 'license') loadLicense();
 }
 

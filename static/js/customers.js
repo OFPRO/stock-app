@@ -118,5 +118,4 @@ async function convertDeliveryNote(noteId) {
     }
 }
 
-let currentReport = 'overview';
-let reportData = {};
+

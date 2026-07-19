@@ -766,17 +766,13 @@ async function loadPosCashMovements() {
     try {
         var container = document.getElementById('posCashMovementsList');
         container.innerHTML = '<p class="text-muted text-center"><i class="fas fa-spinner fa-spin"></i> Chargement...</p>';
-        var allResPromise = fetchWithTimeout('/api/pos/cash-movements?limit=50');
-        var sessionResPromise = posSession
-            ? fetchWithTimeout('/api/pos/cash-movements?session_id=' + posSession.id)
-            : Promise.resolve({ json: function() { return []; } });
-        var results = await Promise.all([allResPromise, sessionResPromise]);
-        var movements = await results[0].json();
-        var sessionMovements = await results[1].json();
+        var movements = [];
         var balance = 0;
-        if (posSession) {
+        if (posSession && posSession.id) {
+            var res = await fetchWithTimeout('/api/pos/cash-movements?session_id=' + posSession.id);
+            movements = await res.json();
             var opening = posSession.opening_cash || 0;
-            sessionMovements.forEach(function(m) {
+            movements.forEach(function(m) {
                 if (m.type === 'in') balance += m.amount;
                 else balance -= m.amount;
             });
@@ -810,7 +806,11 @@ async function loadPosTransactions() {
     try {
         var container = document.getElementById('posTransactionsList');
         container.innerHTML = '<p class="text-muted text-center"><i class="fas fa-spinner fa-spin"></i> Chargement...</p>';
-        var res = await fetchWithTimeout('/api/pos/transactions/recent?limit=50');
+        var url = '/api/pos/transactions/recent?limit=50';
+        if (typeof posSession !== 'undefined' && posSession && posSession.id) {
+            url += '&session_id=' + posSession.id;
+        }
+        var res = await fetchWithTimeout(url);
         var transactions = await res.json();
         if (!transactions || transactions.length === 0) {
             container.innerHTML = '<p class="text-muted text-center">Aucune transaction</p>';

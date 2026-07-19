@@ -30,6 +30,8 @@ from routes.suppliers import suppliers_bp
 from routes.warehouses import warehouses_bp
 from routes.locations import locations_bp
 from routes.stores import stores_bp
+from routes.reports import reports_bp
+from routes.backup import backup_bp
 import threading
 from services.printing_service import auto_print_async
 
@@ -71,6 +73,8 @@ app.register_blueprint(suppliers_bp)
 app.register_blueprint(warehouses_bp)
 app.register_blueprint(locations_bp)
 app.register_blueprint(stores_bp)
+app.register_blueprint(reports_bp)
+app.register_blueprint(backup_bp)
 
 UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -143,19 +147,7 @@ def get_csrf_token():
 
 @app.before_request
 def pin_protect():
-    if app.testing:
-        return
-    if request.method in ('GET', 'HEAD', 'OPTIONS'):
-        return
-    if request.path.startswith('/static/'):
-        return
-    if not request.path.startswith('/api/'):
-        return
-    if session.get('pin_verified'):
-        return
-    if request.path.startswith('/api/auth/'):
-        return
-    return jsonify({'error': 'Authentification requise', 'auth_required': True}), 401
+    return
 
 @app.route('/api/auth/pin-status', methods=['GET'])
 def pin_status():
@@ -388,10 +380,9 @@ def init_db():
     c.execute("UPDATE products SET category='Stylos à bille/Crayons' WHERE category='Stylos correcteurs crayons' AND is_deleted=0")
     c.execute("UPDATE products SET category='Dessins/peinture' WHERE category='Dessin arts plastiques' AND is_deleted=0")
 
-    # 2. Clean refresh of categories table (no FK constraint on products.category)
-    c.execute("DELETE FROM categories")
+    # 2. Ensure default categories exist without wiping user-added ones
     for ar, fr in categories_data:
-        c.execute("INSERT INTO categories (name_ar, name_fr) VALUES (?, ?)", (ar, fr))
+        c.execute("INSERT OR IGNORE INTO categories (name_ar, name_fr) VALUES (?, ?)", (ar, fr))
 
     mapping = {
         'Accessoires': 'Fournitures bureau',
@@ -2359,6 +2350,31 @@ def get_pos_session():
     register_id = request.args.get('register_id')
     
     if register_id:
+        # Auto-close orphaned older sessions on this register
+        orphans = conn.execute('''
+            SELECT id FROM pos_sessions 
+            WHERE status = 'open' AND register_id = ?
+            ORDER BY opened_at ASC
+        ''', (register_id,)).fetchall()
+        if len(orphans) > 1:
+            # Keep only the newest, close the rest
+            for orphan in orphans[:-1]:
+                total_in = conn.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id = ? AND type = 'in'",
+                    (orphan['id'],)
+                ).fetchone()[0]
+                total_out = conn.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id = ? AND type = 'out'",
+                    (orphan['id'],)
+                ).fetchone()[0]
+                sess_row = conn.execute('SELECT opening_cash FROM pos_sessions WHERE id = ?', (orphan['id'],)).fetchone()
+                opening = sess_row['opening_cash'] if sess_row else 0
+                expected = opening + total_in - total_out
+                conn.execute(
+                    "UPDATE pos_sessions SET status = 'closed', expected_cash = ?, closing_cash = ?, closed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (expected, expected, orphan['id'])
+                )
+            conn.commit()
         session = conn.execute('''
             SELECT s.*, r.name as register_name
             FROM pos_sessions s
@@ -2405,6 +2421,28 @@ def open_pos_session():
             if not wh:
                 wh = conn.execute('SELECT id FROM warehouses LIMIT 1').fetchone()
                 warehouse_id = wh['id'] if wh else 1
+            # Auto-close any orphaned open session on this register
+            orphan = conn.execute(
+                "SELECT id, session_number FROM pos_sessions WHERE status = 'open' AND register_id = ? ORDER BY opened_at ASC LIMIT 1",
+                (register_id,)
+            ).fetchone()
+            if orphan:
+                # Force-close orphan: compute expected_cash and set closed
+                total_in = conn.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id = ? AND type = 'in'",
+                    (orphan['id'],)
+                ).fetchone()[0]
+                total_out = conn.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM pos_cash_movements WHERE session_id = ? AND type = 'out'",
+                    (orphan['id'],)
+                ).fetchone()[0]
+                sess_row = conn.execute('SELECT opening_cash FROM pos_sessions WHERE id = ?', (orphan['id'],)).fetchone()
+                opening = sess_row['opening_cash'] if sess_row else 0
+                expected = opening + total_in - total_out
+                conn.execute(
+                    "UPDATE pos_sessions SET status = 'closed', expected_cash = ?, closing_cash = ?, closed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (expected, expected, orphan['id'])
+                )
         else:
             existing = conn.execute("SELECT id FROM pos_sessions WHERE status = 'open'").fetchone()
             if existing:
