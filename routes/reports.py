@@ -34,7 +34,7 @@ def _ca_subquery(pos_filter, inv_filter, params, sum_expr='SUM(total)'):
     pos_sql = f"SELECT COALESCE({sum_expr}, 0) as ca FROM pos_transactions t WHERE t.status = 'completed' {pos_filter}"
     inv_sql = f"""SELECT COALESCE({sum_expr}, 0) as ca FROM invoices i
         WHERE i.status = 'payee' AND (i.type IS NULL OR i.type != 'fournisseur')
-        AND i.is_credit_payment = 0
+        AND i.is_credit_payment = 0 AND i.is_conversion = 0
         AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = i.id)
         {inv_filter}"""
     combined = f"SELECT COALESCE((SELECT ca FROM ({pos_sql})), 0) + COALESCE((SELECT ca FROM ({inv_sql})), 0)"
@@ -59,7 +59,7 @@ def reports_overview():
             f"SELECT COUNT(*) FROM pos_transactions t WHERE t.status = 'completed' {pos_filter}", tp
         ).fetchone()[0] + conn.execute(
             f"""SELECT COUNT(*) FROM invoices i WHERE i.status = 'payee'
-                AND (i.type IS NULL OR i.type != 'fournisseur') AND i.is_credit_payment = 0
+                AND (i.type IS NULL OR i.type != 'fournisseur') AND i.is_credit_payment = 0 AND i.is_conversion = 0
                 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = i.id)
                 {inv_filter}""", tp
         ).fetchone()[0]
@@ -77,7 +77,7 @@ def reports_overview():
             FROM invoice_items ii
             JOIN invoices i ON ii.invoice_id = i.id
             JOIN products p ON ii.product_id = p.id
-            WHERE i.status != 'annulee' AND (i.type IS NULL OR i.type != 'fournisseur')
+            WHERE i.status != 'annulee' AND (i.type IS NULL OR i.type != 'fournisseur') AND i.is_conversion = 0
             {inv_filter}
         """, tp).fetchone()
 
@@ -165,6 +165,7 @@ def reports_sales_by_product():
                 AND ii.invoice_id IN (
                     SELECT i.id FROM invoices i WHERE i.status = 'payee'
                     AND (i.type IS NULL OR i.type != 'fournisseur')
+                    AND i.is_conversion = 0
                     AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = i.id)
                     {inv_filter}
                 )
@@ -218,7 +219,7 @@ def reports_sales_by_customer():
             FROM customers c
             JOIN invoices i ON c.id = i.customer_id
             WHERE i.status = 'payee' AND (i.type IS NULL OR i.type != 'fournisseur')
-            AND i.is_credit_payment = 0
+            AND i.is_credit_payment = 0 AND i.is_conversion = 0
             AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = i.id)
             {inv_filter}
             GROUP BY c.id
@@ -262,7 +263,7 @@ def reports_sales_by_day():
         inv_rows = conn.execute("""
             SELECT date(paid_at) as dt, COALESCE(SUM(total), 0) as ca, COUNT(*) as nb
             FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur')
-            AND is_credit_payment = 0
+            AND is_credit_payment = 0 AND is_conversion = 0
             AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id)
             AND date(paid_at) BETWEEN ? AND ?
             GROUP BY date(paid_at)
@@ -313,7 +314,7 @@ def reports_margins():
             FROM invoice_items ii
             JOIN invoices i ON ii.invoice_id = i.id
             JOIN products p ON ii.product_id = p.id
-            WHERE i.status != 'annulee' AND (i.type IS NULL OR i.type != 'fournisseur')
+            WHERE i.status != 'annulee' AND (i.type IS NULL OR i.type != 'fournisseur') AND i.is_conversion = 0
             {inv_filter} {cat_filter}
             GROUP BY p.category
         """, tp).fetchall()
@@ -440,7 +441,7 @@ def reports_exceptions():
             FROM invoice_items ii
             JOIN invoices i ON ii.invoice_id = i.id
             JOIN products p ON ii.product_id = p.id
-            WHERE i.status != 'annulee' AND (i.type IS NULL OR i.type != 'fournisseur')
+            WHERE i.status != 'annulee' AND (i.type IS NULL OR i.type != 'fournisseur') AND i.is_conversion = 0
             GROUP BY p.id
             HAVING vente < achat
             ORDER BY (vente - achat) ASC
@@ -471,13 +472,13 @@ def reports_compare():
             SELECT COALESCE(SUM(total), 0) FROM pos_transactions WHERE status = 'completed' {pos_f}
         """).fetchone()[0] + conn.execute(f"""
             SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'payee'
-            AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0
+            AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0
             AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id)
             {inv_f}
         """).fetchone()[0]
         nb = conn.execute(f"SELECT COUNT(*) FROM pos_transactions WHERE status = 'completed' {pos_f}").fetchone()[0] + \
              conn.execute(f"""SELECT COUNT(*) FROM invoices WHERE status = 'payee'
-                AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0
+                AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0
                 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id)
                 {inv_f}""").fetchone()[0]
         return {'ca': round(ca, 2), 'nb_ventes': nb, 'ticket_moyen': round(ca / nb, 2) if nb > 0 else 0}

@@ -59,7 +59,7 @@ def validate_id(value):
     return None
 
 def get_price_by_tier(product, tier):
-    base_price = product.get('price_base', 0) or product.get('price', 0)
+    base_price = product.get('price', 0) or product.get('price_base', 0)
     if tier in ('fidele', 'price_loyal'):
         return product.get('price_loyal', 0) or base_price
     elif tier in ('gros', 'price_gros'):
@@ -80,7 +80,7 @@ def get_price_for_customer(db, product_id, customer_id):
         if customer:
             tier = customer['pricing_tier'] or customer.get('type', 'normal')
             return get_price_by_tier(product, tier)
-    return product.get('price_base', 0) or product.get('price', 0)
+    return product.get('price', 0) or product.get('price_base', 0)
 
 def resolve_db_path(store_id=None):
     if store_id is None:
@@ -476,6 +476,8 @@ def init_store_db(store_id, name):
         'ALTER TABLE invoices ADD COLUMN change_given REAL DEFAULT 0',
         'ALTER TABLE invoices ADD COLUMN amount_paid REAL DEFAULT 0',
         'ALTER TABLE invoices ADD COLUMN is_credit_payment INTEGER DEFAULT 0',
+        'ALTER TABLE invoices ADD COLUMN is_conversion INTEGER DEFAULT 0',
+        'ALTER TABLE invoices ADD COLUMN source_document_number TEXT',
         'ALTER TABLE pos_transactions ADD COLUMN discount_total REAL DEFAULT 0',
         'ALTER TABLE pos_transactions ADD COLUMN change_given REAL DEFAULT 0',
         'ALTER TABLE pos_transactions ADD COLUMN transaction_number TEXT',

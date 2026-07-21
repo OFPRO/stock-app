@@ -1004,11 +1004,15 @@
                                 <div class="pos-discount-section">
                                     <label>Remise:</label>
                                     <select id="posDiscountType" class="form-select" data-change="apply-pos-discount">
-                                        <option value="price_base">Normal</option>
+                                        <option value="price">Normal</option>
                                         <option value="price_loyal">Fidèle</option>
                                         <option value="price_gros">Gros</option>
-                                    </select>
-                                </div>
+                                </select>
+                            </div>
+                            <div class="filter-group" style="display:flex;align-items:flex-end;gap:6px;padding-bottom:2px;">
+                                <input type="checkbox" id="invoiceShowConversions" onchange="loadInvoices()">
+                                <label for="invoiceShowConversions" style="font-size:12px;color:var(--text-light);cursor:pointer;">Inclure conversions BL</label>
+                            </div>
                             
                             <div class="pos-payment-section">
                                 <h4><i class="fas fa-credit-card"></i> Paiement</h4>

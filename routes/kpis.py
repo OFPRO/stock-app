@@ -240,7 +240,7 @@ def get_kpis_sales():
             "SELECT COALESCE(SUM(total), 0) as total FROM pos_transactions WHERE status = 'completed' " + pos_date_filter,
             tuple(date_params)
         ).fetchone()[0] + conn.execute(
-            "SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) " + inv_date_filter,
+            "SELECT COALESCE(SUM(total), 0) as total FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) " + inv_date_filter,
             tuple(date_params)
         ).fetchone()[0]
 
@@ -248,7 +248,7 @@ def get_kpis_sales():
             "SELECT COUNT(*) as count FROM pos_transactions WHERE status = 'completed' " + pos_date_filter,
             tuple(date_params)
         ).fetchone()[0] + conn.execute(
-            "SELECT COUNT(*) as count FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) " + inv_date_filter,
+            "SELECT COUNT(*) as count FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) " + inv_date_filter,
             tuple(date_params)
         ).fetchone()[0]
 
@@ -262,7 +262,7 @@ def get_kpis_sales():
             ca_prev_inv = conn.execute("""
                 SELECT COALESCE(SUM(total), 0) as total 
                 FROM invoices 
-                WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) AND paid_at >= date('now', '-60 days') AND paid_at < date('now', '-30 days')
+                WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) AND paid_at >= date('now', '-60 days') AND paid_at < date('now', '-30 days')
             """).fetchone()[0]
             ca_prev = ca_prev_pos + ca_prev_inv
             ca_trend = ((ca_periode - ca_prev) / ca_prev * 100) if ca_prev > 0 else 0
@@ -274,7 +274,7 @@ def get_kpis_sales():
         """).fetchone()[0] + conn.execute("""
             SELECT COALESCE(SUM(total), 0) as total 
             FROM invoices 
-            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) AND date(paid_at) = date('now')
+            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) AND date(paid_at) = date('now')
         """).fetchone()[0]
 
         nb_ventes_jour = conn.execute("""
@@ -284,7 +284,7 @@ def get_kpis_sales():
         """).fetchone()[0] + conn.execute("""
             SELECT COUNT(*) as count 
             FROM invoices 
-            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) AND date(paid_at) = date('now')
+            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) AND date(paid_at) = date('now')
         """).fetchone()[0]
 
         ticket_moyen = ca_periode / nb_ventes_periode if nb_ventes_periode > 0 else 0
@@ -401,7 +401,7 @@ def get_kpis_margins():
             FROM invoice_items ii
             JOIN invoices i ON ii.invoice_id = i.id
             JOIN products p ON ii.product_id = p.id
-            WHERE i.status != 'annulee' AND (i.type IS NULL OR i.type != 'fournisseur')
+            WHERE i.status != 'annulee' AND (i.type IS NULL OR i.type != 'fournisseur') AND i.is_conversion = 0
             """ + inv_date_filter + """
             GROUP BY ii.product_id, p.category
         """, tuple(date_params)).fetchall()
@@ -490,14 +490,14 @@ def get_kpis_receivables():
             SELECT COALESCE(SUM(total - amount_paid), 0) as total
             FROM invoices
             WHERE status IN ('envoyee', 'partiellement_payee')
-            AND (type IS NULL OR type != 'fournisseur') """ + date_filter,
+            AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 """ + date_filter,
             tuple(date_params)).fetchone()[0]
 
         nb_impayees = conn.execute("""
             SELECT COUNT(*) as count
             FROM invoices
             WHERE status IN ('envoyee', 'partiellement_payee')
-            AND (type IS NULL OR type != 'fournisseur') """ + date_filter,
+            AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 """ + date_filter,
             tuple(date_params)).fetchone()[0]
 
         creances_par_client = conn.execute("""
@@ -506,7 +506,7 @@ def get_kpis_receivables():
                    COUNT(i.id) as nb_factures,
                    MIN(i.due_date) as premiere_echeance
             FROM customers c
-            JOIN invoices i ON c.id = i.customer_id AND i.status IN ('envoyee', 'partiellement_payee') """ + date_filter_i + """
+            JOIN invoices i ON c.id = i.customer_id AND i.status IN ('envoyee', 'partiellement_payee') AND i.is_conversion = 0 """ + date_filter_i + """
             GROUP BY c.id
             ORDER BY montant DESC
             LIMIT 10
@@ -515,10 +515,10 @@ def get_kpis_receivables():
         clients = [dict(c) for c in creances_par_client]
 
         total_factures = conn.execute("""
-            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != 'annulee' AND (type IS NULL OR type != 'fournisseur') """ + date_filter,
+            SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != 'annulee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 """ + date_filter,
             tuple(date_params)).fetchone()[0]
         encaisse = conn.execute("""
-            SELECT COALESCE(SUM(amount_paid), 0) FROM invoices WHERE status IN ('payee', 'partiellement_payee', 'ticket') AND (type IS NULL OR type != 'fournisseur') """ + date_filter,
+            SELECT COALESCE(SUM(amount_paid), 0) FROM invoices WHERE status IN ('payee', 'partiellement_payee', 'ticket') AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 """ + date_filter,
             tuple(date_params)).fetchone()[0]
         taux_encaissement = (encaisse / total_factures * 100) if total_factures > 0 else 0
 
@@ -551,11 +551,11 @@ def get_kpis_invoices_status():
         date_params = ['-' + str(period) + ' days']
 
     with get_db() as conn:
-        brouillon = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'brouillon' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
-        envoyee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'envoyee' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
-        partiellement_payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'partiellement_payee' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
-        payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE (status = 'payee' OR status = 'ticket') AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
-        annulee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'annulee' AND (type IS NULL OR type != 'fournisseur') " + date_filter, tuple(date_params)).fetchone()[0]
+        brouillon = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'brouillon' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 " + date_filter, tuple(date_params)).fetchone()[0]
+        envoyee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'envoyee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 " + date_filter, tuple(date_params)).fetchone()[0]
+        partiellement_payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'partiellement_payee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 " + date_filter, tuple(date_params)).fetchone()[0]
+        payee = conn.execute("SELECT COUNT(*) FROM invoices WHERE (status = 'payee' OR status = 'ticket') AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 " + date_filter, tuple(date_params)).fetchone()[0]
+        annulee = conn.execute("SELECT COUNT(*) FROM invoices WHERE status = 'annulee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 " + date_filter, tuple(date_params)).fetchone()[0]
         return jsonify({
             'brouillon': brouillon,
             'envoyee': envoyee,
@@ -583,7 +583,7 @@ def get_kpis_sales_daily():
         inv_rows = conn.execute("""
             SELECT date(paid_at) as dt, COALESCE(SUM(total), 0) as ca, COUNT(*) as nb
             FROM invoices
-            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) AND date(paid_at) BETWEEN ? AND ?
+            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND NOT EXISTS (SELECT 1 FROM pos_transactions pt WHERE pt.invoice_id = invoices.id) AND date(paid_at) BETWEEN ? AND ?
             GROUP BY date(paid_at)
         """, (start_date, end_date)).fetchall()
 
@@ -634,19 +634,19 @@ def get_kpis_categories_distribution():
     date_end = request.args.get('date_end')
 
     if date_start and date_end:
-        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) BETWEEN ? AND ?"
+        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND date(paid_at) BETWEEN ? AND ?"
         pos_id_subq = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) BETWEEN ? AND ?"
         params = (date_start, date_end)
     elif date_start:
-        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) >= ?"
+        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND date(paid_at) >= ?"
         pos_id_subq = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) >= ?"
         params = (date_start,)
     elif date_end:
-        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) <= ?"
+        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND date(paid_at) <= ?"
         pos_id_subq = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) <= ?"
         params = (date_end,)
     else:
-        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND paid_at >= date('now', '-' || ? || ' days')"
+        inv_id_subq = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND paid_at >= date('now', '-' || ? || ' days')"
         pos_id_subq = "SELECT id FROM pos_transactions WHERE status = 'completed' AND created_at >= date('now', '-' || ? || ' days')"
         params = (str(period),)
 
@@ -693,19 +693,19 @@ def get_kpis_top_selling():
 
     if date_start and date_end:
         pos_id_subquery = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) BETWEEN ? AND ?"
-        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) BETWEEN ? AND ?"
+        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND date(paid_at) BETWEEN ? AND ?"
         params = (date_start, date_end)
     elif date_start:
         pos_id_subquery = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) >= ?"
-        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) >= ?"
+        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND date(paid_at) >= ?"
         params = (date_start,)
     elif date_end:
         pos_id_subquery = "SELECT id FROM pos_transactions WHERE status = 'completed' AND date(created_at) <= ?"
-        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND date(paid_at) <= ?"
+        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND date(paid_at) <= ?"
         params = (date_end,)
     else:
         pos_id_subquery = "SELECT id FROM pos_transactions WHERE status = 'completed' AND created_at >= date('now', '-' || ? || ' days')"
-        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND paid_at >= date('now', '-' || ? || ' days')"
+        inv_id_subquery = "SELECT id FROM invoices WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND paid_at >= date('now', '-' || ? || ' days')"
         params = (str(period),)
 
     with get_db() as conn:
@@ -999,10 +999,10 @@ def get_orders_summary():
 @kpis_bp.route('/api/kpis/invoices-summary', methods=['GET'])
 def get_invoices_summary():
     with get_db() as conn:
-        unpaid = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='envoyee' AND (type IS NULL OR type != 'fournisseur')").fetchone()[0]
-        sent = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='partiellement_payee' AND (type IS NULL OR type != 'fournisseur')").fetchone()[0]
-        paid = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='payee' AND (type IS NULL OR type != 'fournisseur')").fetchone()[0]
-        unpaid_amount = conn.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status='envoyee' AND (type IS NULL OR type != 'fournisseur')").fetchone()[0]
+        unpaid = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='envoyee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0").fetchone()[0]
+        sent = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='partiellement_payee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0").fetchone()[0]
+        paid = conn.execute("SELECT COUNT(*) FROM invoices WHERE status='payee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0").fetchone()[0]
+        unpaid_amount = conn.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status='envoyee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0").fetchone()[0]
         return jsonify({'unpaid': unpaid, 'sent': sent, 'paid': paid, 'unpaid_amount': unpaid_amount})
 
 @kpis_bp.route('/api/kpis/customers-summary', methods=['GET'])
@@ -1091,7 +1091,7 @@ def get_kpis_payment_methods():
             SELECT COALESCE(payment_method, 'card') as payment_method,
                    COALESCE(SUM(total), 0) as total, COUNT(*) as nb
             FROM invoices
-            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 """ + inv_filter + """
+            WHERE status = 'payee' AND (type IS NULL OR type != 'fournisseur') AND is_credit_payment = 0 AND is_conversion = 0 AND id NOT IN (SELECT invoice_id FROM pos_transactions WHERE invoice_id IS NOT NULL) """ + inv_filter + """
             GROUP BY payment_method
         """, tuple(params)).fetchall()
 

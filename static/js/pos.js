@@ -416,7 +416,7 @@ async function addPosProductFromSearch() {
 }
 
 function posTierPrice(product, tier, customer) {
-    var base = product.price_base > 0 ? product.price_base : (product.price || 0);
+    var base = product.price > 0 ? product.price : (product.price_base || 0);
     if (tier === 'price_loyal') return product.price_loyal > 0 ? product.price_loyal : base;
     if (tier === 'price_gros') return product.price_gros > 0 ? product.price_gros : base;
     return base;
@@ -425,9 +425,9 @@ function posTierPrice(product, tier, customer) {
 function addPosProduct(productId) {
     var product = products.find(function(p) { return p.id === productId; });
     if (!product) return;
-    var basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
+    var basePrice = product.price > 0 ? product.price : (product.price_base || 0);
     var discountSelect = document.getElementById('posDiscountType');
-    var selectedValue = discountSelect ? discountSelect.value : 'price_base';
+    var selectedValue = discountSelect ? discountSelect.value : 'price';
     var unitPrice = posTierPrice(product, selectedValue, null);
     var discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
     var existing = posCart.find(function(item) { return item.product_id === productId; });
@@ -712,13 +712,12 @@ function onCustomerChange() {
     if (customer) {
         if (customer.type === 'fidele') discountSelect.value = 'price_loyal';
         else if (customer.type === 'gros') discountSelect.value = 'price_gros';
-        else discountSelect.value = 'price_base';
         if (creditSection) creditSection.style.display = '';
         if (docTypeSection) docTypeSection.style.display = 'block';
         posDocType = 'bon_de_livraison';
         setPosDocType('bon_de_livraison');
     } else {
-        discountSelect.value = 'price_base';
+        discountSelect.value = 'price';
         if (creditSection) creditSection.style.display = 'none';
         if (creditCheckbox) creditCheckbox.checked = false;
         if (docTypeSection) docTypeSection.style.display = 'none';
@@ -736,11 +735,11 @@ function setPosDocType(type) {
 
 function applyPosDiscount() {
     var discountSelect = document.getElementById('posDiscountType');
-    var selectedValue = discountSelect ? discountSelect.value : 'price_base';
+    var selectedValue = discountSelect ? discountSelect.value : 'price';
     posCart.forEach(function(item) {
         var product = products.find(function(p) { return p.id === item.product_id; });
         if (!product) return;
-        var basePrice = product.price_base > 0 ? product.price_base : (product.price || 0);
+        var basePrice = product.price > 0 ? product.price : (product.price_base || 0);
         var unitPrice = posTierPrice(product, selectedValue, null);
         var discountPct = basePrice > 0 && unitPrice < basePrice ? Math.round((1 - unitPrice / basePrice) * 10000) / 100 : 0;
         item.base_price = basePrice;

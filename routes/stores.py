@@ -331,7 +331,7 @@ def get_reset_password_status():
         row = catalog.execute("SELECT value FROM settings WHERE key='reset_password'").fetchone()
         catalog.close()
         has_password = row is not None
-        is_default = check_password_hash(row['value'], 'admin') if has_password else False
+        is_default = check_password_hash(row['value'], '12345') if has_password else False
         return jsonify({'has_password': has_password, 'is_default': is_default})
     except Exception as e:
         import traceback
@@ -379,7 +379,7 @@ def verify_reset_password():
         if not row:
             return jsonify({'valid': False, 'error': 'Aucun mot de passe défini'})
         valid = check_password_hash(row['value'], password)
-        is_default = check_password_hash(row['value'], 'admin')
+        is_default = check_password_hash(row['value'], '12345')
         return jsonify({'valid': valid, 'is_default': is_default})
     except Exception as e:
         import traceback

@@ -10,11 +10,13 @@ async function loadInvoices() {
         const dateStart = document.getElementById('invoiceDateStart')?.value || '';
         const dateEnd = document.getElementById('invoiceDateEnd')?.value || '';
         const status = document.getElementById('invoiceStatusFilter')?.value || 'all';
+        const showConversions = document.getElementById('invoiceShowConversions')?.checked || false;
 
         const params = new URLSearchParams();
         if (dateStart) params.set('date_start', dateStart);
         if (dateEnd) params.set('date_end', dateEnd);
         if (status !== 'all') params.set('status', status);
+        if (!showConversions) params.set('is_conversion', '0');
 
         const url = '/api/invoices' + (params.toString() ? '?' + params.toString() : '');
         const res = await fetch(url);
@@ -29,7 +31,7 @@ function renderInvoices() {
     const tbody = document.getElementById('invoicesTable');
     if (!tbody) return;
     if (invoices.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-light);">Aucune facture pour cette période</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-light);">Aucune facture pour cette periode</td></tr>';
         return;
     }
     let html = '';
@@ -38,8 +40,9 @@ function renderInvoices() {
         const isTicket = inv.invoice_number && inv.invoice_number.startsWith('Ticket-');
         const isBL = inv.type === 'bon_de_livraison';
         const isFournisseur = inv.type === 'fournisseur';
+        const isConversion = inv.is_conversion === 1;
         const badgeClass = isTicket ? 'badge badge-primary' : (isBL ? 'badge badge-purple' : (isFournisseur ? 'badge badge-warning' : 'badge badge-success'));
-        const label = isTicket ? 'Ticket' : (isBL ? 'BL' : (isFournisseur ? 'Fact-Fourn' : 'Facture'));
+        const label = isTicket ? 'Ticket' : (isBL ? 'BL' : (isFournisseur ? 'Fact-Fourn' : (isConversion ? 'Conv.' : 'Facture')));
         const btnLabel = isTicket ? 'Ticket' : 'Voir';
         const partyName = isFournisseur ? (inv.supplier_name || 'Fournisseur') : (inv.customer_name || 'Client Comptoir');
         const createdDate = inv.created_at ? inv.created_at.substring(0, 10) : '-';
@@ -50,8 +53,8 @@ function renderInvoices() {
             'envoyee': 'warning', 'annulee': 'danger', 'brouillon': 'secondary'
         };
         const statusLabels = {
-            'ticket': 'Ticket', 'payee': 'Payée', 'partiellement_payee': 'Partielle',
-            'envoyee': 'Envoyée', 'annulee': 'Annulée', 'brouillon': 'Brouillon'
+            'ticket': 'Ticket', 'payee': 'Payee', 'partiellement_payee': 'Partielle',
+            'envoyee': 'Envoyee', 'annulee': 'Annulee', 'brouillon': 'Brouillon'
         };
         const statColor = statusColors[inv.status] || 'secondary';
         const statLabel = statusLabels[inv.status] || 'Brouillon';
@@ -63,14 +66,18 @@ function renderInvoices() {
             : ((isTicket || inv.status === 'payee') ? total.toFixed(2) + ' DH' : '-');
 
         let actionBtn = '<button class="btn btn-sm" onclick="viewInvoice(' + inv.id + ', \'' + escapeHtml(inv.invoice_number) + '\')">' + btnLabel + '</button>';
-        if (isBL && inv.status === 'envoyee') {
+        if (isBL && inv.status === 'brouillon') {
+            actionBtn += ' <button class="btn btn-sm btn-info" onclick="sendBL(' + inv.id + ')"><i class="fas fa-paper-plane"></i> Envoyer</button>';
+        } else if (isBL && inv.status === 'envoyee') {
             actionBtn += ' <button class="btn btn-sm btn-primary" onclick="convertBLToInvoice(' + inv.id + ')"><i class="fas fa-exchange-alt"></i> Convertir</button>';
         } else if (!isBL && (inv.status === 'partiellement_payee' || inv.status === 'envoyee')) {
             actionBtn += ' <button class="btn btn-sm btn-primary" onclick="openPayCreditModal(' + inv.id + ')"><i class="fas fa-credit-card"></i> Payer</button>';
         }
 
+        const convBadge = isConversion ? ' <span class="badge badge-info" title="' + escapeHtml(inv.source_document_number) + '" style="font-size:8px;">Conv. BL</span>' : '';
+
         html += '<tr>' +
-            '<td><span class="' + badgeClass + '">' + label + '</span> ' + escapeHtml(inv.invoice_number) + '</td>' +
+            '<td><span class="' + badgeClass + '">' + label + '</span> ' + escapeHtml(inv.invoice_number) + convBadge + '</td>' +
             '<td>' + escapeHtml(partyName) + '</td>' +
             '<td>' + createdDate + '</td>' +
             '<td>' + paidDate + '</td>' +
@@ -85,8 +92,6 @@ function renderInvoices() {
 function viewInvoice(id, invoiceNumber) {
     if (invoiceNumber && invoiceNumber.startsWith('Ticket-')) {
         window.open('/api/pos/tickets/' + invoiceNumber, '_blank');
-    } else if (invoiceNumber && invoiceNumber.startsWith('FAC-')) {
-        window.open('/api/invoices/' + id + '/pdf', '_blank');
     } else {
         window.open('/api/invoices/' + id + '/pdf', '_blank');
     }
@@ -167,13 +172,30 @@ async function submitPayCredit() {
     }
 }
 
+async function sendBL(id) {
+    try {
+        var res = await fetch('/api/invoices/' + id, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status: 'envoyee'}) });
+        var data = await res.json();
+        if (data.success) {
+            showSuccess('BL envoyee');
+            loadInvoices();
+        } else {
+            showError(data.error || "Erreur d'envoi");
+        }
+    } catch(e) {
+        showError("Erreur d'envoi");
+    }
+}
+
 async function convertBLToInvoice(id) {
-    if (!confirm('Convertir ce bon de livraison en facture ? Le statut passera à "Payée".')) return;
+    if (!confirm('Convertir ce BL en facture ? La facture creee sera marquee comme "Payee" et comptabilisee dans la comptabilite.')) return;
     try {
         var res = await fetch('/api/invoices/' + id + '/convert-to-invoice', { method: 'POST' });
         var data = await res.json();
         if (data.success) {
-            showError('Bon de livraison converti avec succès');
+            var chk = document.getElementById('invoiceShowConversions');
+            if (chk && !chk.checked) { chk.checked = true; }
+            showSuccess('BL converti → ' + data.invoice_number);
             loadInvoices();
         } else {
             showError(data.error || 'Erreur de conversion');

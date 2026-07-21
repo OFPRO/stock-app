@@ -605,6 +605,14 @@ def init_db():
         c.execute('ALTER TABLE invoices ADD COLUMN is_credit_payment INTEGER DEFAULT 0')
     except Exception:
         pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN is_conversion INTEGER DEFAULT 0')
+    except Exception:
+        pass
+    try:
+        c.execute('ALTER TABLE invoices ADD COLUMN source_document_number TEXT')
+    except Exception:
+        pass
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS invoice_items (
@@ -835,7 +843,7 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM settings")
     if c.fetchone()[0] == 0:
         import secrets
-        default_pw = secrets.token_urlsafe(16)
+        default_pw = '12345'
         app_pin = f'{secrets.randbelow(1000000):06d}'
         c.execute(
             "INSERT INTO settings (key, value) VALUES (?, ?)",
@@ -1632,6 +1640,7 @@ def get_invoices():
     status = request.args.get('status', 'all')
     date_start = request.args.get('date_start')
     date_end = request.args.get('date_end')
+    is_conversion = request.args.get('is_conversion')
     conn = get_db()
     
     inv_query = '''
@@ -1659,6 +1668,9 @@ def get_invoices():
     if status != 'all':
         inv_query += ' AND i.status = ?'
         inv_params.append(status)
+    if is_conversion is not None:
+        inv_query += ' AND i.is_conversion = ?'
+        inv_params.append(int(is_conversion))
     inv_query += ' ORDER BY i.created_at DESC'
     
     invoices = conn.execute(inv_query, inv_params).fetchall()
@@ -1708,15 +1720,19 @@ def create_invoice():
             if customer:
                 unit_price = get_price_by_tier(p, customer['type'])
             else:
-                unit_price = item.get('unit_price', p['price_base'] if p['price_base'] > 0 else p['price'])
+                unit_price = item.get('unit_price', p['price'] if p['price'] > 0 else p['price_base'])
             
-            discount_percent = item.get('discount_percent', 0)
+            price_ref = p.get('price', 0) or p.get('price_base', 0)
+            if price_ref > 0 and unit_price < price_ref:
+                discount_percent = round((1 - unit_price / price_ref) * 100, 2)
+            else:
+                discount_percent = 0
             qty = item.get('quantity', 1)
             tax_rate = float(item.get('tax_rate', p.get('tax_category', '20') or '20'))
             
             line_subtotal = qty * unit_price
-            discount_amount = line_subtotal * (discount_percent / 100)
-            line_total = line_subtotal - discount_amount
+            discount_amount = 0
+            line_total = line_subtotal
             
             if doc_type == 'bon_de_livraison':
                 tax_line = 0
@@ -1791,6 +1807,8 @@ def update_invoice(invoice_id):
             conn.execute('''
                 UPDATE invoices SET status='payee', amount_paid=total, paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?
             ''', (invoice_id,))
+        elif status == 'envoyee':
+            conn.execute("UPDATE invoices SET status='envoyee', updated_at=CURRENT_TIMESTAMP WHERE id=?", (invoice_id,))
         elif status == 'annulee':
             old_items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
             for item in old_items:
@@ -1915,12 +1933,56 @@ def convert_to_invoice(invoice_id):
         if bl['status'] == 'payee':
             return jsonify({'error': 'Ce bon de livraison est déjà converti'}), 400
         
+        # 1. Mark BL as paid
         conn.execute('''
-            UPDATE invoices SET status='payee', paid_at=CURRENT_TIMESTAMP WHERE id=?
+            UPDATE invoices SET status='payee', amount_paid=total, paid_at=CURRENT_TIMESTAMP WHERE id=?
         ''', (invoice_id,))
         
+        # 2. Generate new FAC number
+        today = datetime.now().strftime('%Y%m%d')
+        seq = next_sequence(conn, 'fac_counter')
+        fac_number = f'FAC-{today}-{seq:04d}'
+        
+        # 3. Create invoice from BL (no stock impact, is_conversion=1)
+        conn.execute('''
+            INSERT INTO invoices (
+                invoice_number, customer_id, warehouse_id, notes, status, type,
+                subtotal, discount_total, tax_amount, total,
+                payment_method, is_conversion, source_document_number,
+                amount_paid, paid_at
+            ) VALUES (?, ?, ?, ?, 'payee', 'facture',
+                ?, ?, ?, ?,
+                ?, 1, ?, ?,
+                CURRENT_TIMESTAMP)
+        ''', (
+            fac_number, bl['customer_id'], bl['warehouse_id'], bl['notes'],
+            bl['subtotal'], bl['discount_total'], bl['tax_amount'], bl['total'],
+            bl['payment_method'], bl['invoice_number'], bl['total']
+        ))
+        new_invoice_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        # 4. Copy BL items to new invoice (no stock movement)
+        bl_items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+        for item in bl_items:
+            conn.execute('''
+                INSERT INTO invoice_items (
+                    invoice_id, product_id, product_name, product_sku,
+                    quantity, unit_price, discount_percent, tax_rate, line_total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                new_invoice_id, item['product_id'], item['product_name'], item['product_sku'],
+                item['quantity'], item['unit_price'], item['discount_percent'],
+                item['tax_rate'], item['line_total']
+            ))
+        
         conn.commit()
-        return jsonify({'success': True, 'invoice_id': invoice_id, 'invoice_number': bl['invoice_number']})
+        return jsonify({
+            'success': True,
+            'bl_id': invoice_id,
+            'bl_number': bl['invoice_number'],
+            'invoice_id': new_invoice_id,
+            'invoice_number': fac_number
+        })
     except Exception as e:
         conn.rollback()
         return jsonify({'error': _safe_err(e)}), 500
@@ -1956,7 +2018,7 @@ def add_invoice_item(invoice_id):
         if customer:
             unit_price = get_price_by_tier(p, customer['type'])
         else:
-            unit_price = data.get('unit_price', p['price_base'] if p['price_base'] > 0 else p['price'])
+            unit_price = data.get('unit_price', p['price'] if p['price'] > 0 else p['price_base'])
         
         qty = data.get('quantity', 1)
         tax_rate = float(data.get('tax_rate', p.get('tax_category', '20') or '20'))
@@ -2044,7 +2106,12 @@ def generate_invoice_pdf(invoice_id):
         return jsonify({'error': 'Facture non trouvee'}), 404
     
     invoice = dict(invoice)
-    items = conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', (invoice_id,)).fetchall()
+    items = conn.execute('''
+        SELECT ii.*, p.price as normal_price
+        FROM invoice_items ii
+        LEFT JOIN products p ON ii.product_id = p.id
+        WHERE ii.invoice_id=?
+    ''', (invoice_id,)).fetchall()
     items = [dict(item) for item in items]
     
     customer_type_labels = {
@@ -2221,6 +2288,7 @@ def generate_invoice_pdf(invoice_id):
             <div class="header-right">
                 <div class="invoice-title">{show_company_info and "FACTURE D'ACHAT" or ("BON DE LIVRAISON" if _n(invoice_data.get('type'), 'facture') == 'bon_de_livraison' else "FACTURE")}</div>
                 <div class="invoice-number">{invoice_data['invoice_number']}</div>
+                {invoice_data.get('source_document_number') and f'<div style="font-size:10px;color:{text_secondary};margin-top:2px;">Facture émise suite au {_n(invoice_data.get("source_document_number"), "")}</div>' or ''}
                 <div class="status-badge">{badge_text}</div>
                 <div class="meta-info">
                     <div>Date: {invoice_data.get('created_at', '')[:10] if invoice_data.get('created_at') else '-'}</div>
@@ -2256,17 +2324,27 @@ def generate_invoice_pdf(invoice_id):
                     </thead>
                     <tbody>"""
     
+    total_normal = 0.0
+    total_ht = 0.0
     for item in items_data:
+        qty = item.get('quantity', 0) or 0
+        normal_price = item.get('normal_price', item.get('unit_price', 0)) or 0
+        unit_price = item.get('unit_price', 0) or 0
+        total_normal += qty * normal_price
+        total_ht += qty * unit_price
+
+    for item in items_data:
+        discount_display = item.get('discount_percent', 0) or 0
         pdf_html += f"""
                         <tr>
                             <td dir="auto">{_reshape(_n(item.get('product_name'), 'Article'))}</td>
                             <td style="color:{text_secondary}" dir="auto">{_reshape(_n(item.get('product_sku'), '-'))}</td>
                             <td style="text-align:center">{item['quantity']}</td>
                             <td style="text-align:right;font-variant-numeric:tabular-nums">{item['unit_price']:.2f}</td>
-                            <td style="text-align:right;font-variant-numeric:tabular-nums">{_n(item.get('discount_percent'), 0)}%</td>
+                            <td style="text-align:right;font-variant-numeric:tabular-nums">{discount_display}%</td>
                             <td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{item['line_total']:.2f}</td>
                         </tr>"""
-    
+
     pdf_html += f"""
                     </tbody>
                 </table>
@@ -2274,8 +2352,7 @@ def generate_invoice_pdf(invoice_id):
             
             <div class="totals-section">
                 <div class="totals-box">
-                    <div class="totals-row"><span>Sous-total HT</span><span>{_n(invoice_data.get('subtotal'), 0):.2f} DH</span></div>
-                    <div class="totals-row discount"><span>Remises</span><span>-{_n(invoice_data.get('discount_total'), 0):.2f} DH</span></div>
+                    <div class="totals-row"><span>Sous-total HT</span><span>{total_normal:.2f} DH</span></div>
                     {"" if _n(invoice_data.get('type'), 'facture') == 'bon_de_livraison' else f'<div class="totals-row"><span>TVA (20%)</span><span>{_n(invoice_data.get("tax_amount"), 0):.2f} DH</span></div>'}
                     <div class="totals-row grand"><span>{"TOTAL HT" if _n(invoice_data.get('type'), 'facture') == 'bon_de_livraison' else "TOTAL TTC"}</span><span>{_n(invoice_data.get('total'), 0):.2f} DH</span></div>
                 </div>
@@ -2614,6 +2691,11 @@ def create_pos_transaction():
             product = conn.execute('SELECT * FROM products WHERE id = ?', (item['product_id'],)).fetchone()
             if product:
                 item['unit_price'] = get_price_by_tier(dict(product), pricing_tier)
+                price_ref = dict(product).get('price', 0) or dict(product).get('price_base', 0)
+                if price_ref > 0 and item['unit_price'] < price_ref:
+                    item['discount_percent'] = round((1 - item['unit_price'] / price_ref) * 100, 2)
+                else:
+                    item['discount_percent'] = item.get('discount_percent', 0) or 0
             unit_price = item.get('unit_price', 0) or 0
             item['unit_price'] = unit_price
             line_ht = item['quantity'] * unit_price
@@ -2621,12 +2703,11 @@ def create_pos_transaction():
             subtotal += line_ht
             if apply_tax:
                 tax += line_tax
-            discount += line_ht * (item.get('discount_percent', 0) / 100)
     
-        total = subtotal + (tax if apply_tax else 0) - discount
+        total = subtotal + (tax if apply_tax else 0)
         if doc_type == 'bon_de_livraison':
             tax = 0
-            total = subtotal - discount
+            total = subtotal
         change_amount = max(0, tendered_amount - total) if payment_method == 'cash' else 0
     
         # Determine amount actually paid (credit logic)
@@ -2658,7 +2739,7 @@ def create_pos_transaction():
             qty = item.get('quantity', 1)
             unit_price = item.get('unit_price', 0) or 0
             discount_pct = item.get('discount_percent', 0) or 0
-            line_ht = qty * unit_price * (1 - discount_pct / 100)
+            line_ht = qty * unit_price
             tax_mult = 1.0 if doc_type == 'bon_de_livraison' else (1.20 if data.get('apply_tax', True) else 1.0)
             line_total = line_ht * tax_mult
         
@@ -2733,7 +2814,7 @@ def create_pos_transaction():
                 qty = item.get('quantity', 1)
                 uprice = item.get('unit_price', 0) or 0
                 dpct = item.get('discount_percent', 0) or 0
-                line_ht = qty * uprice * (1 - dpct / 100)
+                line_ht = qty * uprice
                 tax_mult = 1.0 if doc_type == 'bon_de_livraison' else (1.20 if apply_tax else 1.0)
                 line_total = line_ht * tax_mult
                 pid = item.get('product_id') or item.get('id')
@@ -2788,7 +2869,7 @@ def create_pos_transaction():
                 qty = item.get('quantity', 1)
                 uprice = item.get('unit_price', 0) or 0
                 dpct = item.get('discount_percent', 0) or 0
-                line_ht = qty * uprice * (1 - dpct / 100)
+                line_ht = qty * uprice
                 tax_mult = 1.0 if doc_type == 'bon_de_livraison' else (1.20 if apply_tax else 1.0)
                 line_total = line_ht * tax_mult
                 pid = item.get('product_id') or item.get('id')
