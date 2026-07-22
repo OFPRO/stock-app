@@ -2680,8 +2680,6 @@ def create_pos_transaction():
             cid = _safe_int(customer_id, None)
             if cid:
                 customer_row = conn.execute('SELECT * FROM customers WHERE id = ?', (cid,)).fetchone()
-                if customer_row and customer_row['type'] != 'normal':
-                    pricing_tier = customer_row['type']
         
         # Calculate totals
         subtotal = 0
