@@ -518,7 +518,7 @@ def get_kpis_receivables():
             SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status != 'annulee' AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 """ + date_filter,
             tuple(date_params)).fetchone()[0]
         encaisse = conn.execute("""
-            SELECT COALESCE(SUM(amount_paid), 0) FROM invoices WHERE status IN ('payee', 'partiellement_payee', 'ticket') AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 """ + date_filter,
+            SELECT COALESCE(SUM(amount_paid), 0) FROM invoices WHERE amount_paid > 0 AND (type IS NULL OR type != 'fournisseur') AND is_conversion = 0 """ + date_filter,
             tuple(date_params)).fetchone()[0]
         taux_encaissement = (encaisse / total_factures * 100) if total_factures > 0 else 0
 
