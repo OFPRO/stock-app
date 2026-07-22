@@ -70,6 +70,9 @@ function renderInvoices() {
             actionBtn += ' <button class="btn btn-sm btn-info" onclick="sendBL(' + inv.id + ')"><i class="fas fa-paper-plane"></i> Envoyer</button>';
         } else if (isBL && inv.status === 'envoyee') {
             actionBtn += ' <button class="btn btn-sm btn-primary" onclick="convertBLToInvoice(' + inv.id + ')"><i class="fas fa-exchange-alt"></i> Convertir</button>';
+            actionBtn += ' <button class="btn btn-sm btn-success" onclick="openPayCreditModal(' + inv.id + ')"><i class="fas fa-credit-card"></i> Payer</button>';
+        } else if (isBL && inv.status === 'partiellement_payee') {
+            actionBtn += ' <button class="btn btn-sm btn-success" onclick="openPayCreditModal(' + inv.id + ')"><i class="fas fa-credit-card"></i> Payer</button>';
         } else if (!isBL && (inv.status === 'partiellement_payee' || inv.status === 'envoyee')) {
             actionBtn += ' <button class="btn btn-sm btn-primary" onclick="openPayCreditModal(' + inv.id + ')"><i class="fas fa-credit-card"></i> Payer</button>';
         }

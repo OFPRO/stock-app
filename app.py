@@ -1857,10 +1857,9 @@ def pay_invoice_credit(invoice_id):
         is_now_fully_paid = new_paid >= total
 
         conn.execute('''
-            UPDATE invoices SET amount_paid=?, status=?, paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP, is_credit_payment=? WHERE id=?
+            UPDATE invoices SET amount_paid=?, status=?, paid_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?
         ''', (total if is_now_fully_paid else new_paid,
               'payee' if is_now_fully_paid else 'partiellement_payee',
-              1 if is_now_fully_paid else 0,
               invoice_id))
 
         # Record cash movement
@@ -2829,7 +2828,16 @@ def create_pos_transaction():
         else:
             inv_type = doc_type
             if doc_type == 'bon_de_livraison':
-                inv_status = 'envoyee'
+                if is_credit:
+                    tend = float(tendered_amount or 0)
+                    if tend <= 0:
+                        inv_status = 'envoyee'
+                    elif tend >= total:
+                        inv_status = 'payee'
+                    else:
+                        inv_status = 'partiellement_payee'
+                else:
+                    inv_status = 'envoyee'
             elif is_credit:
                 tend = float(tendered_amount or 0)
                 if tend <= 0:
@@ -2846,19 +2854,21 @@ def create_pos_transaction():
                     INSERT INTO invoices (
                         invoice_number, customer_id, warehouse_id, status, type,
                         subtotal, discount_total, tax_amount, total, 
-                        paid_at, payment_method, tendered_amount, change_given, amount_paid
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+                        paid_at, payment_method, tendered_amount, change_given, amount_paid,
+                        is_credit_payment
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
                 ''', (doc_number, customer_id, session['warehouse_id'], inv_status, inv_type, subtotal, discount, tax, total,
-                      payment_method, tendered_amount, change_amount, amount_paid))
+                      payment_method, tendered_amount, change_amount, amount_paid, 1 if is_credit else 0))
             else:
                 conn.execute('''
                     INSERT INTO invoices (
                         invoice_number, customer_id, warehouse_id, status, type,
                         subtotal, discount_total, tax_amount, total, 
-                        payment_method, tendered_amount, change_given, amount_paid
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        payment_method, tendered_amount, change_given, amount_paid,
+                        is_credit_payment
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (doc_number, customer_id, session['warehouse_id'], inv_status, inv_type, subtotal, discount, tax, total,
-                      payment_method, tendered_amount, change_amount, amount_paid))
+                      payment_method, tendered_amount, change_amount, amount_paid, 1 if is_credit else 0))
             inv_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         
             conn.execute('UPDATE pos_transactions SET invoice_id = ? WHERE id = ?', (inv_id, trans_id))
