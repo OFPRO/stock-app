@@ -511,7 +511,7 @@ function renderPosCart() {
             '<input type="number" class="pos-cart-item-price-input" style="width:80px;padding:4px;border:1px solid var(--border);border-radius:4px;" value="' + item.unit_price.toFixed(2) + '" step="0.01" onchange="updatePosCartItemPrice(' + item.product_id + ', this.value)">' +
             '<i class="fas fa-trash pos-cart-item-remove" onclick="removePosCartItem(' + item.product_id + ')"></i></div>';
     }).join('');
-    var subtotal = 0, tax = 0, discount = 0;
+    var subtotal = 0, tax = 0;
     var applyTax = document.getElementById('posTvaToggle').checked;
     posCart.forEach(function(item) {
         var unitPrice = item.unit_price || 0;
@@ -519,17 +519,26 @@ function renderPosCart() {
         var lineTva = applyTax ? lineHt * 0.20 : 0;
         subtotal += lineHt;
         tax += lineTva;
-        discount += lineHt * (item.discount_percent / 100);
     });
-    updatePosTotals(subtotal, tax, discount);
+    updatePosTotals(subtotal, tax);
     updatePosPayButton();
 }
 
 function updatePosTotals(subtotal, tax, discount) {
+    discount = discount || 0;
     var applyTax = document.getElementById('posTvaToggle').checked;
     document.getElementById('posSubtotal').textContent = subtotal.toFixed(2) + ' DH';
     document.getElementById('posTax').textContent = tax.toFixed(2) + ' DH';
-    document.getElementById('posDiscount').textContent = (discount > 0 ? '-' : '') + Math.abs(discount).toFixed(2) + ' DH';
+    var discountRow = document.getElementById('posDiscount');
+    if (discountRow) {
+        var discountContainer = discountRow.parentElement;
+        if (discount > 0) {
+            discountRow.textContent = '-' + Math.abs(discount).toFixed(2) + ' DH';
+            if (discountContainer) discountContainer.style.display = '';
+        } else {
+            if (discountContainer) discountContainer.style.display = 'none';
+        }
+    }
     var total = subtotal + tax - discount;
     document.getElementById('posTotal').textContent = total.toFixed(2) + ' DH';
     var totalLabel = document.querySelector('.pos-summary-total span:first-child');
